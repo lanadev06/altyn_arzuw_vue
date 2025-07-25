@@ -13,12 +13,20 @@
           <option value="print">Печать</option>
           <option value="workshop">Цех</option>
           <option value="final">Финальный</option>
-          <option value="archived">Архив</option>
           <option value="completed">Завершен</option>
           <option value="cancelled">Отменен</option>
         </select>
+        <select
+          v-model="selectedArchive"
+          @change="filterByArchive"
+          class="w-48 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+        >
+          <option value="">Все заказы</option>
+          <option value="active">Активные</option>
+          <option value="archived">Архивные</option>
+        </select>
       </div>
-      <div>
+      <div v-if="canCreateEdit()" class="flex gap-2">
         <UIButton
           @click="showCreateModal = true"
           variant="primary"
@@ -55,44 +63,54 @@
 
           <tbody>
             <tr
-              v-for="(item, index) in displayedOrders"
+              v-for="(item, index) in orders"
               :key="item.id"
               :class="[
                 'cursor-pointer border-b border-gray-100',
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              style="height: 44px"
+              style="height: 56px"
               @click="openDetailsModal(item)"
             >
               <td
                 v-for="col in columns"
                 :key="col.key"
-                class="border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle"
+                class="border-r border-gray-200 px-4 py-4 text-base whitespace-nowrap align-middle"
               >
                 <template v-if="col.key === 'id'">
                   <span class="font-mono text-gray-600">{{ item.id }}</span>
                 </template>
                 <template v-else-if="col.key === 'product'">
                   <span
-                    class="font-medium text-blue-700 underline cursor-pointer"
+                    class="font-medium text-gray-900 cursor-pointer"
                     @click.stop="openDetailsModal(item)"
                     >{{ item.product?.name || '-' }}</span
                   >
                 </template>
+                <template v-else-if="col.key === 'client'">
+                  <span class="text-gray-700">
+                    {{ item.client?.name || `(client_id: ${item.client_id})` || '-' }}
+                  </span>
+                </template>
                 <template v-else-if="col.key === 'quantity'">
                   <span class="text-gray-900">{{ item.quantity }}</span>
                 </template>
-                <template v-else-if="col.key === 'manager'">
-                  <span class="text-gray-700">{{ item.manager?.name || '-' }}</span>
-                </template>
                 <template v-else-if="col.key === 'stage'">
-                  <span
-                    :class="getStatusClass(item.stage)"
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:underline"
-                  >
-                    {{ getStatusText(item.stage) }}
-                  </span>
+                  <div class="flex flex-col items-center gap-1">
+                    <span
+                      :class="getStatusClass(item.stage || '')"
+                      class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer"
+                    >
+                      {{ getStatusText(item.stage || '') }}
+                    </span>
+                    <span
+                      v-if="item.is_archived"
+                      class="inline-flex px-2 py-1 text-xs font-normal rounded-full bg-gray-100 text-gray-500 border border-gray-200"
+                    >
+                      Архив
+                    </span>
+                  </div>
                 </template>
                 <template v-else-if="col.key === 'deadline'">
                   <span class="text-gray-700">{{ formatDate(item.deadline) }}</span>
@@ -113,7 +131,7 @@
                 Загрузка заказов...
               </td>
             </tr>
-            <tr v-if="!loading && displayedOrders.length === 0">
+            <tr v-if="!loading && orders.length === 0">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
                 Заказы не найдены
               </td>
@@ -136,6 +154,11 @@
       @close="showCreateModal = false"
       @submit="handleOrderCreated"
     />
+    <ProjectFormModal
+      v-if="showCreateProjectModal"
+      @close="showCreateProjectModal = false"
+      @submit="handleProjectCreated"
+    />
     <OrderDetailsModal
       v-if="detailsOrderId"
       :order-id="detailsOrderId"
@@ -149,63 +172,86 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import Sortable from 'sortablejs'
 import OrderFormModal from './OrderFormModal.vue'
+import ProjectFormModal from './ProjectFormModal.vue'
 import OrderDetailsModal from './OrderDetailsModal.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
 import UIButton from '@/components/ui/UIButton.vue'
 import { OrderController } from '@/controllers/OrderController'
 import type { Order } from '@/types/order'
+import { canCreateEdit } from '@/utils/permissions'
 
-const { getAll, remove } = OrderController()
+const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
 
-const orders = ref<Order[]>([])
-const pagination = ref<any>({})
-const loading = ref(false)
-const sortBy = ref('id')
-const sortOrder = ref<'asc' | 'desc'>('asc')
-const columnsHeader = ref<HTMLElement | null>(null)
-const columns = ref([
+const SORT_KEY = 'orderList_sortBy'
+const ORDER_KEY = 'orderList_sortOrder'
+const COLUMNS_KEY = 'orderList_columns'
+
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
+
+const defaultColumns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'product', label: 'Продукт', sortable: false },
-  { key: 'quantity', label: 'Кол-во', sortable: false },
-  { key: 'manager', label: 'Менеджер', sortable: false },
+  { key: 'product', label: 'Товар', sortable: false },
+  { key: 'client', label: 'Клиент', sortable: false },
+  { key: 'quantity', label: 'Кол-во', sortable: true },
   { key: 'stage', label: 'Статус', sortable: true },
   { key: 'deadline', label: 'Дедлайн', sortable: true },
   { key: 'price', label: 'Цена', sortable: true },
   { key: 'created_at', label: 'Создано', sortable: true },
-])
+]
+
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+
+const sortBy = ref(savedSortBy || 'id')
+const sortOrder = ref(savedSortOrder || 'asc')
+const columnsHeader = ref<HTMLElement | null>(null)
 
 const showCreateModal = ref(false)
+const showCreateProjectModal = ref(false)
 const showDetailsModal = ref(false)
 const detailsOrderId = ref<number | null>(null)
 
-const displayedOrders = ref<Order[]>([])
 const selectedStage = ref('')
+const selectedArchive = ref('')
 
-function loadOrders(page = 1) {
-  loading.value = true
-  getAll({ page })
-    .then((res) => {
-      orders.value = res.data
-      pagination.value = res
-    })
-    .catch((err) => console.error(err))
-    .finally(() => (loading.value = false))
-}
-
-watch([orders, sortBy, sortOrder], () => {
-  displayedOrders.value = [...orders.value].sort((a, b) => {
-    const aVal = a[sortBy.value as keyof Order]
-    const bVal = b[sortBy.value as keyof Order]
-    return sortOrder.value === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1
-  })
+watch(orders, (val) => {
+  console.log('orders changed in OrderList', val)
 })
 
+function loadOrders(page = 1) {
+  const isArchived =
+    selectedArchive.value === 'archived'
+      ? true
+      : selectedArchive.value === 'active'
+        ? false
+        : undefined
+
+  fetchOrders(page, sortBy.value, sortOrder.value, selectedStage.value || undefined, isArchived)
+}
+
 function setSort(key: string) {
-  if (sortBy.value === key) sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  // Разрешённые поля для сортировки
+  const allowedSortFields = ['id', 'quantity', 'stage', 'deadline', 'price', 'created_at']
+  if (!allowedSortFields.includes(key)) return
+  if (sortBy.value === key) sortOrder.value = (sortOrder.value as string) === 'asc' ? 'desc' : 'asc'
   else {
     sortBy.value = key
     sortOrder.value = 'asc'
   }
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  loadOrders(1)
+}
+
+function resetSettings() {
+  columns.value = [...defaultColumns]
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  sortBy.value = 'id'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  loadOrders(1)
 }
 
 function changePage(page: number) {
@@ -215,8 +261,8 @@ function changePage(page: number) {
 async function deleteOrder(id: number) {
   if (confirm('Удалить заказ?')) {
     try {
-      await remove(id)
-      loadOrders(pagination.value.current_page)
+      await removeOrder(id)
+      // Синглтон контроллер автоматически обновит состояние
     } catch (e) {
       console.error('Ошибка удаления:', e)
     }
@@ -225,7 +271,12 @@ async function deleteOrder(id: number) {
 
 function handleOrderCreated() {
   showCreateModal.value = false
-  loadOrders()
+  loadOrders() // Немедленно обновляем список
+}
+
+function handleProjectCreated() {
+  showCreateProjectModal.value = false
+  loadOrders() // Немедленно обновляем список
 }
 
 function getStatusClass(stage: string) {
@@ -234,9 +285,9 @@ function getStatusClass(stage: string) {
       draft: 'bg-gray-100 text-gray-800',
       design: 'bg-blue-100 text-blue-800',
       print: 'bg-yellow-100 text-yellow-800',
+      engraving: 'bg-orange-100 text-orange-800',
       workshop: 'bg-purple-100 text-purple-800',
       final: 'bg-green-100 text-green-800',
-      archived: 'bg-gray-200 text-gray-800',
       completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
     }[stage] || 'bg-gray-100 text-gray-800'
@@ -249,9 +300,9 @@ function getStatusText(stage: string) {
       draft: 'Черновик',
       design: 'Дизайн',
       print: 'Печать',
+      engraving: 'Гравировка',
       workshop: 'Цех',
       final: 'Финальный',
-      archived: 'Архив',
       completed: 'Завершен',
       cancelled: 'Отменен',
     }[stage] || stage
@@ -270,17 +321,14 @@ function formatDate(date: string) {
 }
 
 function filterByStage() {
-  loading.value = true
-  getAll({ page: 1, stage: selectedStage.value || undefined })
-    .then((res) => {
-      orders.value = res.data
-      pagination.value = res
-    })
-    .catch((err) => console.error(err))
-    .finally(() => (loading.value = false))
+  loadOrders(1)
 }
 
-function openDetailsModal(order) {
+function filterByArchive() {
+  loadOrders(1)
+}
+
+function openDetailsModal(order: Order) {
   detailsOrderId.value = order.id
   showDetailsModal.value = true
 }
@@ -291,8 +339,10 @@ function closeDetailsModal() {
 }
 
 function handleOrderUpdatedFromModal() {
-  loadOrders(pagination.value.current_page)
+  loadOrders() // Немедленно обновляем список
 }
+
+defineExpose({ loadOrders })
 
 onMounted(async () => {
   await nextTick()
@@ -301,8 +351,12 @@ onMounted(async () => {
       animation: 150,
       direction: 'horizontal',
       onEnd(evt) {
-        const moved = columns.value.splice(evt.oldIndex!, 1)[0]
-        columns.value.splice(evt.newIndex!, 0, moved)
+        const oldIndex = evt.oldIndex
+        const newIndex = evt.newIndex
+        if (oldIndex === undefined || newIndex === undefined) return
+        const moved = columns.value.splice(oldIndex, 1)[0]
+        columns.value.splice(newIndex, 0, moved)
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
   }

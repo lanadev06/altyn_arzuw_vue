@@ -1,6 +1,6 @@
 <template>
   <div class="user-list flex flex-col">
-     <div class="flex-1 flex flex-col min-h-0">
+    <div class="flex-1 flex flex-col min-h-0">
       <div class="bg-white border border-gray-200">
         <table class="w-full border-collapse border-gray-300 text-gray-900 text-base">
           <thead class="bg-gray-50 text-gray-900 font-medium">
@@ -28,7 +28,7 @@
 
           <tbody>
             <tr
-              v-for="(user, index) in displayedUsers"
+              v-for="(user, index) in users"
               :key="user.id"
               :class="[
                 'cursor-pointer border-b border-gray-100',
@@ -74,16 +74,44 @@
                   </template>
 
                   <template v-else-if="col.key === 'role'">
-                    <span
-                      class="px-2 py-1 rounded-full text-xs font-medium"
-                      :class="getRoleBadgeClass(user.role)"
-                    >
-                      {{ getRoleLabel(user.role) }}
-                    </span>
+                    <template v-if="user.roles && user.roles.length">
+                      <span
+                        v-for="role in user.roles"
+                        :key="role.id"
+                        class="px-2 py-1 rounded-full text-xs font-medium mr-1"
+                        :class="getRoleBadgeClass(role.name)"
+                      >
+                        {{ getRoleLabel(role.display_name || role.name) }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span
+                        class="px-2 py-1 rounded-full text-xs font-medium"
+                        :class="getRoleBadgeClass(user.role)"
+                      >
+                        {{ getRoleLabel(user.role) }}
+                      </span>
+                    </template>
                   </template>
 
                   <template v-else-if="col.key === 'phone'">
                     <span class="text-gray-700">{{ user.phone || '-' }}</span>
+                  </template>
+
+                  <template v-else-if="col.key === 'is_active'">
+                    <button
+                      @click.stop="toggleUserActive(user.id)"
+                      :class="
+                        user.is_active
+                          ? 'bg-green-500 hover:bg-green-600'
+                          : 'bg-gray-300 hover:bg-gray-400'
+                      "
+                      class="px-2 py-1 rounded text-white text-xs transition-colors"
+                      title="Переключить активность"
+                    >
+                      <span v-if="user.is_active">✓</span>
+                      <span v-else>⏻</span>
+                    </button>
                   </template>
 
                   <template v-else-if="col.key === 'created_at'">
@@ -107,7 +135,7 @@
                 {{ error }}
               </td>
             </tr>
-            <tr v-if="!loading && !error && displayedUsers.length === 0">
+            <tr v-if="!loading && !error && users.length === 0">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? 'Пользователи не найдены' : 'Пользователи отсутствуют' }}
               </td>
@@ -117,9 +145,9 @@
       </div>
 
       <Pagination
-        v-if="!loading && !error && pagination.total > 0"
-        :current-page="pagination.current_page"
-        :last-page="pagination.last_page"
+        v-if="!loading && !error && pagination?.total > 0"
+        :current-page="pagination?.current_page || 1"
+        :last-page="pagination?.last_page || 1"
         @go-to-page="goToPage"
         class="mt-1 shrink-0"
       />
@@ -150,7 +178,12 @@ import { API_CONFIG } from '@/config/api'
 import Pagination from './Pagination.vue'
 import Sortable from 'sortablejs'
 
-const props = defineProps<{ search?: string; role?: string; showCreateModal?: boolean }>()
+const props = defineProps<{
+  search?: string
+  role?: string
+  showCreateModal?: boolean
+  activeFilter?: string
+}>()
 const emit = defineEmits(['close-create-modal', 'open-create-modal'])
 
 const {
@@ -161,10 +194,10 @@ const {
   sortBy,
   sortOrder,
   fetchUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-  setSort,
+  create,
+  update: updateUser,
+  remove: deleteUser,
+  toggleActive,
   getRoleLabel,
 } = useUserController()
 
@@ -173,51 +206,81 @@ const editingUser = ref<any>(null)
 const currentPage = ref(1)
 const perPage = ref(10)
 
-const displayedUsers = ref<any[]>([])
-const columnsHeader = ref<HTMLElement | null>(null)
+const SORT_KEY = 'userList_sortBy'
+const ORDER_KEY = 'userList_sortOrder'
+const COLUMNS_KEY = 'userList_columns'
 
-function updateDisplayedUsers() {
-  displayedUsers.value = [...users.value].sort((a, b) => {
-    let aValue = a[sortBy.value]
-    let bValue = b[sortBy.value]
-    if (sortBy.value === 'created_at' || sortBy.value === 'updated_at') {
-      aValue = new Date(aValue)
-      bValue = new Date(bValue)
-    }
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase()
-      bValue = bValue.toLowerCase()
-    }
-    if (sortOrder.value === 'asc') {
-      return aValue > bValue ? 1 : -1
-    } else {
-      return aValue < bValue ? 1 : -1
-    }
-  })
-}
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
 
-watch([users, sortBy, sortOrder], updateDisplayedUsers, { immediate: true })
+const columns = ref(
+  savedColumns
+    ? JSON.parse(savedColumns)
+    : [
+        { key: 'id', label: 'ID', sortable: true },
+        { key: 'name', label: 'Имя', sortable: true },
+        { key: 'username', label: 'Логин', sortable: true },
+        { key: 'role', label: 'Роль', sortable: true },
+        { key: 'phone', label: 'Телефон', sortable: false },
+        { key: 'is_active', label: 'Статус', sortable: false },
+        { key: 'created_at', label: 'Создано', sortable: true },
+        { key: 'updated_at', label: 'Обновлено', sortable: false },
+      ],
+)
 
-const columns = ref([
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Имя', sortable: true },
-  { key: 'username', label: 'Логин', sortable: true },
-  { key: 'role', label: 'Роль', sortable: true },
-  { key: 'phone', label: 'Телефон', sortable: false },
-  { key: 'created_at', label: 'Создано', sortable: true },
-  { key: 'updated_at', label: 'Обновлено', sortable: false },
-])
+if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
+if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
 
-const getRoleBadgeClass = (role: string) => {
-  const classes: Record<string, string> = {
-    admin: 'bg-red-100 text-red-800',
-    manager: 'bg-blue-100 text-blue-800',
-    designer: 'bg-green-100 text-green-800',
-    print_operator: 'bg-yellow-100 text-yellow-800',
-    workshop_worker: 'bg-purple-100 text-purple-800',
+function setSort(key: string) {
+  if (sortBy.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = key
+    sortOrder.value = 'asc'
   }
-  return classes[role] || 'bg-gray-100 text-gray-800'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  fetchUsers(
+    1,
+    props.search || '',
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    props.role,
+    props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+  )
 }
+
+function resetSettings() {
+  columns.value = [
+    { key: 'id', label: 'ID', sortable: true },
+    { key: 'name', label: 'Имя', sortable: true },
+    { key: 'username', label: 'Логин', sortable: true },
+    { key: 'role', label: 'Роль', sortable: true },
+    { key: 'phone', label: 'Телефон', sortable: false },
+    { key: 'is_active', label: 'Статус', sortable: false },
+    { key: 'created_at', label: 'Создано', sortable: true },
+    { key: 'updated_at', label: 'Обновлено', sortable: false },
+  ]
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  sortBy.value = 'id'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  currentPage.value = 1
+  fetchUsers(
+    1,
+    props.search || '',
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    props.role,
+    props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+  )
+}
+
+const columnsHeader = ref<HTMLElement | null>(null)
 
 function formatDate(date: string | null | undefined) {
   if (!date) return '-'
@@ -238,16 +301,53 @@ function getUserImageUrl(user: any) {
   return ''
 }
 
+const getRoleBadgeClass = (role: string) => {
+  const classes: Record<string, string> = {
+    admin: 'bg-red-100 text-red-800',
+    manager: 'bg-blue-100 text-blue-800',
+    designer: 'bg-green-100 text-green-800',
+    print_operator: 'bg-yellow-100 text-yellow-800',
+    workshop_worker: 'bg-purple-100 text-purple-800',
+  }
+  return classes[role] || 'bg-gray-100 text-gray-800'
+}
+
 const editUser = (user: any) => {
   editingUser.value = user
   showEditModal.value = true
 }
 
+async function toggleUserActive(userId: number) {
+  try {
+    await toggleActive(userId)
+    // Перезагрузить список после изменения
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortBy.value,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
+  } catch (e) {
+    console.error('Ошибка переключения статуса:', e)
+  }
+}
+
 const handleCreateUser = async (userData: any) => {
   try {
-    await createUser(userData)
+    await create(userData)
     emit('close-create-modal')
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortBy.value,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
   } catch (err) {
     console.error('Ошибка создания:', err)
   }
@@ -256,10 +356,28 @@ const handleCreateUser = async (userData: any) => {
 const handleUpdateUser = async (userData: any) => {
   try {
     if (!editingUser.value) return
+    console.log(
+      'updateUser id:',
+      editingUser.value.id,
+      typeof editingUser.value.id,
+      editingUser.value,
+    )
+    if (typeof editingUser.value.id !== 'number') {
+      alert('Ошибка: id пользователя не число! ' + editingUser.value.id)
+      return
+    }
     await updateUser(editingUser.value.id, userData)
     showEditModal.value = false
     editingUser.value = null
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortBy.value,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
   } catch (err) {
     console.error('Ошибка обновления:', err)
   }
@@ -270,16 +388,33 @@ const handleDeleteUser = async (userId: number) => {
     await deleteUser(userId)
     showEditModal.value = false
     editingUser.value = null
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortBy.value,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
   } catch (err) {
     console.error('Ошибка удаления:', err)
   }
 }
 
 function goToPage(page: number) {
-  if (page < 1 || page > pagination.value.last_page) return
+  if (!pagination || !pagination.last_page) return
+  if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
-  fetchUsers(page, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role)
+  fetchUsers(
+    page,
+    props.search || '',
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    props.role,
+    props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+  )
 }
 
 onMounted(async () => {
@@ -294,13 +429,34 @@ onMounted(async () => {
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
         columns.value.splice(newIndex, 0, moved)
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
   }
-  fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role)
+  fetchUsers(
+    currentPage.value,
+    props.search || '',
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    props.role,
+    props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+  )
 })
 
-watch([() => props.search, () => props.role], () => {
+watch([() => props.search, () => props.role, () => props.activeFilter], () => {
   goToPage(1)
+})
+
+watch([sortBy, sortOrder], () => {
+  fetchUsers(
+    currentPage.value,
+    props.search || '',
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    props.role,
+    props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+  )
 })
 </script>

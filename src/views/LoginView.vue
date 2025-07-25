@@ -62,5 +62,4 @@ const handleLogin = async (formData) => {
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

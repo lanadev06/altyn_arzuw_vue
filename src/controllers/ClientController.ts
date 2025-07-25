@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import {
   getClients,
   createClient,
@@ -12,44 +12,53 @@ import type { Client } from '@/types/client'
 
 export function ClientController() {
   const clients = ref<Client[]>([])
-  const pagination = ref({
+  const pagination = reactive({
     data: [] as Client[],
     current_page: 1,
     last_page: 1,
     total: 0,
-    per_page: 10,
+    per_page: 30,
   })
   const loading = ref(false)
   const error = ref('')
-  const sortBy = ref('id')
-  const sortOrder = ref<'asc' | 'desc'>('asc')
+  // Загружаем настройки сортировки из localStorage
+  const sortBy = ref(localStorage.getItem('clientList_sortBy') || 'id')
+  const sortOrder = ref<'asc' | 'desc'>(
+    (localStorage.getItem('clientList_sortOrder') as 'asc' | 'desc') || 'asc',
+  )
 
   async function fetchClients(
     page = 1,
     search = '',
     sort_by = sortBy.value,
     sort_order = sortOrder.value,
+    per_page = pagination.per_page,
   ) {
-    console.log('📡 fetchClients called:', { page, search, sort_by, sort_order })
-
     loading.value = true
     error.value = ''
     try {
-      const res = await getClients({ page, search, sort_by, sort_order })
-      pagination.value = {
-        ...res,
-        data: res.data || [],
-        current_page: res.current_page || 1,
-        last_page: res.last_page || 1,
-        total: res.total || 0,
-        per_page: res.per_page || 10,
-      }
-      clients.value = res.data || []
+      const res = await getClients({ page, search, sort_by, sort_order, per_page })
+      console.log('🔍 API Response:', res)
 
-      console.log('✅ fetchClients completed:', {
-        dataLength: res.data?.length || 0,
-        pagination: pagination.value,
-      })
+      // Проверяем структуру ответа
+      if (res.data && Array.isArray(res.data)) {
+        pagination.data = res.data
+        pagination.current_page = res.current_page || res.meta?.current_page || 1
+        pagination.last_page = res.last_page || res.meta?.last_page || 1
+        pagination.total = res.total || res.meta?.total || 0
+        pagination.per_page = res.per_page || res.meta?.per_page || per_page || 30
+        clients.value = res.data
+      } else {
+        // Если данные приходят в другом формате
+        pagination.data = Array.isArray(res) ? res : []
+        pagination.current_page = 1
+        pagination.last_page = 1
+        pagination.total = Array.isArray(res) ? res.length : 0
+        pagination.per_page = per_page || 30
+        clients.value = Array.isArray(res) ? res : []
+      }
+
+      console.log('🔍 Pagination after update:', pagination)
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки клиентов'
       console.error('❌ fetchClients error:', e)
@@ -63,14 +72,7 @@ export function ClientController() {
     return res.data || []
   }
 
-  function setSort(key: string, search = '') {
-    console.log('🔄 setSort called:', {
-      key,
-      search,
-      currentSortBy: sortBy.value,
-      currentSortOrder: sortOrder.value,
-    })
-
+  function setSort(key: string, search = '', per_page = pagination.per_page) {
     if (sortBy.value === key) {
       sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
     } else {
@@ -78,15 +80,25 @@ export function ClientController() {
       sortOrder.value = 'asc'
     }
 
-    console.log('🔄 setSort after update:', { sortBy: sortBy.value, sortOrder: sortOrder.value })
-    fetchClients(1, search, sortBy.value, sortOrder.value)
+    // Сохраняем настройки сортировки в localStorage
+    localStorage.setItem('clientList_sortBy', sortBy.value)
+    localStorage.setItem('clientList_sortOrder', sortOrder.value)
+
+    fetchClients(1, search, sortBy.value, sortOrder.value, per_page)
   }
 
   async function create(newClient: Client) {
     loading.value = true
     try {
-      await createClient(newClient)
-      await fetchClients(pagination.value.current_page)
+      const created = await createClient(newClient)
+      await fetchClients(
+        pagination.current_page,
+        '',
+        sortBy.value,
+        sortOrder.value,
+        pagination.per_page,
+      )
+      return created
     } finally {
       loading.value = false
     }
@@ -96,21 +108,23 @@ export function ClientController() {
     loading.value = true
     try {
       await updateClient(id, updatedClient)
-      await fetchClients(pagination.value.current_page)
+      await fetchClients(
+        pagination.current_page,
+        '',
+        sortBy.value,
+        sortOrder.value,
+        pagination.per_page,
+      )
     } finally {
       loading.value = false
     }
   }
 
-  async function remove(id: number) {
+  async function remove(id: number, page = pagination.current_page) {
     loading.value = true
     try {
       await deleteClient(id)
-      if (pagination.value.data.length === 1 && pagination.value.current_page > 1) {
-        await fetchClients(pagination.value.current_page - 1)
-      } else {
-        await fetchClients(pagination.value.current_page)
-      }
+      await fetchClients(page, '', sortBy.value, sortOrder.value, pagination.per_page)
     } finally {
       loading.value = false
     }

@@ -1,5 +1,10 @@
 <template>
   <div class="login-form">
+    <img
+      src="/A-A_logotype (colorful) (1) copy.png"
+      alt="Altyn-Arzuw Logo"
+      class="mx-auto mb-6 max-w-xs w-48 h-auto"
+    />
     <div class="text-center mb-8">
       <h2 class="text-3xl font-bold text-gray-900 mb-2">Добро пожаловать</h2>
       <p class="text-gray-600">Войдите в свою учетную запись</p>
@@ -80,14 +85,11 @@ interface FormErrors {
   password: string
 }
 
-const props = defineProps<{
-  loading?: boolean
-}>()
-
 const emit = defineEmits<{
   submit: [data: LoginFormData]
 }>()
 
+const loading = ref(false)
 const generalError = ref('')
 const errors = reactive<FormErrors>({
   username: '',
@@ -118,13 +120,18 @@ const validateForm = (): boolean => {
   return isValid
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!validateForm()) return
 
-  emit('submit', {
-    username: form.username,
-    password: form.password,
-  })
+  loading.value = true
+  try {
+    emit('submit', {
+      username: form.username,
+      password: form.password,
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 const setError = (message: string) => {

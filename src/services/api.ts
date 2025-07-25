@@ -38,14 +38,28 @@ export interface ApiError {
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_CONFIG.BASE_URL}${endpoint}`
 
+  // Определяем, FormData ли body
+  const isFormData = options.body instanceof FormData
+
+  // Базовые заголовки
   const defaultHeaders: Record<string, string> = {
     ...API_CONFIG.DEFAULT_HEADERS,
   }
 
-  // Добавляем токен авторизации, если он есть
+  // Добавляем токен авторизации всегда!
   const token = localStorage.getItem('auth_token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  // Только если не FormData, добавляем Content-Type
+  if (isFormData && defaultHeaders['Content-Type']) {
+    delete defaultHeaders['Content-Type']
+  }
+
+  // Если FormData — удаляем Content-Type и из options.headers
+  if (isFormData && options.headers && options.headers['Content-Type']) {
+    delete options.headers['Content-Type']
   }
 
   const config: RequestInit = {
@@ -76,6 +90,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         const validationErrors = Object.values(errorData.errors).flat().join(', ')
         throw new Error(validationErrors)
       }
+
+      // --- Добавить обработку 401/403 ---
+      if (response.status === 401 || response.status === 403) {
+        // localStorage.removeItem('auth_token')
+        // localStorage.removeItem('user')
+        // window.location.href = '/login'
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+      // --- конец блока ---
 
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
     }
@@ -228,12 +251,14 @@ export async function getClients({
   search = '',
   sort_by = 'id',
   sort_order = 'asc',
+  per_page,
 } = {}): Promise<any> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
   if (page) params.push(`page=${page}`)
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
+  if (per_page) params.push(`per_page=${per_page}`)
   const query = params.length ? `?${params.join('&')}` : ''
 
   const res = await fetch(`${API_CONFIG.BASE_URL}/clients${query}`, {
@@ -399,7 +424,7 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 // --- Товары ---
-import type { Product } from '@/types/product'
+import type { Product, ProductForm } from '@/types/product'
 
 export async function getProducts({
   page = 1,
@@ -416,6 +441,8 @@ export async function getProducts({
 
   const url = `${API_CONFIG.BASE_URL}/products${query}`
   const token = localStorage.getItem('auth_token')
+
+  console.log('🔍 API Request URL:', url)
 
   const res = await fetch(url, {
     headers: {
@@ -434,10 +461,34 @@ export async function getProducts({
     throw new Error(`Ошибка загрузки товаров: ${res.status} ${res.statusText}`)
   }
 
-  return await res.json()
+  const data = await res.json()
+  console.log('📡 API Response:', data)
+
+  // Проверяем структуру ответа
+  if (data.data && Array.isArray(data.data)) {
+    console.log(
+      '📊 Sample product from API:',
+      data.data[0]
+        ? {
+            id: data.data[0].id,
+            name: data.data[0].name,
+            designers: data.data[0].designers,
+            print_operators: data.data[0].print_operators,
+            engraving_operators: data.data[0].engraving_operators,
+            workshop_workers: data.data[0].workshop_workers,
+            has_design_stage: data.data[0].has_design_stage,
+            has_print_stage: data.data[0].has_print_stage,
+            has_engraving_stage: data.data[0].has_engraving_stage,
+            has_workshop_stage: data.data[0].has_workshop_stage,
+          }
+        : 'No products',
+    )
+  }
+
+  return data
 }
 
-export async function createProduct(data: Partial<Product>): Promise<Product> {
+export async function createProduct(data: ProductForm): Promise<Product> {
   const res = await fetch(`${API_CONFIG.BASE_URL}/products`, {
     method: 'POST',
     headers: {
@@ -451,7 +502,13 @@ export async function createProduct(data: Partial<Product>): Promise<Product> {
   return (await res.json()).data
 }
 
-export async function updateProduct(id: number, data: Partial<Product>): Promise<Product> {
+export async function updateProduct(id: number, data: ProductForm): Promise<Product> {
+  console.log('🔄 updateProduct API call:', {
+    url: `${API_CONFIG.BASE_URL}/products/${id}`,
+    method: 'PUT',
+    data: data,
+  })
+
   const res = await fetch(`${API_CONFIG.BASE_URL}/products/${id}`, {
     method: 'PUT',
     headers: {
@@ -461,8 +518,21 @@ export async function updateProduct(id: number, data: Partial<Product>): Promise
     },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Ошибка обновления товара')
-  return (await res.json()).data
+
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('❌ updateProduct API Error:', {
+      status: res.status,
+      statusText: res.statusText,
+      response: errorText,
+    })
+    throw new Error('Ошибка обновления товара')
+  }
+
+  const responseData = await res.json()
+  console.log('📡 updateProduct API Response:', responseData)
+
+  return responseData.data
 }
 
 export async function deleteProduct(id: number): Promise<void> {
@@ -473,7 +543,10 @@ export async function deleteProduct(id: number): Promise<void> {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  if (!res.ok) throw new Error('Ошибка удаления товара')
+  // Не выбрасывать ошибку при 404 — товар уже удалён
+  if (!res.ok && res.status !== 404) {
+    throw new Error('Ошибка удаления товара')
+  }
 }
 
 // --- Дизайнеры ---
@@ -546,7 +619,7 @@ export async function getAllProjects(): Promise<any[]> {
 }
 
 // --- Заказы ---
-export async function getOrderDetails(orderId) {
+export async function getOrderDetails(orderId: number) {
   const res = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
     headers: {
       Accept: 'application/json',
@@ -557,7 +630,7 @@ export async function getOrderDetails(orderId) {
   return await res.json()
 }
 
-export async function getOrderStatusLogs(orderId) {
+export async function getOrderStatusLogs(orderId: number) {
   const res = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}/status-logs`, {
     headers: {
       Accept: 'application/json',
@@ -568,7 +641,7 @@ export async function getOrderStatusLogs(orderId) {
   return await res.json()
 }
 
-export async function getOrderComments(orderId) {
+export async function getOrderComments(orderId: number) {
   const res = await fetch(`${API_CONFIG.BASE_URL}/comments?order_id=${orderId}`, {
     headers: {
       Accept: 'application/json',
@@ -579,7 +652,7 @@ export async function getOrderComments(orderId) {
   return await res.json()
 }
 
-export async function postOrderComment(orderId, text) {
+export async function postOrderComment(orderId: number, text: string) {
   const res = await fetch(`${API_CONFIG.BASE_URL}/comments`, {
     method: 'POST',
     headers: {
@@ -606,7 +679,7 @@ export async function deleteOrderComment(orderId: number, commentId: number): Pr
 }
 
 // --- Проекты ---
-export async function getProjectDetails(projectId) {
+export async function getProjectDetails(projectId: number) {
   const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${projectId}`, {
     headers: {
       Accept: 'application/json',
@@ -628,4 +701,117 @@ export async function updateOrderStage(orderId: number, stage: string): Promise<
     body: JSON.stringify({ stage }),
   })
   if (!res.ok) throw new Error('Ошибка смены статуса заказа')
+}
+
+export async function createUser(data: any): Promise<any> {
+  const formData = new FormData()
+  formData.append('name', data.name)
+  formData.append('username', data.username)
+  formData.append('password', data.password)
+  if (data.phone) formData.append('phone', data.phone)
+  if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
+  if (data.image instanceof File) formData.append('image', data.image)
+  // Если есть массив ролей, добавляем их
+  if (data.roles && Array.isArray(data.roles)) {
+    data.roles.forEach((role: number, idx: number) => {
+      formData.append(`roles[${idx}]`, role.toString())
+    })
+  }
+  const res = await apiRequest('/users', {
+    method: 'POST',
+    body: formData,
+  })
+  return res
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await apiRequest(`/users/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function getUser(id: number): Promise<any> {
+  const res = await apiRequest(`/users/${id}`)
+  return res
+}
+
+export async function getUsers({
+  page = 1,
+  search = '',
+  sort_by = 'id',
+  sort_order = 'asc',
+  per_page = 30,
+  role = '',
+  is_active = null,
+} = {}): Promise<any> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    search,
+    sort_by,
+    sort_order,
+    per_page: per_page.toString(),
+  })
+  if (role) params.append('role', role)
+  if (is_active !== null) params.append('is_active', is_active.toString())
+  const res = await apiRequest(`/users?${params.toString()}`)
+  return res
+}
+
+export async function getUsersByRole(role: string): Promise<any> {
+  const res = await apiRequest(`/users/by-role/${role}`)
+  return res
+}
+
+export async function toggleUserActive(id: number): Promise<any> {
+  const res = await apiRequest(`/users/${id}/toggle-active`, {
+    method: 'PATCH',
+  })
+  return res
+}
+
+export async function updateUser(id: number, data: any): Promise<any> {
+  const token = localStorage.getItem('auth_token')
+  if (data.image instanceof File) {
+    const formData = new FormData()
+    if (data.name !== undefined) formData.append('name', data.name)
+    if (data.username !== undefined) formData.append('username', data.username)
+    if (data.phone !== undefined) formData.append('phone', data.phone || '')
+    if (data.password) formData.append('password', data.password)
+    if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
+    formData.append('image', data.image)
+    if (data.roles && Array.isArray(data.roles)) {
+      data.roles.forEach((role: number, idx: number) => {
+        formData.append(`roles[${idx}]`, role.toString())
+      })
+    }
+    const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
+      method: 'POST', // Laravel ожидает POST для multipart
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    if (!res.ok) throw new Error('Ошибка обновления пользователя')
+    return await res.json()
+  } else {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error('Ошибка обновления пользователя')
+    return await res.json()
+  }
+}
+
+export async function getRoles(): Promise<
+  Array<{ id: number; name: string; display_name?: string }>
+> {
+  const res = await apiRequest('/roles')
+  return res.data || res // поддержка разных форматов ответа
 }

@@ -4,7 +4,9 @@ export interface User {
   username: string
   phone?: string
   role: UserRole
+  roles?: string[] // массив ролей
   image?: string
+  is_active?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -28,6 +30,7 @@ export interface CreateUserData {
   phone?: string
   password: string
   role: UserRole
+  roles?: string[] // массив ролей для создания
   image?: File
 }
 
@@ -36,5 +39,6 @@ export interface UpdateUserData {
   phone?: string
   password?: string
   role?: UserRole
+  roles?: string[] // массив ролей для обновления
   image?: File
 }

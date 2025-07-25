@@ -7,7 +7,12 @@
         </slot>
         <button @click="$emit('close')" class="modal-close" aria-label="Закрыть">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </header>
@@ -23,9 +28,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({ visible: { type: Boolean, default: true } })
 </script>
+
+export default { name: 'Modal', }
 
 <style scoped>
 .modal-overlay {
@@ -44,11 +51,14 @@ defineProps({ visible: { type: Boolean, default: true } })
   background: white;
   color: #1e293b;
   border-radius: 1rem;
-  width: 94vw;
-  max-width: 560px;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  width: 90vw;
+  max-width: 800px;
+  max-height: 85vh;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
   animation: scale-in 0.3s ease;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -83,6 +93,9 @@ defineProps({ visible: { type: Boolean, default: true } })
 .modal-body {
   padding: 1.5rem;
   background: white;
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(85vh - 120px);
 }
 
 .modal-footer {

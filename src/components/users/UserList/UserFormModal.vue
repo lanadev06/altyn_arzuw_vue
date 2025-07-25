@@ -40,23 +40,20 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Роль *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Роли *</label>
         <Vue3Select
-          v-model="form.role"
-          :options="[
-            { value: 'admin', label: 'Администратор' },
-            { value: 'manager', label: 'Менеджер' },
-            { value: 'designer', label: 'Дизайнер' },
-            { value: 'print_operator', label: 'Печатник' },
-            { value: 'workshop_worker', label: 'Работник цеха' },
-          ]"
+          v-model="form.roles"
+          :options="roleOptions"
           label="label"
           :reduce="(option) => option.value"
-          placeholder="Выберите роль"
+          placeholder="Выберите роли"
           :clearable="true"
           :searchable="true"
+          :multiple="true"
           required
+          :z-index="99999"
         />
+        <p v-if="errors.roles" class="text-xs text-red-500 mt-1">{{ errors.roles }}</p>
       </div>
 
       <div>
@@ -86,12 +83,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIButton from '@/components/ui/UIButton.vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
+import { toast } from '@/stores/toast'
+import { getRoles } from '@/services/api'
 
 const props = defineProps<{
   user?: any
@@ -105,7 +104,7 @@ const errors = reactive({
   username: '',
   phone: '',
   password: '',
-  role: '',
+  roles: '',
 })
 
 const form = reactive({
@@ -113,18 +112,40 @@ const form = reactive({
   username: '',
   phone: '',
   password: '',
-  role: '',
+  roles: [] as number[],
   image: null as File | null,
 })
 
-onMounted(() => {
-  if (props.user) {
-    form.name = props.user.name || ''
-    form.username = props.user.username || ''
-    form.phone = props.user.phone || ''
-    form.role = props.user.role || ''
-  }
+const allRoles = ref<Array<{ id: number; name: string; display_name?: string }>>([])
+
+onMounted(async () => {
+  allRoles.value = await getRoles()
+  // Не заполняем форму здесь, чтобы не было проблем при повторном открытии
 })
+
+watch(
+  () => props.user,
+  (newUser) => {
+    if (newUser) {
+      form.name = newUser.name || ''
+      form.username = newUser.username || ''
+      form.phone = newUser.phone || ''
+      form.roles = newUser.roles ? newUser.roles.map((r: any) => Number(r.id)) : []
+    } else {
+      form.name = ''
+      form.username = ''
+      form.phone = ''
+      form.roles = []
+      form.password = ''
+      form.image = null
+    }
+  },
+  { immediate: true },
+)
+
+const roleOptions = computed(() =>
+  allRoles.value.map((r) => ({ value: r.id, label: r.display_name || r.name })),
+)
 
 const handleImageChange = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -137,43 +158,27 @@ const validateForm = () => {
   Object.keys(errors).forEach((key) => {
     errors[key as keyof typeof errors] = ''
   })
-
   let isValid = true
-
   if (!form.name.trim()) {
     errors.name = 'Имя обязательно'
     isValid = false
   }
-
   if (!form.username.trim()) {
     errors.username = 'Логин обязателен'
     isValid = false
   }
-
-  // Phone validation for Turkmenistan
-  if (form.phone && form.phone.trim()) {
-    const phoneRegex = /^\+993[-\s]?\d{2}[-\s]?\d{6}$/
-    if (!phoneRegex.test(form.phone.trim())) {
-      errors.phone = 'Телефон должен быть в формате +993 XX YYYYYY'
-      isValid = false
-    }
-  }
-
   if (!props.user && !form.password) {
     errors.password = 'Пароль обязателен'
     isValid = false
   }
-
   if (form.password && form.password.length < 6) {
     errors.password = 'Пароль должен быть минимум 6 символов'
     isValid = false
   }
-
-  if (!form.role) {
-    errors.role = 'Роль обязательна'
+  if (!form.roles || form.roles.length === 0) {
+    errors.roles = 'Нужно выбрать хотя бы одну роль'
     isValid = false
   }
-
   return isValid
 }
 
@@ -181,17 +186,20 @@ const handleSubmit = async () => {
   if (!validateForm()) return
   loading.value = true
   try {
-    const dataToSend = {
+    const dataToSend: any = {
       name: form.name,
       username: form.username,
       phone: form.phone,
-      password: form.password,
-      role: form.role,
+      roles: Array.isArray(form.roles)
+        ? form.roles
+            .map((r) => Number(typeof r === 'object' ? r.id : r))
+            .filter((id) => Number.isInteger(id) && id > 0)
+        : [],
     }
-    if (form.image instanceof File) {
-      dataToSend.image = form.image
-    }
+    if (form.password) dataToSend.password = form.password
+    if (form.image instanceof File) dataToSend.image = form.image
     emit('submit', dataToSend)
+    toast.show(props.user ? 'Пользователь обновлён!' : 'Пользователь создан!')
   } catch (error) {
     console.error('Ошибка отправки формы:', error)
   } finally {
@@ -202,6 +210,7 @@ const handleSubmit = async () => {
 const handleDelete = () => {
   if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
     emit('delete', props.user.id)
+    toast.show('Пользователь удалён!')
   }
 }
 </script>
@@ -241,5 +250,54 @@ const handleDelete = () => {
 
 .form-input::placeholder {
   color: #9ca3af;
+}
+
+:deep(.vue3-select__dropdown) {
+  z-index: 99999 !important;
+  min-width: 320px !important;
+  width: 100% !important;
+  max-width: 420px !important;
+  max-height: 340px !important;
+  overflow-y: auto !important;
+  font-size: 1.08rem !important;
+  line-height: 1.7 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 8px 0 !important;
+}
+
+:deep(.vue3-select__option) {
+  padding: 10px 18px !important;
+  font-size: 1.08rem !important;
+  border-radius: 8px !important;
+  margin: 2px 6px !important;
+}
+
+:deep(.vue3-select__option--selected) {
+  background: #2563eb !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+:deep(.vue3-select__option--highlight) {
+  background: #e0e7ff !important;
+  color: #1e293b !important;
+}
+
+:deep(.vue3-select__selected-option) {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-radius: 8px !important;
+  padding: 4px 10px !important;
+  margin: 2px 4px !important;
+  font-weight: 500;
+  font-size: 1.02rem;
+}
+
+.modal {
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 32px 24px;
+  background: #fff;
 }
 </style>

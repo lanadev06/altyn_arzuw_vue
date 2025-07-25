@@ -7,7 +7,7 @@
       :id="id"
       :type="type"
       :placeholder="placeholder"
-      :value="modelValue"
+      :value="displayValue"
       :disabled="disabled"
       :class="[
         'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200',
@@ -26,12 +26,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 defineOptions({
   name: 'UIInput',
 })
 
 interface Props {
-  modelValue: string
+  modelValue: string | number | null
   label?: string
   placeholder?: string
   type?: 'text' | 'username' | 'password' | 'number'
@@ -47,13 +48,31 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | number | null]
   blur: []
   focus: []
 }>()
 
+const displayValue = computed(() => {
+  if (props.modelValue === null || props.modelValue === undefined) {
+    return ''
+  }
+  return String(props.modelValue)
+})
+
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
+  const value = target.value
+
+  if (props.type === 'number') {
+    if (value === '') {
+      emit('update:modelValue', null)
+    } else {
+      const numValue = parseFloat(value)
+      emit('update:modelValue', isNaN(numValue) ? 0 : numValue)
+    }
+  } else {
+    emit('update:modelValue', value)
+  }
 }
 </script>

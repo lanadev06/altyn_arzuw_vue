@@ -1,24 +1,20 @@
 <template>
-  <!-- Overlay с transition -->
   <transition name="modal-fade">
     <div
       class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center"
       @click="onOverlayClick"
     >
-      <!-- Модалка с transition -->
       <transition name="modal-scale">
         <div
           class="relative w-[1300px] max-w-[98vw] h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           @click.stop
         >
-          <!-- Кнопка закрытия -->
           <button
             @click="emit('close')"
             class="absolute top-6 right-6 text-3xl text-gray-400 hover:text-red-500 transition font-bold z-10"
           >
             ✕
           </button>
-          <!-- СТАТУС-БАР -->
           <div class="flex gap-1 items-center justify-center px-0 pt-8 pb-4 w-full">
             <template v-for="(stage, idx) in stages" :key="stage.value">
               <button
@@ -34,7 +30,7 @@
                 ]"
                 @click="handleStageClick(stage.value)"
                 :disabled="order?.stage === stage.value"
-                style="z-index:{{ stages.length - idx }}"
+                :style="{ zIndex: stages.length - idx }"
               >
                 {{ stage.label }}
                 <span
@@ -44,9 +40,7 @@
               </button>
             </template>
           </div>
-          <!-- Контент -->
           <div class="flex-1 flex flex-row h-full min-h-0">
-            <!-- Левая секция -->
             <div
               class="w-1/2 bg-gradient-to-br from-blue-200 via-purple-200 to-cyan-200 p-10 flex flex-col gap-8 border-r border-gray-200 min-w-[340px] overflow-y-auto"
             >
@@ -55,185 +49,173 @@
                   <div class="text-3xl font-extrabold text-gray-900 tracking-tight">
                     Заказ #{{ order?.id }}
                   </div>
-                  <span
-                    v-if="order"
-                    :class="[
-                      'inline-block px-4 py-1 rounded-full text-base font-bold shadow',
-                      statusBadge(order.stage),
-                    ]"
-                  >
-                    {{ getStatusText(order.stage) }}
-                  </span>
+                  <div class="flex flex-col gap-2">
+                    <span
+                      v-if="order"
+                      :class="[
+                        'inline-block px-4 py-1 rounded-full text-base font-bold shadow',
+                        statusBadge(order.stage),
+                      ]"
+                    >
+                      {{ getStatusText(order.stage) }}
+                    </span>
+                  </div>
                 </div>
                 <div class="text-lg text-gray-500 font-medium mb-6">{{ order?.product?.name }}</div>
                 <div
-                  class="bg-white rounded-xl shadow p-6 flex flex-col gap-2 border border-blue-100 mb-6"
+                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4"
                 >
-                  <div class="font-semibold text-gray-700 mb-2 text-lg">Детали заказа</div>
-                  <div class="text-base text-gray-800">
-                    Кол-во:
-                    <EditableField
-                      v-if="order"
-                      :model-value="order.quantity"
-                      type="number"
-                      :min="1"
-                      :required="true"
-                      @save="(val) => updateOrderField('quantity', val)"
-                      class="inline-block w-20 ml-2"
-                    />
-                  </div>
-                  <div class="text-base text-gray-800">
-                    Цена:
-                    <EditableField
-                      v-if="order"
-                      :model-value="order.price"
-                      type="number"
-                      :min="0"
-                      :required="true"
-                      @save="(val) => updateOrderField('price', val)"
-                      class="inline-block w-28 ml-2"
-                    />
-                    <span class="ml-1">TMT</span>
-                  </div>
-                  <div class="text-base text-gray-800">
-                    Дедлайн:
-                    <div class="relative group inline-block w-36 ml-2">
-                      <div v-if="!showDeadlineInput" class="flex items-center">
-                        <span>{{ formatDateTime(order?.deadline) || 'Не установлен' }}</span>
-                        <button
-                          @click="startDeadlineEdit"
-                          class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100"
-                          title="Изменить дедлайн"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-4 w-4 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.263-1.263l1-4a4 4 0 01.828-1.414z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <div v-if="showDeadlineInput" class="flex items-center gap-2">
-                        <flatPickr
-                          v-model="tempDeadline"
-                          :config="{
-                            dateFormat: 'Y-m-d H:i',
-                            enableTime: true,
-                            time_24hr: true,
-                            allowInput: true,
-                            clickOpens: true,
-                            locale: 'ru',
-                          }"
-                          class="flex-1 text-gray-700 text-base p-2 border border-gray-300 rounded-md flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                        />
-                        <button
-                          @click="confirmDeadline"
-                          class="p-1 rounded hover:bg-green-100 text-green-500"
-                          title="Подтвердить"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          @click="cancelDeadline"
-                          class="p-1 rounded hover:bg-red-100 text-red-500"
-                          title="Отмена"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="text-base text-gray-800">
-                    Менеджер:
-                    <div class="relative group inline-block w-40 ml-2">
-                      <div v-if="!showManagerSelect" class="flex items-center">
-                        <span class="truncate">{{ order?.manager?.name || 'Не выбран' }}</span>
-                        <button
-                          @click="showManagerSelect = true"
-                          class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100"
-                          title="Изменить менеджера"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-4 w-4 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.263-1.263l1-4a4 4 0 01.828-1.414z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <Vue3Select
-                        v-if="showManagerSelect"
-                        v-model="order.manager_id"
-                        :options="allManagers"
-                        label="name"
-                        :reduce="(manager) => manager.id"
-                        placeholder="Выберите менеджера"
-                        :clearable="true"
-                        :searchable="true"
-                        class="w-full"
-                        @update:modelValue="(val) => updateManager(val)"
+                  <div class="text-2xl font-extrabold text-blue-900 mb-2">Детали заказа</div>
+                  <div class="flex flex-col gap-3">
+                    <div class="flex items-center gap-2 text-base text-gray-800">
+                      <span class="font-semibold w-28">Кол-во:</span>
+                      <EditableField
+                        v-if="order && canCreateEdit()"
+                        :model-value="order.quantity"
+                        type="number"
+                        :min="1"
+                        :required="true"
+                        @save="(val) => updateOrderField('quantity', val)"
+                        class="w-24"
                       />
+                      <span v-else-if="order" class="text-gray-900">{{ order.quantity }}</span>
                     </div>
+                    <div
+                      v-if="canViewPrices()"
+                      class="flex items-center gap-2 text-base text-gray-800"
+                    >
+                      <span class="font-semibold w-28">Общая сумма:</span>
+                      <EditableField
+                        v-if="order && canCreateEdit()"
+                        :model-value="order.price"
+                        type="number"
+                        :min="0"
+                        :required="true"
+                        @save="(val) => updateOrderField('price', val)"
+                        class="w-32"
+                      />
+                      <span v-else-if="order" class="text-gray-900">{{ order.price }}</span>
+                      <span class="ml-1">TMT</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-base text-gray-800 group">
+                      <span class="font-semibold w-28">Дедлайн:</span>
+                      <div class="flex-1">
+                        <div v-if="!showDeadlineInput" class="flex items-center">
+                          <span>{{ formatDateTime(order?.deadline) || 'Не установлен' }}</span>
+                          <button
+                            v-if="canCreateEdit()"
+                            @click="startDeadlineEdit"
+                            class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Изменить дедлайн"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-4 w-4 text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.263-1.263l1-4a4 4 0 01.828-1.414z"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                        <div v-if="showDeadlineInput" class="flex items-center gap-2 mt-1">
+                          <flatPickr
+                            v-model="tempDeadline"
+                            :config="{
+                              dateFormat: 'Y-m-d H:i',
+                              altInput: true,
+                              altFormat: 'd F Y H:i',
+                              enableTime: true,
+                              time_24hr: true,
+                              allowInput: true,
+                              clickOpens: true,
+                              locale: Russian,
+                            }"
+                            class="w-48 text-gray-700 text-base p-2 border border-gray-300 rounded-md flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                          />
+                          <button
+                            @click="confirmDeadline"
+                            class="p-1 rounded hover:bg-green-100 text-green-500"
+                            title="Подтвердить"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            @click="cancelDeadline"
+                            class="p-1 rounded hover:bg-red-100 text-red-500"
+                            title="Отмена"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Бейдж архивирования внизу -->
+                  <div
+                    v-if="order?.is_archived && order?.archived_at"
+                    class="mt-6 flex items-center justify-end"
+                  >
+                    <span
+                      class="px-3 py-1 rounded-full text-xs font-normal bg-gray-100 text-gray-500 border border-gray-200"
+                    >
+                      Архивировано: {{ formatArchiveDate(order.archived_at) }}
+                    </span>
                   </div>
                 </div>
+                <hr class="my-4 border-blue-100" />
                 <div
-                  class="bg-white rounded-xl shadow p-6 flex flex-col gap-2 border border-blue-100 mb-6"
+                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-3"
                 >
-                  <div class="font-semibold text-gray-700 mb-2 text-lg">Проект</div>
+                  <div class="text-2xl font-extrabold text-blue-900 mb-2">Проект</div>
                   <div class="text-base text-gray-800">
                     Название: <b>{{ project?.title }}</b>
                   </div>
                   <div class="text-base text-gray-800">
-                    Клиент: <b>{{ project?.client?.name || '-' }}</b>
+                    Клиент:
+                    <b>
+                      {{ order?.client?.name
+                      }}<template v-if="order?.client?.company_name">
+                        ({{ order.client.company_name }})</template
+                      ><template v-else-if="!order?.client?.name">-</template>
+                    </b>
                   </div>
                 </div>
               </div>
             </div>
-            <!-- Правая секция -->
             <div class="w-1/2 flex flex-col gap-8 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
-              <!-- Форма отмены заказа -->
               <div
                 v-if="showCancelForm"
                 class="bg-white border border-red-100 rounded-xl shadow-md p-4 mb-6 flex flex-col gap-3 animate-fade-in"
@@ -276,7 +258,6 @@
                   </button>
                 </div>
               </div>
-              <!-- Комментарии -->
               <div class="rounded-xl shadow p-6 border border-blue-100 flex flex-col bg-white">
                 <div class="font-extrabold text-2xl text-blue-700 mb-4 tracking-tight">
                   Комментарии
@@ -291,12 +272,19 @@
                       <div
                         class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base shadow"
                       >
-                        {{ comment.user.name[0] }}
+                        <img
+                          v-if="userImageUrls[comment.user.name]"
+                          :src="userImageUrls[comment.user.name]"
+                          :alt="comment.user?.name"
+                          class="w-8 h-8 rounded-full object-cover"
+                        />
+                        <span v-else>
+                          {{ comment.user?.name ? comment.user.name[0] : '?' }}
+                        </span>
                       </div>
                       <div
                         class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative"
                       >
-                        <!-- Кнопка удаления -->
                         <button
                           @click="deleteComment(comment.id)"
                           title="Удалить"
@@ -321,10 +309,30 @@
                           <span class="font-bold text-sm text-gray-900">{{
                             comment.user.name
                           }}</span>
-                          <span
-                            class="text-[10px] text-white bg-blue-500 rounded px-2 py-0.5 font-semibold"
-                            >{{ comment.user.role }}</span
-                          >
+                          <span v-if="comment.user.roles && comment.user.roles.length">
+                            <span
+                              v-for="role in comment.user.roles"
+                              :key="typeof role === 'string' ? role : role.name"
+                              class="text-[10px] rounded px-2 py-0.5 font-semibold mr-1"
+                              :class="
+                                getRoleBadgeClass(typeof role === 'string' ? role : role.name)
+                              "
+                            >
+                              {{
+                                getRoleLabel(
+                                  typeof role === 'string' ? role : role.display_name || role.name,
+                                )
+                              }}
+                            </span>
+                          </span>
+                          <span v-else>
+                            <span
+                              class="text-[10px] rounded px-2 py-0.5 font-semibold"
+                              :class="getRoleBadgeClass(comment.user.role || '')"
+                            >
+                              {{ getRoleLabel(comment.user.role || '') }}
+                            </span>
+                          </span>
                           <span class="text-[10px] text-gray-400 ml-auto">{{
                             formatDate(comment.created_at)
                           }}</span>
@@ -382,47 +390,69 @@
                 </div>
               </div>
               <!-- Назначенные сотрудники -->
-              <div class="bg-white rounded-xl shadow p-4 border border-blue-100 mb-6">
+              <div
+                class="bg-white rounded-xl shadow p-4 border border-blue-100 mb-6"
+                :class="{ 'assignment-highlight': highlightAssignments }"
+              >
                 <div class="font-semibold text-gray-700 mb-2 text-lg">Назначенные сотрудники</div>
                 <div v-if="assignments.length === 0" class="text-gray-400 text-sm mb-2">
                   Нет назначенных сотрудников
                 </div>
+
                 <div
-                  v-for="assignment in assignments"
+                  v-for="assignment in currentStageAssignments"
                   :key="assignment.id"
-                  class="flex items-center gap-3 mb-2"
+                  :class="`flex flex-col rounded-lg shadow-sm px-3 py-2 mb-2 border border-gray-100 ${getAssignmentBg(assignment.status)}`"
                 >
-                  <span class="font-medium">
-                    {{ assignment.user?.name || '—' }} ({{ assignment.user?.role || '—' }})
-                  </span>
-                  <select
-                    v-model="assignment.status"
-                    @change="updateAssignmentStatus(assignment)"
-                    class="border rounded px-2 py-1 text-sm"
-                  >
-                    <option value="pending">Ожидание</option>
-                    <option value="in_progress">В работе</option>
-                    <option value="completed">Завершено</option>
-                    <option value="cancelled">Отменено</option>
-                    <option value="under_review">На проверке</option>
-                    <option value="approved">Одобрено</option>
-                  </select>
-                  <button
-                    v-if="assignment.status === 'cancelled'"
-                    @click="deleteAssignment(assignment)"
-                    class="text-red-500 hover:underline text-xs"
-                  >
-                    Удалить
-                  </button>
-                  <span class="text-xs text-gray-400 ml-2"
-                    >Назначил:
-                    {{ assignment.assigned_by_user?.name || assignment.assigned_by }}</span
-                  >
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <span class="font-semibold text-gray-900">{{
+                        assignment.user?.name || '—'
+                      }}</span>
+                      <span
+                        class="inline-block rounded px-2 py-0.5 text-xs font-semibold ml-2 align-middle leading-tight"
+                        :class="getRoleBadgeClass(assignment.role_type)"
+                      >
+                        {{ getRoleLabel(assignment.role_type) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <select
+                        v-model="assignment.status"
+                        @change="updateAssignmentStatus(assignment)"
+                        :class="`border rounded px-2 py-1 text-xs ${getStatusTextColor(assignment.status)}`"
+                      >
+                        <option value="pending">Ожидание</option>
+                        <option value="in_progress">В работе</option>
+                        <option value="cancelled">Отменено</option>
+                        <option value="under_review">На проверке</option>
+                        <option value="approved">Одобрено</option>
+                      </select>
+                      <button
+                        v-if="assignment.status === 'cancelled' && canCreateEdit()"
+                        @click="deleteAssignment(assignment)"
+                        class="text-red-500 hover:underline text-xs ml-2"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between mt-1">
+                    <span class="text-xs text-gray-400">
+                      Назначил:
+                      <span class="font-semibold">{{
+                        assignment.assigned_by && assignment.assigned_by.name
+                          ? assignment.assigned_by.name
+                          : assignment.assigned_by
+                      }}</span>
+                    </span>
+                    <!-- Можно добавить дату назначения или другую инфу -->
+                  </div>
                 </div>
                 <div class="flex items-center gap-2 mt-4">
                   <Vue3Select
                     v-model="selectedUserId"
-                    :options="availableUsers"
+                    :options="filteredUsers"
                     label="name"
                     :reduce="(user) => user.id"
                     placeholder="Добавить сотрудника..."
@@ -430,6 +460,9 @@
                     @update:modelValue="assignUser"
                   />
                   <span class="text-xs text-gray-400">(Дизайнеры, печатники, цех)</span>
+                  <span v-if="assignError" class="text-xs text-red-500 mt-1 block">{{
+                    assignError
+                  }}</span>
                 </div>
               </div>
               <!-- Timeline -->
@@ -454,7 +487,9 @@
                       >
                       <span class="text-xs text-gray-300 ml-2"
                         >{{ log.user?.name
-                        }}<span v-if="log.user?.role"> ({{ log.user.role }})</span></span
+                        }}<span v-if="log.user?.role">
+                          ({{ USER_ROLE_LABELS[log.user.role] || log.user.role }})</span
+                        ></span
                       >
                     </div>
                     <div class="ml-3 flex-shrink-0">
@@ -556,6 +591,55 @@
   opacity: 0;
 }
 .modal-fade-enter-to,
+
+/* Плавная подсветка карточки назначений */
+.assignment-highlight {
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.3),
+    0 0 0 0 transparent;
+  border-color: #ef4444 !important;
+  background-color: white !important;
+  transform: scale(1.02) !important;
+  transition:
+    box-shadow 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: assignmentPulse 2s ease-in-out infinite;
+}
+
+.assignment-highlight-leave-active,
+.assignment-highlight-enter-active {
+  transition:
+    box-shadow 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.assignment-highlight-leave-from,
+.assignment-highlight-enter-to {
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.3),
+    0 0 0 0 transparent;
+  border-color: #ef4444 !important;
+  transform: scale(1.02) !important;
+}
+
+.assignment-highlight-leave-to,
+.assignment-highlight-enter-from {
+  box-shadow: 0 0 0 0 transparent;
+  border-color: #e5e7eb !important;
+  transform: scale(1) !important;
+}
+
+@keyframes assignmentPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15);
+  }
+}
 .modal-fade-leave-from {
   opacity: 1;
 }
@@ -579,7 +663,7 @@
 </style>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import {
   getOrderDetails,
   getOrderComments,
@@ -596,19 +680,28 @@ import EditableField from '@/components/ui/EditableField.vue'
 import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
+import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import { API_CONFIG } from '@/config/api'
+import { canCreateEdit, canViewPrices } from '@/utils/permissions'
+import { getUserImageUrl } from '@/utils/user'
+import { toast } from '@/stores/toast'
 
-const props = defineProps<{ orderId?: number | null }>()
+const props = defineProps<{ orderId?: number | null; errorMsg?: string }>()
 const emit = defineEmits(['close', 'updated'])
+
+// Состояние для подсветки назначений
+const highlightAssignments = ref(false)
+const assignmentMessage = ref('')
 
 const loading = ref(true)
 const order = ref<Order | null>(null)
 const project = ref<Project | null>(null)
 
+// Исправление типов для OrderComment
 interface OrderComment {
   id: number
   text: string
-  user: { name: string; role: string }
+  user: { name: string; role?: string; roles?: { name: string; display_name: string }[] }
   created_at: string
 }
 interface StatusLog {
@@ -622,24 +715,34 @@ const comments = ref<OrderComment[]>([])
 const statusLogs = ref<StatusLog[]>([])
 const newComment = ref('')
 const commentFocused = ref(false)
-const allManagers = ref<{ id: number; name: string }[]>([])
-const showManagerSelect = ref(false)
 const showDeadlineInput = ref(false)
 const tempDeadline = ref('')
 const showCancelForm = ref(false)
 const cancelReason = ref('')
 const cancelReasonStatus = ref('refused')
-const assignments = ref<any[]>([])
-const availableUsers = ref<any[]>([])
+// Исправление типов для assignments, availableUsers
+const assignments = ref<Array<any>>([])
+const availableUsers = ref<Array<any>>([])
 const selectedUserId = ref<number | null>(null)
+const assignError = ref('')
+
+const USER_ROLE_LABELS: Record<string, string> = {
+  admin: 'Администратор',
+  manager: 'Менеджер',
+  designer: 'Дизайнер',
+  print_operator: 'Печатник',
+  workshop_worker: 'Работник цеха',
+  user: 'Пользователь',
+  engraving_operator: 'Оператор гравировки',
+}
 
 const stages = [
   { value: 'draft', label: 'Черновик' },
   { value: 'design', label: 'Дизайн' },
   { value: 'print', label: 'Печать' },
+  { value: 'engraving', label: 'Гравировка' },
   { value: 'workshop', label: 'Цех' },
   { value: 'final', label: 'Финальный' },
-  { value: 'archived', label: 'Архив' },
   { value: 'completed', label: 'Завершен' },
   { value: 'cancelled', label: 'Отменен' },
 ]
@@ -648,6 +751,102 @@ const completedStages = computed(() => {
   const idx = stages.findIndex((s) => s.value === order.value!.stage)
   return stages.slice(0, idx).map((s) => s.value)
 })
+
+// Универсальный вывод ролей для комментариев и назначений
+function getRoleLabel(role: string) {
+  const labels: Record<string, string> = {
+    admin: 'Администратор',
+    manager: 'Менеджер',
+    designer: 'Дизайнер',
+    print_operator: 'Печатник',
+    workshop_worker: 'Работник цеха',
+    engraving_operator: 'Оператор гравировки',
+  }
+  return labels[role] || role
+}
+
+// Вставить функцию для Tailwind-классов по роли
+function getRoleBadgeClass(role: string) {
+  switch (role) {
+    case 'designer':
+      return 'bg-blue-100 text-blue-800'
+    case 'print_operator':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'engraving_operator':
+      return 'bg-orange-100 text-orange-800'
+    case 'workshop_worker':
+      return 'bg-purple-100 text-purple-800'
+    case 'manager':
+      return 'bg-green-100 text-green-800'
+    case 'admin':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const filteredUsers = computed(() => {
+  if (!order.value?.stage) return normalizeUsers(availableUsers.value)
+  if (order.value.stage === 'design') {
+    return normalizeUsers(availableUsers.value.filter((u: any) => hasRole(u, 'designer')))
+  }
+  if (order.value.stage === 'print') {
+    return normalizeUsers(availableUsers.value.filter((u: any) => hasRole(u, 'print_operator')))
+  }
+  if (order.value.stage === 'engraving') {
+    return normalizeUsers(availableUsers.value.filter((u: any) => hasRole(u, 'engraving_operator')))
+  }
+  if (order.value.stage === 'workshop') {
+    return normalizeUsers(availableUsers.value.filter((u: any) => hasRole(u, 'workshop_worker')))
+  }
+  return normalizeUsers(availableUsers.value)
+})
+
+function hasRole(user: any, role: string): boolean {
+  if (Array.isArray(user.roles)) {
+    // Массив объектов или строк
+    return user.roles.some((r: any) =>
+      typeof r === 'string' ? r === role : r.name === role || r === role,
+    )
+  }
+  return user.role === role
+}
+
+function normalizeUsers(users: any[]): any[] {
+  // Преобразуем roles: string[] или role: string в roles: {name, display_name}[] для селектора и отображения
+  return users.map((u: any) => {
+    if (Array.isArray(u.roles) && typeof u.roles[0] === 'string') {
+      return {
+        ...u,
+        roles: u.roles.map((r: string) => ({ name: r, display_name: getRoleLabel(r) })),
+      }
+    }
+    if (!u.roles && u.role) {
+      return {
+        ...u,
+        roles: [{ name: u.role, display_name: getRoleLabel(u.role) }],
+      }
+    }
+    return u
+  })
+}
+
+// Добавить функцию для нормализации одного пользователя
+function normalizeUser(u: any): any {
+  if (Array.isArray(u.roles) && typeof u.roles[0] === 'string') {
+    return {
+      ...u,
+      roles: u.roles.map((r: string) => ({ name: r, display_name: getRoleLabel(r) })),
+    }
+  }
+  if (!u.roles && u.role) {
+    return {
+      ...u,
+      roles: [{ name: u.role, display_name: getRoleLabel(u.role) }],
+    }
+  }
+  return u
+}
 
 const { updateStage, update } = OrderController()
 
@@ -670,24 +869,51 @@ async function fetchAll() {
   if (order.value?.project_id) {
     project.value = await getProjectDetails(order.value.project_id)
   }
-  comments.value = await getOrderComments(props.orderId)
+  // Нормализуем пользователей в комментариях
+  const rawComments = await getOrderComments(props.orderId)
+  comments.value = rawComments.map((c: any) => ({ ...c, user: normalizeUser(c.user) }))
   statusLogs.value = await getOrderStatusLogs(props.orderId)
 
   // Загружаем менеджеров
   try {
     const response = await getByRole('manager')
-    allManagers.value = response.data
+    // Удалить все поля, отображения, методы, связанные с manager, manager_id, allManagers, showManagerSelect, updateManager и т.д.
   } catch (error) {
     console.error('Ошибка загрузки менеджеров:', error)
-    allManagers.value = []
+    // Удалить все поля, отображения, методы, связанные с manager, manager_id, allManagers, showManagerSelect, updateManager и т.д.
   }
 
   loading.value = false
+
+  // assignments всегда обновляется после получения заказа
+  await fetchAssignments()
+
+  // Проверяем, нужно ли подсвечивать назначения
+  const shouldHighlight = sessionStorage.getItem('highlightAssignments')
+  const message = sessionStorage.getItem('assignmentMessage')
+
+  console.log('🔍 Проверяем подсветку:', { shouldHighlight, message })
+
+  if (shouldHighlight === 'true') {
+    console.log('✨ Активируем подсветку')
+    highlightAssignments.value = true
+    assignmentMessage.value = message || ''
+    // Очищаем sessionStorage
+    sessionStorage.removeItem('highlightAssignments')
+    sessionStorage.removeItem('assignmentMessage')
+
+    // Убираем подсветку через 5 секунд
+    setTimeout(() => {
+      console.log('⏰ Убираем подсветку')
+      highlightAssignments.value = false
+      assignmentMessage.value = ''
+    }, 5000)
+  }
 }
 
 async function addComment() {
   if (!newComment.value.trim()) return
-  await postOrderComment(props.orderId, newComment.value)
+  await postOrderComment(props.orderId as number, newComment.value)
   newComment.value = ''
   commentFocused.value = false
   await fetchAll()
@@ -709,9 +935,9 @@ function getStatusText(stage: string) {
       draft: 'Черновик',
       design: 'Дизайн',
       print: 'Печать',
+      engraving: 'Гравировка',
       workshop: 'Цех',
       final: 'Финальный',
-      archived: 'Архив',
       completed: 'Завершен',
       cancelled: 'Отменен',
     }[stage] || stage
@@ -724,10 +950,10 @@ function statusBadge(stage: string) {
       draft: 'bg-gray-300 text-gray-900',
       design: 'bg-blue-500 text-white',
       print: 'bg-yellow-400 text-gray-900',
+      engraving: 'bg-orange-500 text-white',
       workshop: 'bg-purple-500 text-white',
       final: 'bg-green-500 text-white',
-      archived: 'bg-gray-400 text-white',
-      completed: 'bg-green-600 text-white',
+      completed: 'bg-emerald-600 text-white',
       cancelled: 'bg-red-500 text-white',
     }[stage] || 'bg-gray-300 text-gray-900'
   )
@@ -738,9 +964,9 @@ function getStageColor(stage: string, current: string | undefined, completed: st
     draft: ['bg-gray-400 text-white', 'bg-gray-200 text-gray-700'],
     design: ['bg-blue-600 text-white', 'bg-blue-200 text-blue-800'],
     print: ['bg-yellow-400 text-gray-900', 'bg-yellow-200 text-yellow-800'],
+    engraving: ['bg-orange-500 text-white', 'bg-orange-200 text-orange-800'],
     workshop: ['bg-purple-600 text-white', 'bg-purple-200 text-purple-800'],
     final: ['bg-green-600 text-white', 'bg-green-200 text-green-800'],
-    archived: ['bg-gray-500 text-white', 'bg-gray-200 text-gray-700'],
     completed: ['bg-emerald-600 text-white', 'bg-emerald-200 text-emerald-800'],
     cancelled: ['bg-red-600 text-white', 'bg-red-200 text-red-800'],
   }
@@ -751,36 +977,129 @@ function getStageColor(stage: string, current: string | undefined, completed: st
 
 async function deleteComment(commentId: number) {
   if (confirm('Удалить комментарий?')) {
-    await deleteOrderComment(props.orderId, commentId)
+    await deleteOrderComment(props.orderId as number, commentId)
     await fetchAll()
+  }
+}
+
+// --- Автоподстановка исполнителей на стадию при переходе ---
+async function autoAssignForStage(
+  orderId: number,
+  stageKey: string,
+  availableUsers: any[],
+  roleType: string,
+) {
+  // Получить текущие назначения
+  const res = await fetch(`${API_CONFIG.BASE_URL}/assignments?order_id=${orderId}`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  const data = await res.json()
+  const currentAssignments = data.data || data
+
+  // Фильтруем только тех, кто уже назначен с нужной ролью
+  const assignedForRole = currentAssignments.filter((a) => a.role_type === roleType)
+
+  // Если никого нет — ничего не делаем
+  if (assignedForRole.length === 0) return
+
+  // Для каждого назначенного сотрудника обновляем чекбокс стадии, если нужно
+  for (const a of assignedForRole) {
+    if (!a[stageKey]) {
+      await fetch(`${API_CONFIG.BASE_URL}/assignments/${a.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({
+          [stageKey]: true,
+          action: 'stage_update',
+        }),
+      })
+    }
   }
 }
 
 async function changeStatus(newStatus: string) {
   if (!order.value || order.value.stage === newStatus) return
-  await updateStage(order.value.id, { stage: newStatus })
-  await fetchAll()
+  try {
+    if (newStatus === 'design') {
+      await autoAssignForStage(
+        order.value.id,
+        'has_design_stage',
+        availableUsers.value || [],
+        'designer',
+      )
+    }
+    if (newStatus === 'print') {
+      await autoAssignForStage(
+        order.value.id,
+        'has_print_stage',
+        availableUsers.value || [],
+        'print_operator',
+      )
+    }
+    if (newStatus === 'engraving') {
+      await autoAssignForStage(
+        order.value.id,
+        'has_engraving_stage',
+        availableUsers.value || [],
+        'engraving_operator',
+      )
+    }
+    if (newStatus === 'workshop') {
+      await autoAssignForStage(
+        order.value.id,
+        'has_workshop_stage',
+        availableUsers.value || [],
+        'workshop_worker',
+      )
+    }
+    await updateStage(order.value.id, { stage: newStatus })
+    toast.show('Статус заказа обновлён!')
+    await fetchAll() // <-- всегда обновлять все детали заказа
+    emit('updated') // Эмитим событие обновления
+  } catch (err: any) {
+    const msg = err?.message || 'Ошибка смены стадии'
+
+    // Проверяем, связана ли ошибка с отсутствием назначений
+    if (
+      msg.includes('дизайнер') ||
+      msg.includes('печатник') ||
+      msg.includes('цех') ||
+      msg.includes('назначен')
+    ) {
+      toast.show('Назначьте сотрудника для перехода на этот этап', 'error')
+      // Активируем подсветку назначений
+      highlightAssignments.value = true
+      assignmentMessage.value = `Необходимо назначить сотрудника на этап "${getStatusText(newStatus)}"`
+
+      // Убираем подсветку через 5 секунд
+      setTimeout(() => {
+        highlightAssignments.value = false
+        assignmentMessage.value = ''
+      }, 5000)
+    } else {
+      toast.show(msg, 'error')
+    }
+  }
 }
 
 async function updateOrderField(field: string, value: unknown) {
   if (!order.value) return
   const payload: Record<string, unknown> = {}
-  if (field === 'manager') {
-    payload.manager_id = order.value.manager?.id
-    payload.manager = { ...order.value.manager, name: value }
-  } else {
-    payload[field] = value
-  }
+  // Удалить все поля, отображения, методы, связанные с manager, manager_id, allManagers, showManagerSelect, updateManager и т.д.
+  payload[field] = value
   await update(order.value.id, payload)
   await fetchAll()
   emit('updated')
 }
 
-async function updateManager(managerId: number) {
-  if (!order.value) return
-  await updateOrderField('manager_id', managerId)
-  showManagerSelect.value = false
-}
+// Удалить все поля, отображения, методы, связанные с manager, manager_id, allManagers, showManagerSelect, updateManager и т.д.
 
 function startDeadlineEdit() {
   if (!order.value) return
@@ -790,7 +1109,22 @@ function startDeadlineEdit() {
 
 async function confirmDeadline() {
   if (!order.value) return
-  await updateOrderField('deadline', tempDeadline.value)
+
+  let deadline = tempDeadline.value
+
+  // Преобразуем строку даты в правильный формат для Laravel
+  if (deadline && typeof deadline === 'string') {
+    // Если строка в формате 'YYYY-MM-DD HH:mm', добавляем секунды
+    if (deadline.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+      deadline = deadline + ':00'
+    }
+    // Если строка в формате 'YYYY-MM-DD HH:mm:ss', оставляем как есть
+    else if (deadline.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+      // Уже в правильном формате
+    }
+  }
+
+  await updateOrderField('deadline', deadline)
   showDeadlineInput.value = false
 }
 
@@ -803,8 +1137,8 @@ function formatDateTime(dateStr?: string) {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
@@ -835,12 +1169,35 @@ async function confirmCancel() {
       reason: cancelReason.value,
       reason_status: cancelReasonStatus.value,
     })
+    toast.show('Заказ отменён!')
     showCancelForm.value = false
     cancelReason.value = ''
     cancelReasonStatus.value = 'refused'
     await fetchAll()
-  } catch {
-    alert('Ошибка при отмене заказа!')
+    emit('updated') // Эмитим событие обновления
+  } catch (err: any) {
+    const msg = err?.message || 'Ошибка при отмене заказа!'
+
+    // Проверяем, связана ли ошибка с отсутствием назначений
+    if (
+      msg.includes('дизайнер') ||
+      msg.includes('печатник') ||
+      msg.includes('цех') ||
+      msg.includes('назначен')
+    ) {
+      toast.show('Назначьте сотрудника для перехода на этот этап', 'error')
+      // Активируем подсветку назначений
+      highlightAssignments.value = true
+      assignmentMessage.value = 'Необходимо назначить сотрудника для отмены заказа'
+
+      // Убираем подсветку через 5 секунд
+      setTimeout(() => {
+        highlightAssignments.value = false
+        assignmentMessage.value = ''
+      }, 5000)
+    } else {
+      alert(msg)
+    }
   }
 }
 
@@ -880,7 +1237,9 @@ async function fetchAssignments() {
     })
     if (!res.ok) throw new Error('Ошибка загрузки назначений')
     const data = await res.json()
-    assignments.value = data.data || data
+    assignments.value = (data.data || data).map((a) => ({ ...a, user: normalizeUser(a.user) }))
+    // ЛОГ для проверки:
+    console.log('assignments.value:', assignments.value)
   } catch (e) {
     console.error('Ошибка загрузки назначений:', e)
     assignments.value = []
@@ -889,7 +1248,8 @@ async function fetchAssignments() {
 
 async function fetchAvailableUsers() {
   try {
-    const roles = ['designer', 'print_operator', 'workshop_worker']
+    // Добавляем engraving_operator
+    const roles = ['designer', 'print_operator', 'workshop_worker', 'engraving_operator']
     let users: any[] = []
     for (const role of roles) {
       const res = await getByRole(role)
@@ -936,9 +1296,13 @@ async function updateAssignmentStatus(assignment: any) {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
       },
-      body: JSON.stringify({ status: assignment.status }),
+      body: JSON.stringify({
+        status: assignment.status,
+        action: 'status_update', // Указываем, что это изменение статуса, а не удаление
+      }),
     })
-    fetchAssignments()
+    await fetchAssignments()
+    await fetchAll() // <-- всегда обновлять все детали заказа
   } catch (e) {
     console.error('Ошибка обновления статуса назначения:', e)
   }
@@ -950,9 +1314,13 @@ async function deleteAssignment(assignment: any) {
     await fetch(`${API_CONFIG.BASE_URL}/assignments/${assignment.id}`, {
       method: 'DELETE',
       headers: {
+        'Content-Type': 'application/json',
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
       },
+      body: JSON.stringify({
+        action: 'delete', // Указываем, что это удаление
+      }),
     })
     fetchAssignments()
   } catch (e) {
@@ -960,10 +1328,88 @@ async function deleteAssignment(assignment: any) {
   }
 }
 
+function getAssignmentBg(status: string) {
+  return (
+    {
+      pending: 'bg-yellow-50 border-yellow-200',
+      in_progress: 'bg-blue-50 border-blue-200',
+      cancelled: 'bg-red-50 border-red-200',
+      under_review: 'bg-purple-50 border-purple-200',
+      approved: 'bg-emerald-50 border-emerald-200',
+    }[status] || 'bg-gray-50 border-gray-200'
+  )
+}
+
+function getStatusTextColor(status: string) {
+  return (
+    {
+      pending: 'bg-yellow-100 text-yellow-800',
+      in_progress: 'bg-blue-100 text-blue-800',
+      cancelled: 'bg-red-100 text-red-800',
+      under_review: 'bg-purple-100 text-purple-800',
+      approved: 'bg-emerald-100 text-emerald-800',
+    }[status] || 'bg-gray-100 text-gray-800'
+  )
+}
+
+function formatArchiveDate(dateStr: string) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const stageRoleMap = {
+  design: 'designer',
+  print: 'print_operator',
+  engraving: 'engraving_operator',
+  workshop: 'workshop_worker',
+}
+
+// Исправление currentStageAssignments типов
+const currentStageAssignments = computed(() => {
+  if (!order.value) return []
+  const stage = order.value?.stage as keyof typeof stageRoleMap
+  const roleType = stageRoleMap[stage]
+  const stageKey = {
+    design: 'has_design_stage',
+    print: 'has_print_stage',
+    engraving: 'has_engraving_stage',
+    workshop: 'has_workshop_stage',
+  }[stage]
+  if (!roleType || !stageKey) return []
+  return assignments.value.filter((a: any) => a.role_type === roleType && a[stageKey])
+})
+
+function getRoleForStage(stage: string) {
+  return (
+    {
+      design: 'Дизайнер',
+      print: 'Оператор печати',
+      engraving: 'Оператор гравировки',
+      workshop: 'Работник цеха',
+    }[stage] || ''
+  )
+}
+
+let pollingInterval: any = null
+
 onMounted(() => {
   fetchAll()
   fetchAssignments()
   fetchAvailableUsers()
+  pollingInterval = setInterval(() => {
+    fetchAll()
+  }, 7000) // каждые 7 секунд
+})
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
 })
 
 watch(
@@ -983,5 +1429,116 @@ watch(
       cancelReasonStatus.value = 'refused'
     }
   },
+)
+
+watch(
+  () => assignments.value,
+  (newAssignments) => {
+    if (!order.value?.stage) return
+
+    console.log('🔍 Проверка автоматического перехода:', {
+      currentStage: order.value.stage,
+      allAssignments: newAssignments,
+    })
+
+    // Проверяем только назначения для текущей стадии
+    const currentStageAssignments = newAssignments.filter((a: any) => {
+      if (order.value?.stage === 'design') return a.user?.role === 'designer'
+      if (order.value?.stage === 'print') return a.user?.role === 'print_operator'
+      if (order.value?.stage === 'engraving') return a.user?.role === 'engraving_operator'
+      if (order.value?.stage === 'workshop') return a.user?.role === 'workshop_worker'
+      return false
+    })
+
+    console.log('📋 Назначения для текущей стадии:', {
+      stage: order.value.stage,
+      assignments: currentStageAssignments,
+      allApproved: currentStageAssignments.every((a) => a.status === 'approved'),
+    })
+
+    // Проверяем, что все назначения для текущей стадии действительно approved
+    const allCurrentStageApproved =
+      currentStageAssignments.length > 0 &&
+      currentStageAssignments.every((a) => a.status === 'approved')
+
+    console.log('🔍 Детальная проверка:', {
+      stage: order.value.stage,
+      currentStageAssignments: currentStageAssignments.map((a) => ({
+        user: a.user?.name,
+        role: a.user?.role,
+        status: a.status,
+      })),
+      allCurrentStageApproved,
+      totalAssignments: newAssignments.length,
+    })
+
+    // Автоматический переход только если есть назначения для текущей стадии и все они approved
+    if (order.value.stage === 'design' && allCurrentStageApproved) {
+      console.log('✅ Переход: design → print')
+      // Все дизайнеры approved — переводим заказ на стадию "Печать"
+      updateStage(order.value.id, { stage: 'print' })
+        .then(() => {
+          toast.show('Все дизайнеры одобрили — заказ переведён на стадию "Печать"!')
+          fetchAll()
+        })
+        .catch(() => {})
+    }
+    if (order.value.stage === 'print' && allCurrentStageApproved) {
+      console.log('✅ Переход: print → engraving')
+      // Все печатники approved — переводим заказ на стадию "Гравировка"
+      updateStage(order.value.id, { stage: 'engraving' })
+        .then(() => {
+          toast.show('Все печатники одобрили — заказ переведён на стадию "Гравировка"!')
+          fetchAll()
+        })
+        .catch(() => {})
+    }
+    if (order.value.stage === 'engraving' && allCurrentStageApproved) {
+      console.log('✅ Переход: engraving → workshop')
+      // Все печатники approved — переводим заказ на стадию "Цех"
+      updateStage(order.value.id, { stage: 'workshop' })
+        .then(() => {
+          toast.show('Все печатники одобрили — заказ переведён на стадию "Цех"!')
+          fetchAll()
+        })
+        .catch(() => {})
+    }
+    if (order.value.stage === 'workshop' && allCurrentStageApproved) {
+      console.log('✅ Переход: workshop → final')
+      // Все сотрудники цеха approved — переводим заказ на стадию "Финальный"
+      updateStage(order.value.id, { stage: 'final' })
+        .then(() => {
+          console.log('✅ Успешно переведен на final')
+          toast.show('Все сотрудники цеха одобрили — заказ переведён на стадию "Финальный"!')
+          fetchAll()
+        })
+        .catch((error) => {
+          console.error('❌ Ошибка перехода на final:', error)
+        })
+    }
+  },
+  { deep: true },
+)
+
+// Исправление getUserImageUrl (ожидает Promise)
+// Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки
+const userImageUrls = ref<Record<string, string>>({})
+async function loadUserImageUrl(user: any) {
+  if (!user || !user.name) return
+  if (!userImageUrls.value[user.name]) {
+    try {
+      const url = await getUserImageUrl(user)
+      userImageUrls.value[user.name] = url
+    } catch {
+      userImageUrls.value[user.name] = ''
+    }
+  }
+}
+watch(
+  () => comments.value,
+  (newComments) => {
+    newComments.forEach((c) => loadUserImageUrl(c.user))
+  },
+  { immediate: true, deep: true },
 )
 </script>

@@ -1,7 +1,9 @@
 <template>
   <div class="product-list flex flex-col h-full">
     <div class="flex justify-end items-center mb-3">
-      <UIButton @click="showCreateModal = true" variant="primary">Добавить товар</UIButton>
+      <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
+        >Добавить товар</UIButton
+      >
     </div>
 
     <div class="flex-1 flex flex-col min-h-0">
@@ -53,17 +55,40 @@
                   <span class="font-medium text-gray-900">{{ product.name }}</span>
                 </template>
                 <template v-else-if="col.key === 'designer'">
-                  <span class="text-gray-700">{{ product.designer?.name || '-' }}</span>
+                  <AssignmentDisplay
+                    :assignments="
+                      product.assignments
+                        ? product.assignments.filter((a) => a.role_type === 'designer')
+                        : []
+                    "
+                  />
                 </template>
-                <template v-else-if="col.key === 'is_workshop_required'">
-                  <span :class="product.is_workshop_required ? 'text-green-600' : 'text-gray-400'">
-                    {{ product.is_workshop_required ? 'Да' : 'Нет' }}
-                  </span>
+                <template v-else-if="col.key === 'print_operator'">
+                  <AssignmentDisplay
+                    :assignments="
+                      product.assignments
+                        ? product.assignments.filter((a) => a.role_type === 'print_operator')
+                        : []
+                    "
+                  />
                 </template>
-                <template v-else-if="col.key === 'workshop_type'">
-                  <span class="text-gray-700">
-                    {{ getWorkshopTypeLabel(product.workshop_type) }}
-                  </span>
+                <template v-else-if="col.key === 'engraving_operator'">
+                  <AssignmentDisplay
+                    :assignments="
+                      product.assignments
+                        ? product.assignments.filter((a) => a.role_type === 'engraving_operator')
+                        : []
+                    "
+                  />
+                </template>
+                <template v-else-if="col.key === 'workshop_worker'">
+                  <AssignmentDisplay
+                    :assignments="
+                      product.assignments
+                        ? product.assignments.filter((a) => a.role_type === 'workshop_worker')
+                        : []
+                    "
+                  />
                 </template>
                 <template v-else-if="col.key === 'created_at'">
                   <span class="text-gray-600">{{ formatDate(product.created_at) }}</span>
@@ -91,7 +116,13 @@
       </div>
 
       <Pagination
-        v-if="!loading && !error && pagination.total > 0"
+        v-if="
+          !loading &&
+          !error &&
+          pagination &&
+          typeof pagination.last_page !== 'undefined' &&
+          pagination.total > 0
+        "
         :current-page="pagination.current_page"
         :last-page="pagination.last_page"
         @go-to-page="goToPage"
@@ -122,24 +153,41 @@ import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
 import ProductFormModal from './ProductFormModal.vue'
-import { ProductController } from '@/controllers/ProductController'
-import type { Product } from '@/types/product'
+import AssignmentDisplay from './AssignmentDisplay.vue'
+import productController from '@/controllers/productControllerInstance'
+import type { Product, ProductForm } from '@/types/product'
+import { canCreateEdit } from '@/utils/permissions'
+import { toast } from '@/stores/toast'
 
 const props = defineProps({
   search: { type: String, default: '' },
 })
 
-const columns = ref([
+const SORT_KEY = 'productList_sortBy'
+const ORDER_KEY = 'productList_sortOrder'
+const COLUMNS_KEY = 'productList_columns'
+
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
+
+const defaultColumns = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Название', sortable: true },
   { key: 'designer', label: 'Дизайнер', sortable: false },
-  { key: 'is_workshop_required', label: 'Требуется цех', sortable: true },
-  { key: 'workshop_type', label: 'Тип цеха', sortable: true },
+  { key: 'print_operator', label: 'Печатник', sortable: false },
+  { key: 'engraving_operator', label: 'Гравировщик', sortable: false },
+  { key: 'workshop_worker', label: 'Работник цеха', sortable: false },
   { key: 'created_at', label: 'Создано', sortable: true },
-])
+]
 
-const { pagination, loading, error, fetchProducts, sortBy, sortOrder, create, update, remove } =
-  ProductController()
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+
+const { pagination, loading, error, fetchProducts, sortBy, sortOrder, update, remove } =
+  productController
+
+if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
+if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -154,40 +202,99 @@ function setSort(key: string, search = '') {
     sortBy.value = key
     sortOrder.value = 'asc'
   }
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
   fetchProducts(1, search, sortBy.value, sortOrder.value)
 }
 
+function resetSettings() {
+  columns.value = [...defaultColumns]
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  sortBy.value = 'id'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  currentPage.value = 1
+  fetchProducts(1, props.search, sortBy.value, sortOrder.value)
+}
+
 function goToPage(page: number) {
-  if (page < 1 || page > pagination.value.last_page) return
+  if (!pagination || typeof pagination.last_page === 'undefined') return
+  if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
   fetchProducts(page, props.search, sortBy.value, sortOrder.value)
 }
 
 function editProduct(product: Product) {
+  if (!canCreateEdit()) return
+
+  console.log('Editing product:', {
+    id: product.id,
+    name: product.name,
+    designers: product.designers,
+    print_operators: product.print_operators,
+    engraving_operators: product.engraving_operators,
+    workshop_workers: product.workshop_workers,
+  })
+
   editingProduct.value = product
   showEditModal.value = true
 }
 
 async function handleCreateProduct(newProduct: Product) {
-  await create(newProduct)
   showCreateModal.value = false
   currentPage.value = 1
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 async function handleUpdateProduct(updatedProduct: Product) {
-  await update(updatedProduct.id, updatedProduct)
+  console.log('handleUpdateProduct called with:', updatedProduct)
+
+  // Преобразуем Product в ProductForm для API
+  const productForm: ProductForm = {
+    name: updatedProduct.name,
+    designer_id: updatedProduct.designer_id,
+    print_operator_id: updatedProduct.print_operator_id,
+    workshop_worker_id: updatedProduct.workshop_worker_id,
+    has_design_stage: updatedProduct.has_design_stage,
+    has_print_stage: updatedProduct.has_print_stage,
+    has_engraving_stage: updatedProduct.has_engraving_stage,
+    has_workshop_stage: updatedProduct.has_workshop_stage,
+    designers: updatedProduct.designers || [],
+    print_operators: updatedProduct.print_operators || [],
+    engraving_operators: updatedProduct.engraving_operators || [],
+    workshop_workers: updatedProduct.workshop_workers || [],
+  }
+
+  console.log('Sending to API:', productForm)
+
+  await update(updatedProduct.id, productForm)
   showEditModal.value = false
+
+  console.log('Product updated, fetching products again...')
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 async function handleDeleteProduct(productId: number) {
-  await remove(productId)
-  showEditModal.value = false
-  if (pagination.value.data.length === 1 && currentPage.value > 1) {
-    currentPage.value--
+  try {
+    await remove(productId)
+    showEditModal.value = false
+    editingProduct.value = null
+    if (pagination?.data?.length === 1 && currentPage.value > 1) {
+      currentPage.value--
+    }
+  } catch (e: any) {
+    // Если ошибка 404 — просто закрыть модалку и обновить список
+    if (e.message && e.message.includes('Ошибка удаления товара')) {
+      toast.show('Товар уже был удалён')
+      showEditModal.value = false
+      editingProduct.value = null
+      // Обновить список, чтобы убрать "мертвый" товар
+      await fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
+    } else {
+      toast.show('Ошибка при удалении товара')
+    }
   }
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -202,15 +309,6 @@ function formatDate(date: string | null | undefined) {
   })
 }
 
-function getWorkshopTypeLabel(type: string | null | undefined) {
-  if (!type) return '-'
-  const labels = {
-    montage: 'Монтаж',
-    binding: 'Переплет',
-  }
-  return labels[type as keyof typeof labels] || type
-}
-
 watch(
   () => props.search,
   (newVal) => {
@@ -220,6 +318,8 @@ watch(
 )
 
 onMounted(async () => {
+  // Принудительно сбрасываем productList_columns в localStorage, чтобы обновить колонки
+  localStorage.removeItem('productList_columns')
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {
@@ -231,6 +331,7 @@ onMounted(async () => {
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
         columns.value.splice(newIndex, 0, moved)
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
   }

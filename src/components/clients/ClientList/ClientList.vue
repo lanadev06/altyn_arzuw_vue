@@ -5,6 +5,19 @@
         >Добавить клиента</UIButton
       >
     </div>
+    <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
+      <div class="flex items-center gap-4">
+        <span> <b>Отмечено:</b> {{ 0 }} / {{ pagination?.total || 0 }} </span>
+        <span> <b>Всего:</b> {{ pagination?.total || 0 }} </span>
+        <span> <b>Страницы:</b> {{ pagination?.last_page || 1 }} </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span>На странице:</span>
+        <select v-model="perPage" @change="changePerPage" class="border rounded px-2 py-1">
+          <option v-for="n in [10, 20, 50, 100]" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </div>
+    </div>
     <div class="flex-1 flex flex-col min-h-0">
       <div class="bg-white border border-gray-200">
         <table class="w-full border-collapse border-gray-300 text-gray-900 text-base">
@@ -99,7 +112,7 @@
                 {{ error }}
               </td>
             </tr>
-            <tr v-if="!loading && !error && pagination.data.length === 0">
+            <tr v-if="!loading && !error && (!pagination || pagination.data.length === 0)">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? 'Клиенты не найдены' : 'Клиенты отсутствуют' }}
               </td>
@@ -108,7 +121,7 @@
         </table>
       </div>
       <Pagination
-        v-if="!loading && !error && pagination.total > 0"
+        v-if="!loading && !error && pagination && pagination.total > 0"
         :current-page="pagination.current_page"
         :last-page="pagination.last_page"
         @go-to-page="goToPage"
@@ -132,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed, onUnmounted } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import ClientFormModal from './ClientFormModal.vue'
@@ -145,36 +158,66 @@ const props = defineProps({
   search: { type: String, default: '' },
 })
 
-const columns = ref([
+// Загружаем порядок колонок из localStorage или используем по умолчанию
+const defaultColumns = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Имя', sortable: true },
   { key: 'company_name', label: 'Компания', sortable: true },
   { key: 'contacts', label: 'Контакты', sortable: false },
   { key: 'created_at', label: 'Создано', sortable: true },
   { key: 'updated_at', label: 'Обновлено', sortable: false },
-])
+]
 
-const {
-  pagination,
-  loading,
-  error,
-  fetchClients,
-  create,
-  update,
-  remove,
-  sortBy,
-  sortOrder,
-  setSort,
-} = ClientController()
+const savedColumns = localStorage.getItem('clientList_columns')
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+
+const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
+  ClientController()
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingClient = ref<Client | null>(null)
 const columnsHeader = ref<HTMLElement | null>(null)
 const currentPage = ref(1)
+const perPage = ref(30)
+
+function changePerPage() {
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+}
+
+// Проверяем, есть ли пользовательские настройки
+const hasCustomSettings = computed(() => {
+  const savedColumns = localStorage.getItem('clientList_columns')
+  const savedSortBy = localStorage.getItem('clientList_sortBy')
+  const savedSortOrder = localStorage.getItem('clientList_sortOrder')
+
+  return savedColumns || savedSortBy !== 'id' || savedSortOrder !== 'asc'
+})
+
+// Функция для сброса настроек к значениям по умолчанию
+function resetSettings() {
+  // Сбрасываем порядок колонок
+  columns.value = [...defaultColumns]
+  localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
+
+  // Сбрасываем сортировку
+  setSort('id', props.search)
+
+  // Сбрасываем страницу
+  currentPage.value = 1
+  fetchClients(1, props.search, sortBy.value, sortOrder.value)
+}
 
 function goToPage(page: number) {
-  if (page < 1 || page > pagination.value.last_page) return
+  console.log('🔍 goToPage called with:', page)
+  console.log('🔍 pagination:', pagination)
+  console.log('🔍 pagination.last_page:', pagination?.last_page)
+
+  if (!pagination || page < 1 || page > pagination.last_page) {
+    console.log('❌ goToPage validation failed')
+    return
+  }
+
   currentPage.value = page
   fetchClients(page, props.search, sortBy.value, sortOrder.value)
 }
@@ -185,7 +228,6 @@ function editClient(client: Client) {
 }
 
 async function handleCreateClient(newClient: Client) {
-  await create(newClient)
   showCreateModal.value = false
   currentPage.value = 1
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
@@ -200,10 +242,11 @@ async function handleUpdateClient(updatedClient: Client) {
 async function handleDeleteClient(clientId: number) {
   await remove(clientId)
   showEditModal.value = false
-  if (pagination.value.data.length === 1 && currentPage.value > 1) {
+  editingClient.value = null
+  if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
     currentPage.value--
   }
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -226,21 +269,37 @@ watch(
   },
 )
 
+let pollingInterval: any = null
+
 onMounted(async () => {
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
-      onEnd(evt: any) {
+      onEnd(evt: Sortable.SortableEvent) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
         columns.value.splice(newIndex, 0, moved)
+        // Сохраняем новый порядок колонок в localStorage
+        localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
       },
     })
   }
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  pollingInterval = setInterval(() => {
+    fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  }, 7000)
+})
+
+watch(perPage, (newVal) => {
+  fetchClients(1, props.search, sortBy.value, sortOrder.value, newVal)
+  currentPage.value = 1
+})
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
 })
 </script>

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ClientsView from '@/views/ClientsView.vue'
 import { isAuthenticated } from '@/utils/auth'
+import { canViewAllUsers, canViewAllClients, canViewAuditLogs } from '@/utils/permissions'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,10 +48,16 @@ const router = createRouter({
       component: () => import('../views/OrdersView.vue'),
       meta: { title: 'Заказы', requiresAuth: true },
     },
+    {
+      path: '/audit-logs',
+      name: 'audit-logs',
+      component: () => import('../views/AuditLogsView.vue'),
+      meta: { title: 'Аудит-логи', requiresAuth: true },
+    },
   ],
 })
 
-// Authentication guard
+// Authentication and authorization guard
 router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated()
 
@@ -62,6 +69,14 @@ router.beforeEach((to, from, next) => {
   else if (to.name === 'login' && authenticated) {
     next({ name: 'dashboard' })
   }
+  // Check role-based access
+  else if (to.name === 'users' && !canViewAllUsers()) {
+    next({ name: 'dashboard' })
+  } else if (to.name === 'clients' && !canViewAllClients()) {
+    next({ name: 'dashboard' })
+  } else if (to.name === 'audit-logs' && !canViewAuditLogs()) {
+    next({ name: 'dashboard' })
+  }
   // Allow access to all other routes
   else {
     next()
@@ -70,7 +85,7 @@ router.beforeEach((to, from, next) => {
 
 router.afterEach((to) => {
   const defaultTitle = 'Панель управления'
-  document.title = to.meta.title || defaultTitle
+  document.title = (to.meta.title as string) || defaultTitle
 })
 
 export default router

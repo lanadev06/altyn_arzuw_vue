@@ -18,15 +18,18 @@
     "@tabler/icons-vue": "^3.34.0",
     "@vueform/multiselect": "^2.6.11",
     "@vuepic/vue-datepicker": "^11.0.2",
+    "axios": "^1.10.0",
     "flatpickr": "^4.6.13",
     "pinia": "^3.0.3",
     "sortablejs": "^1.15.6",
     "vue": "^3.5.17",
+    "vue-draggable-next": "^2.2.1",
     "vue-flatpickr-component": "^12.0.0",
     "vue-router": "^4.5.1",
     "vue-select2-component": "^1.0.1",
     "vue3-select": "^0.1.2",
-    "vuedraggable": "^2.24.3"
+    "vue3-smooth-dnd": "^0.0.6",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",

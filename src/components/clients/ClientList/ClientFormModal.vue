@@ -30,7 +30,7 @@
               v-model="contact.type"
               class="px-2 py-1 border rounded"
               required
-              @change="updateContactField(idx, 'type', $event.target.value)"
+              @change="handleContactTypeChange($event, idx)"
             >
               <option value="phone">Телефон</option>
               <option value="email">Email</option>
@@ -39,10 +39,10 @@
               <option value="instagram">Instagram</option>
               <option value="other">Другое</option>
             </select>
-            <ContactTypeIcon :type="contact.type" class="mr-1" />
+            <ContactTypeIcon :type="contact.type || 'phone'" class="mr-1" />
             <UIInput
-              :model-value="contact.value || ''"
-              @update:model-value="updateContactField(idx, 'value', $event)"
+              :model-value="contact.value ?? ''"
+              @update:model-value="(value) => handleContactValueChange(value, idx)"
               placeholder="Значение"
               required
               class="flex-1"
@@ -76,10 +76,11 @@ import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIButton from '@/components/ui/UIButton.vue'
 import type { Client, ClientContact } from '@/types/client'
-import { ClientController } from '@/controllers/ClientController'
-import ContactTypeIcon from './ContactTypeIcon.vue'
+import clientController from '@/controllers/clientControllerInstance'
+import ContactTypeIcon from '@/components/clients/ClientList/ContactTypeIcon.vue'
+import { toast } from '@/stores/toast'
 
-const { createContact, updateContact, removeContact, create, update } = ClientController()
+const { createContact, updateContact, removeContact, create, update, remove } = clientController
 
 const props = defineProps<{ client?: Client | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -94,7 +95,7 @@ const errors = reactive({
 const form = reactive({
   name: '',
   company_name: '',
-  contacts: [] as (Partial<ClientContact> & { localId?: number })[],
+  contacts: [] as (Partial<ClientContact> & { localId?: number; id?: number })[],
 })
 
 onMounted(() => {
@@ -110,41 +111,23 @@ onMounted(() => {
 })
 
 async function addContact() {
-  const newContact = { type: 'phone', value: '', localId: Date.now() + Math.random() }
-  form.contacts.push(newContact)
-  if (props.client?.id) {
-    try {
-      const created = await createContact(props.client.id, {
-        type: newContact.type!,
-        value: newContact.value!,
-      })
-      newContact.id = created.id
-    } catch (e) {}
+  const newContact = {
+    type: 'phone' as const,
+    value: '',
+    localId: Date.now() + Math.random(),
   }
+  form.contacts.push(newContact)
+  // Не отправляем createContact здесь!
 }
 
 async function updateContactField(idx: number, field: 'type' | 'value', value: string) {
   const contact = form.contacts[idx]
-  contact[field] = value
-  if (props.client?.id) {
-    if (!contact.id && contact.type && contact.value) {
-      // Новый контакт: создаём на сервере
-      try {
-        const created = await createContact(props.client.id, {
-          type: contact.type,
-          value: contact.value,
-        })
-        contact.id = created.id
-      } catch (e) {}
-    } else if (contact.id) {
-      try {
-        await updateContact(props.client.id, contact.id, {
-          type: contact.type!,
-          value: contact.value!,
-        })
-      } catch (e) {}
-    }
+  if (field === 'type') {
+    contact.type = value as 'phone' | 'email' | 'telegram' | 'whatsapp' | 'instagram' | 'other'
+  } else {
+    contact.value = value
   }
+  // Не отправляем запросы здесь! Всё сохраняется при handleSubmit
 }
 
 async function removeContactHandler(idx: number) {
@@ -164,6 +147,16 @@ function validateForm() {
   let valid = true
   if (!form.name.trim()) {
     errors.name = 'Имя обязательно'
+    valid = false
+  }
+
+  // Новая проверка: хотя бы один телефон
+  const phoneContacts = form.contacts.filter((c) => c.type === 'phone')
+  if (
+    phoneContacts.length === 0 ||
+    !phoneContacts.some((c) => c.value && /^\+993[-\s]?\d{2}[-\s]?\d{6}$/.test(c.value))
+  ) {
+    errors.contacts = 'Нужно указать хотя бы один телефон в формате +993 XX YYYYYY'
     valid = false
   }
 
@@ -190,32 +183,79 @@ async function handleSubmit() {
   loading.value = true
   try {
     let clientId = props.client?.id
-    if (!clientId) {
-      const created = await create({ name: form.name, company_name: form.company_name })
-      clientId = created.id
+    if (clientId) {
+      const clientData: Partial<Client> = {
+        name: form.name,
+        company_name: form.company_name || null,
+        contacts: form.contacts.map((contact) => ({
+          type: contact.type || 'phone',
+          value: contact.value || '',
+          client_id: clientId || 0,
+        })) as any,
+      }
+      await update(clientId, clientData as any)
+      toast.show('Клиент успешно обновлён!')
     } else {
-      await update(clientId, { name: form.name, company_name: form.company_name })
+      const clientData: Partial<Client> = {
+        name: form.name,
+        company_name: form.company_name || null,
+        contacts: form.contacts.map((contact) => ({
+          type: contact.type || 'phone',
+          value: contact.value || '',
+          client_id: 0, // будет установлено сервером
+        })) as any,
+      }
+      const created = await create(clientData as any)
+      clientId = created.id
+      toast.show('Клиент успешно добавлен!')
     }
+    // Сохраняем новые и изменённые контакты
     for (const contact of form.contacts) {
       if (!contact.id && contact.type && contact.value) {
-        const createdContact = await createContact(clientId, {
-          type: contact.type,
-          value: contact.value,
-        })
-        contact.id = createdContact.id
+        try {
+          const createdContact = await createContact(clientId, {
+            type: contact.type,
+            value: contact.value,
+          })
+          contact.id = createdContact.id
+        } catch (e) {
+          // Можно добавить обработку ошибок
+        }
       } else if (contact.id) {
-        await updateContact(clientId, contact.id, { type: contact.type!, value: contact.value! })
+        try {
+          await updateContact(clientId, contact.id, {
+            type: contact.type || 'phone',
+            value: contact.value || '',
+          })
+        } catch (e) {
+          // Можно добавить обработку ошибок
+        }
       }
     }
-    emit('submit', { id: clientId, name: form.name, company_name: form.company_name })
+    emit('submit', { id: clientId, ...form })
+    emit('close')
   } finally {
     loading.value = false
   }
 }
 
+function handleContactTypeChange(event: Event, idx: number) {
+  const target = event.target as HTMLSelectElement
+  updateContactField(idx, 'type', target?.value || '')
+}
+
+function handleContactValueChange(value: any, idx: number) {
+  updateContactField(idx, 'value', String(value || ''))
+}
+
 function handleDelete() {
-  if (props.client && confirm('Вы уверены, что хотите удалить этого клиента?')) {
-    emit('delete', props.client.id)
+  if (props.client && props.client.id) {
+    const clientId = props.client.id
+    remove(clientId).then(() => {
+      toast.show('Клиент удалён!')
+      emit('delete', clientId)
+      emit('close')
+    })
   }
 }
 </script>

@@ -1,13 +1,13 @@
 <template>
-  <div class="relative">
+  <div class="relative" ref="rootRef">
     <button
       @click="toggleDropdown"
       class="flex items-center gap-3 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all duration-200"
     >
       <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
         <img
-          v-if="user.avatar"
-          :src="user.avatar"
+          v-if="user.image"
+          :src="user.image"
           :alt="user.name"
           class="w-8 h-8 rounded-full object-cover"
         />
@@ -17,7 +17,20 @@
       </div>
       <div class="text-left">
         <p class="text-white text-sm font-medium">{{ user.name }}</p>
-        <p class="text-blue-100 text-xs">{{ user.role }}</p>
+        <p class="text-blue-100 text-xs">
+          <template v-if="user.roles && user.roles.length">
+            <span
+              v-for="role in user.roles"
+              :key="role.id"
+              class="inline-block bg-blue-200 text-blue-800 rounded px-2 py-0.5 mr-1"
+            >
+              {{ USER_ROLE_LABELS[role.name] || role.display_name || role.name }}
+            </span>
+          </template>
+          <template v-else>
+            {{ USER_ROLE_LABELS[user.role] || user.role }}
+          </template>
+        </p>
       </div>
       <svg
         class="w-4 h-4 text-white transition-transform duration-200"
@@ -41,32 +54,21 @@
     >
       <div class="px-4 py-3 border-b border-gray-200 border-opacity-20">
         <p class="text-gray-900 text-sm font-medium">{{ user.name }}</p>
-        <p class="text-blue-600 text-xs">{{ user.role }}</p>
+        <p class="text-blue-600 text-xs">
+          <template v-if="user.roles && user.roles.length">
+            <span
+              v-for="role in user.roles"
+              :key="role.id"
+              class="inline-block bg-blue-100 text-blue-800 rounded px-2 py-0.5 mr-1"
+            >
+              {{ USER_ROLE_LABELS[role.name] || role.display_name || role.name }}
+            </span>
+          </template>
+          <template v-else>
+            {{ USER_ROLE_LABELS[user.role] || user.role }}
+          </template>
+        </p>
       </div>
-
-      <div class="py-1">
-        <button
-          @click="handleSettings"
-          class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            ></path>
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            ></path>
-          </svg>
-          Настройки
-        </button>
-      </div>
-
       <div class="border-t border-gray-200 border-opacity-20 pt-1">
         <button
           @click="handleLogout"
@@ -87,10 +89,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { getUserImageUrl } from '@/utils/user'
 
-const props = defineProps({
+defineProps({
   user: {
     type: Object,
     default: () => ({
@@ -104,6 +107,16 @@ const props = defineProps({
 const emit = defineEmits(['logout', 'settings'])
 
 const isDropdownOpen = ref(false)
+const rootRef = ref<HTMLElement | null>(null)
+
+const USER_ROLE_LABELS: Record<string, string> = {
+  admin: 'Администратор',
+  manager: 'Менеджер',
+  designer: 'Дизайнер',
+  print_operator: 'Печатник',
+  workshop_worker: 'Работник цеха',
+  user: 'Пользователь',
+}
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value
@@ -114,13 +127,8 @@ const handleLogout = () => {
   emit('logout')
 }
 
-const handleSettings = () => {
-  isDropdownOpen.value = false
-  emit('settings')
-}
-
-const closeDropdown = (event) => {
-  if (!event.target.closest('.relative')) {
+const closeDropdown = (event: MouseEvent) => {
+  if (isDropdownOpen.value && rootRef.value && !rootRef.value.contains(event.target as Node)) {
     isDropdownOpen.value = false
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <Layout v-slot="{ search }">
     <div class="flex items-center justify-between mb-3 gap-4">
-      <div class="items-center gap-4">
+      <div class="flex items-center gap-4">
         <select
           v-model="selectedRole"
           @change="handleRoleChange"
@@ -15,6 +15,15 @@
           <option value="print_operator">Печатник</option>
           <option value="workshop_worker">Работник цеха</option>
         </select>
+        <select
+          v-model="activeFilter"
+          class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="min-width: 180px"
+        >
+          <option value="">Все пользователи</option>
+          <option value="1">Только активные</option>
+          <option value="0">Только неактивные</option>
+        </select>
       </div>
       <UIButton @click="openCreateModal" variant="primary"> Добавить пользователя </UIButton>
     </div>
@@ -22,7 +31,8 @@
       <UserList
         :search="search"
         :role="selectedRole"
-        :show-create-modal="showCreateModal"
+        :activeFilter="activeFilter"
+        :showCreateModal="showCreateModal"
         @close-create-modal="closeCreateModal"
       />
     </div>
@@ -31,21 +41,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import UserListImport from '../components/users/UserList/UserList.vue'
-import UIButtonImport from '../components/ui/UIButton.vue'
-import LayoutImport from '../components/layout/Layout.vue'
-
-const UserList = UserListImport.default || UserListImport
-const UIButton = UIButtonImport.default || UIButtonImport
-const Layout = LayoutImport.default || LayoutImport
+import UserList from '../components/users/UserList/UserList.vue'
+import UIButton from '../components/ui/UIButton.vue'
+import Layout from '../components/layout/Layout.vue'
 
 const showCreateModal = ref(false)
 const selectedRole = ref('')
+const activeFilter = ref('')
 
 function openCreateModal() {
-  console.log('Открытие модального окна...')
   showCreateModal.value = true
-  console.log('showCreateModal установлен в:', showCreateModal.value)
 }
 
 function closeCreateModal() {
@@ -55,4 +60,5 @@ function closeCreateModal() {
 function handleRoleChange(e: Event) {
   selectedRole.value = (e.target as HTMLSelectElement).value
 }
+// handleActiveFilterChange больше не нужен, фильтрация будет реактивной
 </script>

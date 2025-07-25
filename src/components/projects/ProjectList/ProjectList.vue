@@ -1,7 +1,12 @@
 <template>
   <div class="project-list flex flex-col h-full">
     <div class="flex justify-end items-center mb-3">
-      <UIButton @click="showCreateModal = true" variant="primary">Добавить проект</UIButton>
+      <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
+        >Добавить проект</UIButton
+      >
+      <UIButton @click="resetSettings" variant="secondary" class="ml-2">
+        Сбросить настройки
+      </UIButton>
     </div>
 
     <div class="flex-1 flex flex-col min-h-0">
@@ -38,40 +43,53 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editProject(project)"
+              @click="openProjectDetails(project)"
               style="height: 44px"
             >
-              <td
-                v-for="col in columns"
-                :key="col.key"
-                class="border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle"
-              >
-                <template v-if="col.key === 'id'">
-                  <span class="font-mono text-gray-600">{{ project.id }}</span>
-                </template>
-                <template v-else-if="col.key === 'title'">
-                  <span class="font-medium text-gray-900">{{ project.title }}</span>
-                </template>
-                <template v-else-if="col.key === 'client'">
-                  <span class="text-gray-700">{{ project.client?.name || '-' }}</span>
-                </template>
-                <template v-else-if="col.key === 'deadline'">
-                  <span class="text-gray-700">{{ formatDate(project.deadline) }}</span>
-                </template>
-                <template v-else-if="col.key === 'total_price'">
-                  <span class="text-blue-500 font-semibold">
-                    {{ project.total_price ?? '-' }} <span class="text-sm">TMT</span>
-                  </span>
-                </template>
-                <template v-else-if="col.key === 'payment_amount'">
-                  <span :class="getPaymentClass(project)">
-                    {{ project.payment_amount ?? '-' }} <span class="text-sm">TMT</span>
-                  </span>
-                </template>
-                <template v-else-if="col.key === 'created_at'">
-                  <span class="text-gray-600">{{ formatDate(project.created_at) }}</span>
-                </template>
-              </td>
+              <template v-for="col in columns" :key="col.key">
+                <td
+                  :class="[
+                    'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
+                    col.key === 'client' ? 'max-w-[220px]' : '',
+                  ]"
+                >
+                  <template v-if="col.key === 'id'">
+                    <span class="font-mono text-gray-600">{{ project.id }}</span>
+                  </template>
+                  <template v-else-if="col.key === 'title'">
+                    <span class="font-medium text-gray-900">{{ project.title }}</span>
+                  </template>
+                  <template v-else-if="col.key === 'client'">
+                    <span class="text-gray-700 block truncate">
+                      {{
+                        getClientNameById(project.orders?.[0]?.client_id) ||
+                        (project.client
+                          ? `${project.client.name}${project.client.company_name ? ` (${project.client.company_name})` : ''}`
+                          : '-')
+                      }}
+                    </span>
+                  </template>
+                  <template v-else-if="col.key === 'deadline'">
+                    <span class="text-gray-700">{{ formatDate(project.deadline) }}</span>
+                  </template>
+                  <template v-else-if="col.key === 'total_price'">
+                    <span class="text-blue-500 font-semibold">
+                      {{ project.total_price ?? '-' }} <span class="text-sm">TMT</span>
+                    </span>
+                  </template>
+                  <template v-else-if="col.key === 'payment_amount'">
+                    <span :class="getPaymentClass(project)">
+                      {{ project.payment_amount ?? '-' }} <span class="text-sm">TMT</span>
+                    </span>
+                  </template>
+                  <template v-else-if="col.key === 'created_at'">
+                    <span class="text-gray-600">{{ formatDate(project.created_at) }}</span>
+                  </template>
+                  <template v-else>
+                    {{ project[col.key] }}
+                  </template>
+                </td>
+              </template>
             </tr>
 
             <tr v-if="loading">
@@ -109,38 +127,40 @@
       @submit="handleCreateProject"
     />
 
-    <ProjectFormModal
-      v-if="showEditModal"
-      :project="editingProject"
-      @close="showEditModal = false"
-      @submit="handleUpdateProject"
-      @delete="handleDeleteProject"
+    <ProjectDetailsModal
+      v-if="showDetailsModal && selectedProject"
+      :project="getSelectedProject()"
+      :orders="selectedProjectOrders"
+      :comments="selectedProjectComments"
+      :assignments="selectedProjectAssignments"
+      @close="closeProjectDetails"
+      @update-project="onUpdateProject"
+      @add-comment="onAddComment"
+      @edit-comment="onEditComment"
+      @open-order="onOpenOrder"
+      @order-created="onOrderCreated"
+      @delete-comment="onDeleteComment"
     />
+
+    <OrderDetailsModal v-if="showOrderModal" :order-id="selectedOrderId" @close="closeOrderModal" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
 import ProjectFormModal from './ProjectFormModal.vue'
-import { ProjectController } from '@/controllers/ProjectController'
+import ProjectDetailsModal from './ProjectDetailsModal.vue'
+import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
+import projectController from '@/controllers/projectControllerInstance'
 import type { Project } from '@/types/project'
+import { canCreateEdit, canViewPrices } from '@/utils/permissions'
 
 const props = defineProps({
   search: { type: String, default: '' },
 })
-
-const columns = ref([
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'title', label: 'Название', sortable: true },
-  { key: 'client', label: 'Клиент', sortable: false },
-  { key: 'deadline', label: 'Дедлайн', sortable: true },
-  { key: 'total_price', label: 'Сумма', sortable: true },
-  { key: 'payment_amount', label: 'Оплачено', sortable: true },
-  { key: 'created_at', label: 'Создано', sortable: true },
-])
 
 const {
   projects,
@@ -153,13 +173,53 @@ const {
   create,
   update,
   remove,
-} = ProjectController()
+} = projectController
+
+const defaultColumns = [
+  { key: 'id', label: 'ID', sortable: true },
+  { key: 'title', label: 'Название', sortable: true },
+  { key: 'client', label: 'Клиент', sortable: false },
+  { key: 'deadline', label: 'Дедлайн', sortable: true },
+]
+if (canViewPrices()) {
+  defaultColumns.push({ key: 'total_price', label: 'Сумма', sortable: true })
+  defaultColumns.push({ key: 'payment_amount', label: 'Оплачено', sortable: true })
+}
+defaultColumns.push({ key: 'created_at', label: 'Создано', sortable: true })
+
+const SORT_KEY = 'projectList_sortBy'
+const ORDER_KEY = 'projectList_sortOrder'
+const COLUMNS_KEY = 'projectList_columns'
+
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
+
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+
+if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
+if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingProject = ref<Project | null>(null)
 const currentPage = ref(1)
 const columnsHeader = ref<HTMLElement | null>(null)
+
+const showDetailsModal = ref(false)
+function getSelectedProject(): any {
+  return selectedProject.value
+}
+
+const selectedProject = ref<Project | null>(null)
+const selectedProjectOrders = ref<any[]>([])
+const selectedProjectComments = ref<any[]>([])
+const selectedProjectAssignments = ref([])
+
+const showOrderModal = ref(false)
+const selectedOrderId = ref<number | null>(null)
+
+const allClients = ref<any[]>([])
 
 function setSort(key: string, search = '') {
   if (sortBy.value === key) {
@@ -168,11 +228,24 @@ function setSort(key: string, search = '') {
     sortBy.value = key
     sortOrder.value = 'asc'
   }
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
   fetchProjects(1, search, sortBy.value, sortOrder.value)
 }
 
+function resetSettings() {
+  columns.value = [...defaultColumns]
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  sortBy.value = 'id'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  currentPage.value = 1
+  fetchProjects(1, props.search, sortBy.value, sortOrder.value)
+}
+
 function goToPage(page: number) {
-  if (page < 1 || page > pagination.value.last_page) return
+  if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
   fetchProjects(page, props.search, sortBy.value, sortOrder.value)
 }
@@ -186,7 +259,6 @@ async function handleCreateProject(newProject: Project) {
   await create(newProject)
   showCreateModal.value = false
   currentPage.value = 1
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 async function handleUpdateProject(updatedProject: Project) {
@@ -198,10 +270,11 @@ async function handleUpdateProject(updatedProject: Project) {
 async function handleDeleteProject(projectId: number) {
   await remove(projectId)
   showEditModal.value = false
-  if (pagination.value.data.length === 1 && currentPage.value > 1) {
+  editingProject.value = null
+  if (pagination?.data?.length === 1 && currentPage.value > 1) {
     currentPage.value--
   }
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -224,6 +297,117 @@ function getPaymentClass(project: Project) {
   return 'text-green-600 font-semibold'
 }
 
+async function openProjectDetails(project: Project) {
+  const res = await fetch(`/api/projects/${project.id}`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  const freshProject = await res.json()
+  selectedProject.value = freshProject
+  selectedProjectOrders.value = freshProject.orders || []
+  selectedProjectComments.value = await getProjectComments(project.id)
+
+  const assignRes = await fetch('/api/assignments', {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  const json = assignRes.ok ? await assignRes.json() : { data: [] }
+  const allAssignments = Array.isArray(json) ? json : json.data || []
+  selectedProjectAssignments.value = allAssignments.filter((a: any) =>
+    selectedProjectOrders.value.some((order) => order.id === a.order_id),
+  )
+
+  showDetailsModal.value = true
+}
+function closeProjectDetails() {
+  showDetailsModal.value = false
+  selectedProject.value = null
+}
+async function onUpdateProject(updatedProject: any) {
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  if (selectedProject.value && updatedProject && updatedProject.id === selectedProject.value.id) {
+    selectedProject.value = { ...selectedProject.value, ...updatedProject }
+  }
+}
+async function onAddComment(text: string) {
+  if (!selectedProject.value) return
+  await addProjectComment(selectedProject.value.id, text)
+  selectedProjectComments.value = await getProjectComments(selectedProject.value.id)
+}
+async function onDeleteComment(commentId: number) {
+  if (!selectedProject.value) return
+  if (!confirm('Удалить комментарий?')) return
+  await deleteProjectComment(commentId)
+  selectedProjectComments.value = await getProjectComments(selectedProject.value.id)
+}
+function onEditComment(payload: any) {}
+function onOpenOrder(order: any) {
+  selectedOrderId.value = order.id
+  showOrderModal.value = true
+}
+function closeOrderModal() {
+  showOrderModal.value = false
+  selectedOrderId.value = null
+}
+async function onOrderCreated(order: any) {
+  if (!selectedProject.value) return
+  const res = await fetch(`/api/projects/${selectedProject.value.id}`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  const freshProject = await res.json()
+  selectedProject.value = freshProject
+  selectedProjectOrders.value = freshProject.orders || []
+}
+
+async function getProjectComments(projectId: number) {
+  const res = await fetch(`/api/comments?project_id=${projectId}`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  if (!res.ok) throw new Error('Ошибка загрузки комментариев')
+  return await res.json()
+}
+async function addProjectComment(projectId: number, text: string) {
+  const res = await fetch('/api/comments', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+    body: JSON.stringify({ text, project_id: projectId }),
+  })
+  if (!res.ok) throw new Error('Ошибка при добавлении комментария')
+  return await res.json()
+}
+async function deleteProjectComment(commentId: number) {
+  const res = await fetch(`/api/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    },
+  })
+  if (!res.ok) throw new Error('Ошибка при удалении комментария')
+  return await res.json()
+}
+
+function getClientNameById(clientId: number | undefined) {
+  if (!clientId) return '-'
+  const client = (allClients.value as any[]).find((c) => c.id === clientId)
+  if (!client) return '-'
+  return client.company_name ? `${client.name} (${client.company_name})` : client.name
+}
+
 watch(
   () => props.search,
   (newVal) => {
@@ -244,9 +428,23 @@ onMounted(async () => {
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
         columns.value.splice(newIndex, 0, moved)
+        // Сохраняем порядок колонок
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
   }
   fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  try {
+    const res = await fetch('/api/clients/all', {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const data = await res.json()
+    allClients.value = Array.isArray(data) ? data : ([] as any[])
+  } catch (e) {
+    allClients.value = []
+  }
 })
 </script>

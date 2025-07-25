@@ -1,7 +1,7 @@
 <template>
   <div class="relative group w-full">
     <div v-if="!editing" class="flex items-center min-h-[32px]">
-      <span class="truncate w-full" :title="modelValue">{{ modelValue }}</span>
+      <span class="truncate w-full" :title="String(modelValue)">{{ modelValue }}</span>
       <button
         v-if="!editing"
         class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100"
@@ -38,7 +38,7 @@
         :minlength="minlength"
         :required="required"
         :pattern="pattern"
-        :inputmode="inputmode"
+        :inputmode="getInputMode()"
         :autofocus="true"
       />
       <button
@@ -85,6 +85,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
+
+function getInputMode(): any {
+  return props.inputmode
+}
 
 const props = defineProps({
   modelValue: {

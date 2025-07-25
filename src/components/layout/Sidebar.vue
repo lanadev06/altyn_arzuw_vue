@@ -1,8 +1,12 @@
 <template>
   <aside
-    class="w-64 bg-white bg-opacity-10 backdrop-blur-sm border-r border-white border-opacity-20 flex flex-col py-8 shadow-lg"
+    class="border-r border-white border-opacity-20 flex flex-col py-8 shadow-lg bg-gradient-to-b from-blue-600 via-indigo-500 to-indigo-600"
   >
-    <div class="text-2xl font-bold mb-10 px-8 text-white">Altyn Arzuw</div>
+    <img
+      src="/A-A_logotype (colorful) (1) copy.png"
+      alt="Altyn-Arzuw Logo"
+      class="mx-auto mb-10 max-w-[150px] w-40 h-auto"
+    />
     <nav class="flex flex-col gap-2 px-4 flex-1">
       <router-link
         to="/"
@@ -26,7 +30,9 @@
         <span>Главная</span>
       </router-link>
 
+      <!-- Пользователи - только для админов и менеджеров -->
       <router-link
+        v-if="canViewAllUsers()"
         to="/users"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
         active-class="bg-white bg-opacity-20"
@@ -42,7 +48,9 @@
         <span>Пользователи</span>
       </router-link>
 
+      <!-- Клиенты - только для админов и менеджеров -->
       <router-link
+        v-if="canViewAllClients()"
         to="/clients"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
         active-class="bg-white bg-opacity-20"
@@ -58,6 +66,7 @@
         <span>Клиенты</span>
       </router-link>
 
+      <!-- Проекты -->
       <router-link
         to="/projects"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -71,9 +80,10 @@
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <span>Проекты</span>
+        <span>{{ getNavigationText('projects') }}</span>
       </router-link>
 
+      <!-- Товары -->
       <router-link
         to="/products"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -87,9 +97,10 @@
             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
           />
         </svg>
-        <span>Товары</span>
+        <span>{{ getNavigationText('products') }}</span>
       </router-link>
 
+      <!-- Заказы -->
       <router-link
         to="/orders"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -103,7 +114,25 @@
             d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
           />
         </svg>
-        <span>Заказы</span>
+        <span>{{ getNavigationText('orders') }}</span>
+      </router-link>
+
+      <!-- Аудит-логи - только для админов -->
+      <router-link
+        v-if="canViewAuditLogs()"
+        to="/audit-logs"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
+        active-class="bg-white bg-opacity-20"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>Действия</span>
       </router-link>
     </nav>
   </aside>
@@ -111,9 +140,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import {
+  canViewAllUsers,
+  canViewAllClients,
+  canViewAuditLogs,
+  getNavigationText,
+} from '../../utils/permissions'
 
 const isOpen = ref(true)
-const toggleSidebar = () => {
-  isOpen.value = !isOpen.value
+
+function hasRole(user, roleName) {
+  return user.roles && user.roles.some((r) => r.name === roleName)
 }
 </script>

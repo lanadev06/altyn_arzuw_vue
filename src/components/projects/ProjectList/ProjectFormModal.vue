@@ -11,7 +11,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Название *</label>
         <UIInput
           :model-value="form.title ?? ''"
-          @update:model-value="(val: string) => (form.title = val)"
+          @update:model-value="(val) => (form.title = val ? String(val) : '')"
           placeholder="Введите название"
           :error="errors.title"
           required
@@ -19,51 +19,45 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Клиент *</label>
-        <Vue3Select
-          class="text-gray-700"
-          v-model="form.client_id"
-          :options="clients"
-          label="name"
-          :reduce="reduceClient"
-          placeholder="Выберите клиента"
-          :clearable="true"
-          :searchable="true"
-        />
-        <div v-if="errors.client_id" class="text-red-600 text-sm mt-1">{{ errors.client_id }}</div>
-      </div>
-
-      <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Дедлайн</label>
         <flatPickr
           v-model="form.deadline"
-          :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', time_24hr: true, allowInput: true }"
+          :config="{
+            dateFormat: 'Y-m-d H:i',
+            altInput: true,
+            altFormat: 'd F Y H:i',
+            enableTime: true,
+            time_24hr: true,
+            allowInput: true,
+            clickOpens: true,
+            locale: Russian,
+          }"
           placeholder="Выберите дату и время"
-          class="w-full text-gray-700 text-base  p-2 border border-gray-300 rounded-md flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+          class="w-full text-gray-700 text-base p-2 border border-gray-300 rounded-md flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
         />
         <div v-if="errors.deadline" class="text-red-600 text-sm mt-1">{{ errors.deadline }}</div>
       </div>
 
-      <div>
+      <div v-if="canViewPrices()">
         <label class="block text-sm font-medium text-gray-700 mb-1">Сумма к оплате</label>
         <UIInput
           class="text-gray-700"
           type="number"
           :model-value="form.total_price"
-          @update:model-value="(val: string) => (form.total_price = val)"
+          @update:model-value="(val) => (form.total_price = val ? String(val) : '')"
           placeholder="0.00"
           :error="errors.total_price"
           min="0"
         />
       </div>
 
-      <div>
+      <div v-if="canViewPrices()">
         <label class="block text-sm font-medium text-gray-700 mb-1">Оплачено</label>
         <UIInput
           class="text-gray-700"
           type="number"
           :model-value="form.payment_amount"
-          @update:model-value="(val: string) => (form.payment_amount = val)"
+          @update:model-value="(val) => (form.payment_amount = val ? String(val) : '')"
           placeholder="0.00"
           :error="errors.payment_amount"
           min="0"
@@ -100,15 +94,17 @@ import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
+import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import type { Project } from '@/types/project'
 import type { Client } from '@/types/client'
-import { ProjectController } from '@/controllers/ProjectController'
+import projectController from '@/controllers/projectControllerInstance'
 import { getAllClients } from '@/services/api'
+import { toast } from '@/stores/toast'
+import { canViewPrices } from '@/utils/permissions'
 
 const props = defineProps<{ project?: Project | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
 
-const { create, update, remove } = ProjectController()
 const loading = ref(false)
 const loadingClients = ref(false)
 
@@ -116,7 +112,6 @@ const clients = ref<{ id: number; name: string }[]>([])
 
 const form = reactive({
   title: '',
-  client_id: undefined as number | undefined,
   deadline: null as Date | null,
   total_price: '',
   payment_amount: '',
@@ -124,7 +119,6 @@ const form = reactive({
 
 const errors = reactive({
   title: '',
-  client_id: '',
   total_price: '',
   payment_amount: '',
   deadline: '',
@@ -144,7 +138,6 @@ onMounted(async () => {
   if (props.project) {
     Object.assign(form, {
       title: props.project.title || '',
-      client_id: props.project.client_id ? Number(props.project.client_id) : undefined,
       deadline: props.project.deadline ? new Date(props.project.deadline) : null,
       total_price: props.project.total_price != null ? String(props.project.total_price) : '',
       payment_amount:
@@ -155,7 +148,6 @@ onMounted(async () => {
 
 function validateForm() {
   errors.title = ''
-  errors.client_id = ''
   errors.total_price = ''
   errors.payment_amount = ''
   errors.deadline = ''
@@ -164,11 +156,6 @@ function validateForm() {
 
   if (!form.title?.trim()) {
     errors.title = 'Название обязательно'
-    valid = false
-  }
-
-  if (form.client_id === undefined || form.client_id === null) {
-    errors.client_id = 'Клиент обязателен'
     valid = false
   }
 
@@ -197,21 +184,33 @@ async function handleSubmit() {
   try {
     const payload = {
       ...form,
-      total_price: form.total_price ? Number(form.total_price) : null,
-      payment_amount: form.payment_amount ? Number(form.payment_amount) : null,
+      total_price: form.total_price ? Number(form.total_price) : 0,
+      payment_amount: form.payment_amount ? Number(form.payment_amount) : 0,
       deadline: form.deadline
-        ? form.deadline instanceof Date
-          ? form.deadline.toISOString().slice(0, 16).replace('T', ' ')
-          : form.deadline
+        ? (() => {
+            const d = new Date(form.deadline)
+            if (!isNaN(d.getTime())) {
+              const pad = (n: number) => n.toString().padStart(2, '0')
+              return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`
+            }
+            return form.deadline
+          })()
         : null,
     }
 
     if (props.project?.id) {
-      await update(props.project.id, payload)
+      await projectController.update(props.project.id, payload as Partial<Project>)
+      toast.show('Проект успешно обновлён!')
       emit('submit', { id: props.project.id, ...payload })
+      emit('close')
     } else {
-      const created = await create(payload)
-      emit('submit', { id: created.id, ...payload })
+      const created = await projectController.create(payload as Partial<Project>)
+      toast.show('Проект успешно создан!')
+      const newId = (created as any)?.id || (created as any)?.data?.id
+      if (newId) {
+        emit('submit', { id: newId, ...payload })
+      }
+      emit('close')
     }
   } finally {
     loading.value = false
@@ -220,7 +219,12 @@ async function handleSubmit() {
 
 function handleDelete() {
   if (props.project && confirm('Удалить проект?')) {
-    remove(props.project.id).then(() => emit('delete', props.project!.id))
+    const projectId = props.project.id
+    projectController.remove(projectId).then(() => {
+      toast.show('Проект удалён!')
+      emit('delete', projectId)
+      emit('close')
+    })
   }
 }
 </script>
