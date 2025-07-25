@@ -20,6 +20,17 @@
         >
           Канбан
         </button>
+        <select
+          v-model="selectedAssignmentStatus"
+          @change="loadOrders"
+          class="w-48 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+          style="margin-left: 1rem"
+        >
+          <option value="">Все назначения</option>
+          <option value="pending">Ожидание</option>
+          <option value="in_progress">В работе</option>
+          <option value="completed">Завершено</option>
+        </select>
       </div>
       <OrderList v-if="isTableView" ref="orderListRef" />
       <OrderKanban
@@ -28,7 +39,7 @@
         @change-status="handleChangeStatus"
         @open-order="openOrderDetails"
         @add-order="openCreateOrderModal"
-        :orders="orders"
+        :orders="filteredKanbanOrders"
         @updated="handleOrderUpdatedFromModal"
       />
       <OrderDetailsModal
@@ -48,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
@@ -65,8 +76,23 @@ const isTableView = ref(true)
 const detailsOrderId = ref(null)
 const detailsErrorMsg = ref('')
 const showCreateModal = ref(false)
+const selectedAssignmentStatus = ref('')
 
 const { orders, fetchOrders } = OrderController()
+
+// Фильтрация заказов для канбана по поисковому запросу
+const filteredKanbanOrders = computed(() => {
+  if (!search.value) return orders.value
+  const q = String(search.value).toLowerCase()
+  return orders.value.filter((order) => {
+    return (
+      String(order.id).includes(q) ||
+      (order.product?.name && String(order.product.name).toLowerCase().includes(q)) ||
+      (order.client?.name && String(order.client.name).toLowerCase().includes(q)) ||
+      (typeof order.stage === 'string' && order.stage.toLowerCase().includes(q))
+    )
+  })
+})
 
 const kanbanStatuses = [
   { key: 'draft', label: 'Черновик' },
@@ -86,7 +112,11 @@ const loadOrders = async () => {
     if (!isTableView.value) {
       // Для Kanban загружаем все заказы через getAll с большим per_page
       const { getAll } = OrderController()
-      const res = await getAll({ page: 1, per_page: 10000 })
+      const res = await getAll({
+        page: 1,
+        per_page: 10000,
+        assignment_status: selectedAssignmentStatus.value || undefined,
+      })
       orders.value = res.data || []
     } else {
       // Для таблицы используем обычную пагинацию и передаём search

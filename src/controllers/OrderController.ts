@@ -23,11 +23,12 @@ const fetchOrders = async (
   stage?: string,
   is_archived?: boolean,
   search?: string,
+  assignment_status?: string,
 ) => {
   loading.value = true
   error.value = ''
   try {
-    const params = { page, sort_by, sort_order, stage, is_archived, search }
+    const params = { page, sort_by, sort_order, stage, is_archived, search, assignment_status }
     const res = await getAll(params)
     pagination.data = res.data || []
     pagination.current_page = res.current_page || 1
@@ -44,16 +45,17 @@ const fetchOrders = async (
   }
 }
 
-const fetchAllOrdersForKanban = async () => {
+const fetchAllOrdersForKanban = async (assignment_status?: string) => {
   loading.value = true
   error.value = ''
   try {
-    const params = {
+    const params: any = {
       page: 1,
       sort_by: 'id',
       sort_order: 'desc',
       per_page: 1000, // Большое количество для загрузки всех заказов
     }
+    if (assignment_status) params.assignment_status = assignment_status
     const res = await getAll(params)
     orders.value = res.data || []
     console.log('all orders for kanban updated', orders.value.length)
@@ -109,6 +111,7 @@ const getAll = async (params?: {
   is_archived?: boolean
   per_page?: number
   search?: string
+  assignment_status?: string
 }) => {
   const queryParams = new URLSearchParams()
   if (params?.project_id) queryParams.append('project_id', params.project_id.toString())
@@ -120,6 +123,7 @@ const getAll = async (params?: {
     queryParams.append('is_archived', params.is_archived.toString())
   if (params?.per_page) queryParams.append('per_page', params.per_page.toString())
   if (params?.search) queryParams.append('search', params.search)
+  if (params?.assignment_status) queryParams.append('assignment_status', params.assignment_status)
 
   const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
   const url = `${API_CONFIG.BASE_URL}/orders${query}`

@@ -10,13 +10,13 @@
       <!-- Чекбокс создания проекта -->
       <div class="mb-2">
         <label class="inline-flex items-center">
-          <input type="checkbox" v-model="createProject" class="mr-2" />
+          <input type="checkbox" v-model="createProjectRef" class="mr-2" />
           Создать новый проект
         </label>
       </div>
 
       <!-- Блок создания проекта -->
-      <div v-if="createProject" class="border-b pb-4 mb-4">
+      <div v-if="createProjectRef" class="border-b pb-4 mb-4">
         <h3 class="text-lg font-medium text-gray-900 mb-3">Информация о проекте</h3>
 
         <!-- Название проекта -->
@@ -86,7 +86,7 @@
       </Modal>
 
       <!-- МАССОВОЕ добавление заказов -->
-      <div v-if="createProject">
+      <div v-if="createProjectRef">
         <h3 class="text-lg font-medium text-gray-900 mb-3">Заказы проекта</h3>
         <div
           v-for="(order, idx) in orders"
@@ -119,7 +119,7 @@
               @update:model-value="
                 (val) => {
                   order.product_id = val
-                  autoFillOrderAssignments(order)
+                  fillStagesAndAssignees(order)
                 }
               "
             />
@@ -207,8 +207,8 @@
                     onStageToggleMass(
                       order,
                       'has_engraving_stage',
-                      'print_operator_id',
-                      getProductPrintOperatorId(order.product_id),
+                      'engraving_operator_id',
+                      getProductEngravingOperatorId(order.product_id),
                     )
                   "
                 />
@@ -307,7 +307,7 @@
       </div>
 
       <!-- ОДИНОЧНЫЙ заказ (старый режим) -->
-      <template v-if="!createProject">
+      <template v-if="!createProjectRef">
         <!-- Выбор клиента -->
         <div class="flex items-center gap-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Клиент *</label>
@@ -539,11 +539,15 @@
       <div class="flex gap-3 pt-4">
         <UIButton type="submit" :loading="loading" class="flex-1">
           {{
-            createProject ? 'Создать проект с заказами' : order ? 'Обновить заказ' : 'Создать заказ'
+            createProjectRef
+              ? 'Создать проект с заказами'
+              : order
+                ? 'Обновить заказ'
+                : 'Создать заказ'
           }}
         </UIButton>
         <UIButton
-          v-if="order && !createProject"
+          v-if="order && !createProjectRef"
           type="button"
           variant="danger"
           @click="handleDelete"
@@ -573,7 +577,13 @@ import type { Product } from '@/types/product'
 import type { Project } from '@/types/project'
 import type { Client } from '@/types/client'
 import { OrderController } from '@/controllers/OrderController'
-import { getAllProducts, getAllProjects, getAllClients, getByRole } from '@/services/api'
+import {
+  getAllProducts,
+  getAllProjects,
+  getAllClients,
+  getByRole,
+  createProject,
+} from '@/services/api'
 import { toast } from '@/stores/toast'
 import { useUserController } from '@/controllers/UserController.js'
 import { UserRole } from '@/types/user'
@@ -592,7 +602,7 @@ const products = ref<{ id: number; name: string }[]>([])
 const projects = ref<{ id: number; title: string }[]>([])
 const clients = ref<{ id: number; name: string }[]>([])
 
-const createProject = ref(false)
+const createProjectRef = ref(false)
 const projectForm = reactive({ title: '', client_id: null })
 // Расширяю структуру заказа для массового режима
 const orders = ref([
@@ -607,6 +617,7 @@ const orders = ref([
     designer_id: null,
     print_operator_id: null,
     workshop_worker_id: null,
+    engraver_id: null, // Added engraver_id for engraving stage
     designers: [],
     print_operators: [],
     engraving_operators: [],
@@ -772,14 +783,18 @@ function autoFillOrderAssignments(order) {
   if (prod?.has_design_stage) {
     order.has_design_stage = true
     if (!order._wasEdited.designer) {
-      let designers = assignments.filter((a) => a.role_type === 'designer')
-      if (designers.length === 0 && prod.designer_id) {
-        designers = [{ user_id: prod.designer_id }]
-      }
       order.designers.splice(
         0,
         order.designers.length,
-        ...designers.map((a) => ({ ...a, user_id: a.user_id || (a.user && a.user.id) || null })),
+        ...assignments
+          .filter((a) => a.role_type === 'designer')
+          .map((a) => ({
+            ...a,
+            user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
+            user:
+              a.user ||
+              (a.user_id ? allDesigners.find((u) => u.id === Number(a.user_id)) : undefined),
+          })),
       )
     }
   } else {
@@ -789,17 +804,18 @@ function autoFillOrderAssignments(order) {
   if (prod?.has_print_stage) {
     order.has_print_stage = true
     if (!order._wasEdited.print_operator) {
-      let printOperators = assignments.filter((a) => a.role_type === 'print_operator')
-      if (printOperators.length === 0 && prod.print_operator_id) {
-        printOperators = [{ user_id: prod.print_operator_id }]
-      }
       order.print_operators.splice(
         0,
         order.print_operators.length,
-        ...printOperators.map((a) => ({
-          ...a,
-          user_id: a.user_id || (a.user && a.user.id) || null,
-        })),
+        ...assignments
+          .filter((a) => a.role_type === 'print_operator')
+          .map((a) => ({
+            ...a,
+            user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
+            user:
+              a.user ||
+              (a.user_id ? allPrintOperators.find((u) => u.id === Number(a.user_id)) : undefined),
+          })),
       )
     }
   } else {
@@ -809,14 +825,20 @@ function autoFillOrderAssignments(order) {
   if (prod?.has_engraving_stage) {
     order.has_engraving_stage = true
     if (!order._wasEdited.engraving_operator) {
-      let engravers = assignments.filter((a) => a.role_type === 'engraving_operator')
-      if (engravers.length === 0 && prod.engraving_operator_id) {
-        engravers = [{ user_id: prod.engraving_operator_id }]
-      }
       order.engraving_operators.splice(
         0,
         order.engraving_operators.length,
-        ...engravers.map((a) => ({ ...a, user_id: a.user_id || (a.user && a.user.id) || null })),
+        ...assignments
+          .filter((a) => a.role_type === 'engraving_operator')
+          .map((a) => ({
+            ...a,
+            user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
+            user:
+              a.user ||
+              (a.user_id
+                ? allEngravingOperators.find((u) => u.id === Number(a.user_id))
+                : undefined),
+          })),
       )
     }
   } else {
@@ -826,17 +848,18 @@ function autoFillOrderAssignments(order) {
   if (prod?.has_workshop_stage) {
     order.has_workshop_stage = true
     if (!order._wasEdited.workshop_worker) {
-      let workshopWorkers = assignments.filter((a) => a.role_type === 'workshop_worker')
-      if (workshopWorkers.length === 0 && prod.workshop_worker_id) {
-        workshopWorkers = [{ user_id: prod.workshop_worker_id }]
-      }
       order.workshop_workers.splice(
         0,
         order.workshop_workers.length,
-        ...workshopWorkers.map((a) => ({
-          ...a,
-          user_id: a.user_id || (a.user && a.user.id) || null,
-        })),
+        ...assignments
+          .filter((a) => a.role_type === 'workshop_worker')
+          .map((a) => ({
+            ...a,
+            user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
+            user:
+              a.user ||
+              (a.user_id ? allWorkshopWorkers.find((u) => u.id === Number(a.user_id)) : undefined),
+          })),
       )
     }
   } else {
@@ -905,7 +928,7 @@ async function handleCreateClient() {
     clients.value = (clientsData.data || clientsData).map((c) => ({ id: c.id, name: c.name }))
 
     // Выбираем нового клиента
-    if (createProject.value) {
+    if (createProjectRef.value) {
       projectForm.client_id = response.id
     } else {
       form.client_id = response.id
@@ -1053,33 +1076,44 @@ function toggleProductStage(stageKey) {
   // Можно добавить PATCH-запрос к API для обновления продукта, если нужно сохранять сразу
 }
 
-function onStageToggle(stageKey, userKey, defaultUserId) {
+function onStageToggle(stageKey, roleKey, defaultUserId) {
   form[stageKey] = !form[stageKey]
   if (form[stageKey]) {
-    let lastSelected = null
-    if (userKey === 'designer_id') lastSelected = lastSelectedDesignerId.value
-    if (userKey === 'print_operator_id') lastSelected = lastSelectedPrintOperatorId.value
-    if (userKey === 'workshop_worker_id') lastSelected = lastSelectedWorkshopWorkerId.value
-    if (lastSelected !== null && lastSelected !== undefined) {
-      form[userKey] = lastSelected
-    } else {
-      form[userKey] = defaultUserId || null
+    // Включили чекбокс — если нет назначений, подставить дефолтных
+    if (roleKey === 'designer_id' && designAssignments.length === 0) {
+      const prod = products.value.find((p) => p.id === form.product_id)
+      if (prod && Array.isArray(prod.assignments)) {
+        designAssignments.push(...prod.assignments.filter((a) => a.role_type === 'designer'))
+      }
+    }
+    if (roleKey === 'print_operator_id' && printAssignments.length === 0) {
+      const prod = products.value.find((p) => p.id === form.product_id)
+      if (prod && Array.isArray(prod.assignments)) {
+        printAssignments.push(...prod.assignments.filter((a) => a.role_type === 'print_operator'))
+      }
+    }
+    if (roleKey === 'engraving_operator_id' && engravingAssignments.length === 0) {
+      const prod = products.value.find((p) => p.id === form.product_id)
+      if (prod && Array.isArray(prod.assignments)) {
+        engravingAssignments.push(
+          ...prod.assignments.filter((a) => a.role_type === 'engraving_operator'),
+        )
+      }
+    }
+    if (roleKey === 'workshop_worker_id' && workshopAssignments.length === 0) {
+      const prod = products.value.find((p) => p.id === form.product_id)
+      if (prod && Array.isArray(prod.assignments)) {
+        workshopAssignments.push(
+          ...prod.assignments.filter((a) => a.role_type === 'workshop_worker'),
+        )
+      }
     }
   } else {
-    form[userKey] = null
-  }
-  // Новое: обновляем поле стадии у всех assignments соответствующей роли
-  if (stageKey === 'has_design_stage') {
-    designAssignments.forEach((a) => (a.has_design_stage = form.has_design_stage))
-  }
-  if (stageKey === 'has_print_stage') {
-    printAssignments.forEach((a) => (a.has_print_stage = form.has_print_stage))
-  }
-  if (stageKey === 'has_engraving_stage') {
-    engravingAssignments.forEach((a) => (a.has_engraving_stage = form.has_engraving_stage))
-  }
-  if (stageKey === 'has_workshop_stage') {
-    workshopAssignments.forEach((a) => (a.has_workshop_stage = form.has_workshop_stage))
+    // Выключили чекбокс — очистить назначения
+    if (roleKey === 'designer_id') designAssignments.splice(0)
+    if (roleKey === 'print_operator_id') printAssignments.splice(0)
+    if (roleKey === 'engraving_operator_id') engravingAssignments.splice(0)
+    if (roleKey === 'workshop_worker_id') workshopAssignments.splice(0)
   }
 }
 
@@ -1095,40 +1129,54 @@ function getProductWorkshopWorkerId(product_id) {
   const prod = products.value.find((p) => p.id === product_id)
   return prod ? prod.workshop_worker_id || null : null
 }
+function getProductEngravingOperatorId(product_id) {
+  const prod = products.value.find((p) => p.id === product_id)
+  return prod ? prod.engraver_id || null : null
+}
 
-function onStageToggleMass(order, stageKey, userKey, defaultUserId) {
+function onStageToggleMass(order, stageKey, roleKey, defaultUserId) {
   order[stageKey] = !order[stageKey]
   if (order[stageKey]) {
-    let lastSelected = null
-    if (userKey === 'designer_id') lastSelected = order.designer_id
-    if (userKey === 'print_operator_id') lastSelected = order.print_operator_id
-    if (userKey === 'workshop_worker_id') lastSelected = order.workshop_worker_id
-    if (lastSelected !== null && lastSelected !== undefined) {
-      order[userKey] = lastSelected
-    } else {
-      order[userKey] = defaultUserId || null
+    // Включили чекбокс — если нет назначений, подставить дефолтных
+    const prod = products.value.find((p) => p.id === order.product_id)
+    if (roleKey === 'designer_id' && order.designers.length === 0) {
+      if (prod && Array.isArray(prod.assignments)) {
+        order.designers.push(...prod.assignments.filter((a) => a.role_type === 'designer'))
+      }
+    }
+    if (roleKey === 'print_operator_id' && order.print_operators.length === 0) {
+      if (prod && Array.isArray(prod.assignments)) {
+        order.print_operators.push(
+          ...prod.assignments.filter((a) => a.role_type === 'print_operator'),
+        )
+      }
+    }
+    if (roleKey === 'engraving_operator_id' && order.engraving_operators.length === 0) {
+      if (prod && Array.isArray(prod.assignments)) {
+        order.engraving_operators.push(
+          ...prod.assignments.filter((a) => a.role_type === 'engraving_operator'),
+        )
+      }
+    }
+    if (roleKey === 'workshop_worker_id' && order.workshop_workers.length === 0) {
+      if (prod && Array.isArray(prod.assignments)) {
+        order.workshop_workers.push(
+          ...prod.assignments.filter((a) => a.role_type === 'workshop_worker'),
+        )
+      }
     }
   } else {
-    order[userKey] = null
-  }
-  // Новое: обновляем поле стадии у всех assignments соответствующей роли
-  if (stageKey === 'has_design_stage') {
-    order.designers.forEach((a) => (a.has_design_stage = order.has_design_stage))
-  }
-  if (stageKey === 'has_print_stage') {
-    order.print_operators.forEach((a) => (a.has_print_stage = order.has_print_stage))
-  }
-  if (stageKey === 'has_engraving_stage') {
-    order.engraving_operators.forEach((a) => (a.has_engraving_stage = order.has_engraving_stage))
-  }
-  if (stageKey === 'has_workshop_stage') {
-    order.workshop_workers.forEach((a) => (a.has_workshop_stage = order.has_workshop_stage))
+    // Выключили чекбокс — очистить назначения
+    if (roleKey === 'designer_id') order.designers.splice(0)
+    if (roleKey === 'print_operator_id') order.print_operators.splice(0)
+    if (roleKey === 'engraving_operator_id') order.engraving_operators.splice(0)
+    if (roleKey === 'workshop_worker_id') order.workshop_workers.splice(0)
   }
 }
 
 // Следим за изменением селекторов и обновляем lastSelectedXxxId только в одиночном режиме заказа
 watchEffect(() => {
-  if (!createProject.value) {
+  if (!createProjectRef.value) {
     // designer_id
     if (
       typeof form !== 'undefined' &&
@@ -1210,6 +1258,7 @@ watch(
               order.designer_id = prod.designer_id || null
               order.print_operator_id = prod.print_operator_id || null
               order.workshop_worker_id = prod.workshop_worker_id || null
+              order.engraver_id = prod.engraver_id || null // Update engraver_id
             } else {
               order.has_design_stage = false
               order.has_print_stage = false
@@ -1217,6 +1266,7 @@ watch(
               order.designer_id = null
               order.print_operator_id = null
               order.workshop_worker_id = null
+              order.engraver_id = null // Reset engraver_id
             }
           }
         },
@@ -1250,6 +1300,11 @@ function fillStagesAndAssignees(order) {
     } else {
       order.workshop_worker_id = null
     }
+    if (order.has_engraving_stage) {
+      if (!order.engraver_id) order.engraver_id = prod.engraver_id || null
+    } else {
+      order.engraver_id = null
+    }
   } else {
     order.has_design_stage = false
     order.has_print_stage = false
@@ -1257,6 +1312,7 @@ function fillStagesAndAssignees(order) {
     order.designer_id = null
     order.print_operator_id = null
     order.workshop_worker_id = null
+    order.engraver_id = null
   }
 }
 
@@ -1311,7 +1367,7 @@ function prepareOrderAssignments(assignmentsByRole) {
       console.log('designAssignment user_id:', a.user_id)
       if (a.user_id)
         result.push({
-          user_id: a.user_id,
+          ...a,
           role_type: 'designer',
           has_design_stage: true,
           has_print_stage: false,
@@ -1329,7 +1385,7 @@ function prepareOrderAssignments(assignmentsByRole) {
       console.log('printAssignment user_id:', a.user_id)
       if (a.user_id)
         result.push({
-          user_id: a.user_id,
+          ...a,
           role_type: 'print_operator',
           has_design_stage: false,
           has_print_stage: true,
@@ -1347,7 +1403,7 @@ function prepareOrderAssignments(assignmentsByRole) {
       console.log('engravingAssignment user_id:', a.user_id)
       if (a.user_id)
         result.push({
-          user_id: a.user_id,
+          ...a,
           role_type: 'engraving_operator',
           has_design_stage: false,
           has_print_stage: false,
@@ -1365,7 +1421,7 @@ function prepareOrderAssignments(assignmentsByRole) {
       console.log('workshopAssignment user_id:', a.user_id)
       if (a.user_id)
         result.push({
-          user_id: a.user_id,
+          ...a,
           role_type: 'workshop_worker',
           has_design_stage: false,
           has_print_stage: false,
@@ -1415,23 +1471,56 @@ async function bulkAssignOrderAssignments(orderId, assignments) {
 async function handleSubmit() {
   loading.value = true
   try {
-    if (createProject.value) {
-      // 1. Сначала создаём проект без заказов
-      const projectData = {
+    if (createProjectRef.value) {
+      // Создание проекта с заказами
+      if (!projectForm.title || !projectForm.title.trim()) {
+        toast.show('Введите название проекта', 'error')
+        return
+      }
+
+      if (!projectForm.client_id || !selectedProjectClient.value) {
+        toast.show('Выберите клиента для проекта', 'error')
+        return
+      }
+
+      // Валидация заказов
+      for (let i = 0; i < orders.value.length; i++) {
+        const order = orders.value[i]
+        if (!order.product_id) {
+          toast.show(`Выберите продукт для заказа ${i + 1}`, 'error')
+          return
+        }
+        if (!order.quantity || order.quantity <= 0) {
+          toast.show(`Укажите количество для заказа ${i + 1}`, 'error')
+          return
+        }
+      }
+
+      // 1. Создаём проект без заказов
+      const createdProject = await createProject({
         title: projectForm.title.trim(),
         client_id: projectForm.client_id,
-      }
-      const createdProject = await createProjectWithOrders(projectData) // <-- нужно реализовать createProjectOnly
-      if (!createdProject || !createdProject.id) {
+      })
+      console.log('createdProject:', createdProject)
+      const projectId = createdProject.id || createdProject.data?.id
+      if (!projectId) {
         toast.show('Ошибка при создании проекта', 'error')
         return
       }
       // 2. Для каждого заказа создаём отдельный заказ с project_id
       for (let i = 0; i < orders.value.length; i++) {
         const order = orders.value[i]
+        // Валидация заказа
+        if (!order.product_id) {
+          toast.show(`Выберите продукт для заказа ${i + 1}`, 'error')
+          return
+        }
+        if (!order.quantity || order.quantity <= 0) {
+          toast.show(`Укажите количество для заказа ${i + 1}`, 'error')
+          return
+        }
         const orderData = {
           client_id: projectForm.client_id,
-          project_id: createdProject.id,
           product_id: order.product_id,
           quantity: order.quantity,
           deadline: order.deadline,
@@ -1440,23 +1529,34 @@ async function handleSubmit() {
           has_print_stage: order.has_print_stage,
           has_workshop_stage: order.has_workshop_stage,
           has_engraving_stage: order.has_engraving_stage,
+          project_id: projectId,
         }
         const createdOrder = await createOrder(orderData)
-        if (!createdOrder || !createdOrder.id) continue
-        // 3. Для каждого заказа отправляем назначения
+        const orderId = createdOrder?.data?.id || createdOrder?.id
+        // 3. Назначения для каждого заказа
         const assignments = prepareOrderAssignments({
           designAssignments: order.designers,
           printAssignments: order.print_operators,
           engravingAssignments: order.engraving_operators,
           workshopAssignments: order.workshop_workers,
         })
-        if (assignments.length > 0) {
-          await bulkAssignOrderAssignments(createdOrder.id, assignments)
+        console.log(
+          'Assignments перед bulkAssign (mass):',
+          orderId,
+          JSON.parse(JSON.stringify(assignments)),
+        )
+        if (orderId && assignments.length > 0) {
+          await bulkAssignOrderAssignments(orderId, assignments)
         }
       }
-      toast.show('Проект и заказы успешно созданы!')
+      toast.show('Проект и заказы с назначениями успешно созданы!')
     } else {
       // Одиночный заказ
+      // Очищаем назначения для выключенных стадий
+      if (!form.has_design_stage) designAssignments.splice(0)
+      if (!form.has_print_stage) printAssignments.splice(0)
+      if (!form.has_engraving_stage) engravingAssignments.splice(0)
+      if (!form.has_workshop_stage) workshopAssignments.splice(0)
       if (!validateForm()) return
       const orderData: Record<string, unknown> = {
         client_id: form.client_id,
@@ -1475,21 +1575,18 @@ async function handleSubmit() {
       }
 
       const createdOrder = await createOrder(orderData)
-      console.log('createdOrder:', createdOrder)
-      // 2. Отправляем назначения через bulkAssign
-      console.log('designAssignments:', JSON.parse(JSON.stringify(designAssignments)))
-      console.log('printAssignments:', JSON.parse(JSON.stringify(printAssignments)))
-      console.log('engravingAssignments:', JSON.parse(JSON.stringify(engravingAssignments)))
-      console.log('workshopAssignments:', JSON.parse(JSON.stringify(workshopAssignments)))
+      const orderId = createdOrder?.data?.id || createdOrder?.id
       const assignments = prepareOrderAssignments({
         designAssignments: designAssignments,
         printAssignments: printAssignments,
         engravingAssignments: engravingAssignments,
         workshopAssignments: workshopAssignments,
       })
-      console.log('Assignments перед bulk-assign:', assignments)
-      const orderId = createdOrder?.data?.id || createdOrder?.id
-      console.log('Assignments for bulkAssign (single):', orderId, assignments)
+      console.log(
+        'Assignments перед bulkAssign (single):',
+        orderId,
+        JSON.parse(JSON.stringify(assignments)),
+      )
       if (orderId && assignments.length > 0) {
         await bulkAssignOrderAssignments(orderId, assignments)
       }
@@ -1534,6 +1631,7 @@ function addOrder() {
     designer_id: null,
     print_operator_id: null,
     workshop_worker_id: null,
+    engraver_id: null, // Added engraver_id for engraving stage
     designers: reactive([]),
     print_operators: reactive([]),
     engraving_operators: reactive([]),
@@ -1542,12 +1640,18 @@ function addOrder() {
   })
   orders.value.push(newOrder)
 
-  // Автозаполнение исполнителей при добавлении заказа
-  watch(
+  // Watcher на product_id для автоподстановки назначений
+  const unwatch = watch(
     () => newOrder.product_id,
     () => autoFillOrderAssignments(newOrder),
     { immediate: true },
   )
+  orderProductWatches.push(unwatch)
+
+  // Если product_id уже выбран (например, при копировании), сразу подставить назначения
+  if (newOrder.product_id) {
+    autoFillOrderAssignments(newOrder)
+  }
 }
 
 function removeOrder(index: number) {

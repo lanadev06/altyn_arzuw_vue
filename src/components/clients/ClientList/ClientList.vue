@@ -6,15 +6,26 @@
       >
     </div>
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
-      <div class="flex items-center gap-4">
-        <span> <b>Отмечено:</b> {{ 0 }} / {{ pagination?.total || 0 }} </span>
-        <span> <b>Всего:</b> {{ pagination?.total || 0 }} </span>
-        <span> <b>Страницы:</b> {{ pagination?.last_page || 1 }} </span>
+      <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <span>На странице:</span>
-        <select v-model="perPage" @change="changePerPage" class="border rounded px-2 py-1">
-          <option v-for="n in [10, 20, 50, 100]" :key="n" :value="n">{{ n }}</option>
+      <div
+        class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
+      >
+        <span class="text-gray-600 font-semibold">На странице:</span>
+        <select
+          v-model.number="perPage"
+          @change="changePerPage"
+          class="bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-900 font-semibold"
+        >
+          <option v-for="n in [10, 20, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
         </select>
       </div>
     </div>
@@ -179,9 +190,16 @@ const showEditModal = ref(false)
 const editingClient = ref<Client | null>(null)
 const columnsHeader = ref<HTMLElement | null>(null)
 const currentPage = ref(1)
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(30)
 
+function validatePerPage(val: number) {
+  if (!allowedPerPage.includes(val)) return 30
+  return val
+}
+
 function changePerPage() {
+  perPage.value = validatePerPage(perPage.value)
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -295,7 +313,8 @@ onMounted(async () => {
 })
 
 watch(perPage, (newVal) => {
-  fetchClients(1, props.search, sortBy.value, sortOrder.value, newVal)
+  perPage.value = validatePerPage(newVal)
+  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
   currentPage.value = 1
 })
 

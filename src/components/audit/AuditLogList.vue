@@ -1,29 +1,29 @@
 <template>
   <div class="space-y-6">
     <!-- Заголовок и статистика -->
-    <div class="flex justify-between items-center">
-      <div>
-        <!-- <h1 class="text-2xl font-bold text-gray-900">Аудит-логи</h1> -->
-        <!-- <p class="text-gray-600 mt-1">Отслеживание всех действий в системе</p> -->
+    <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
+      <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
+        </div>
       </div>
-      <!--
-      <div class="flex space-x-3">
-        <button
-          @click="exportToCSV"
-          :disabled="loading"
-          class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+      <div
+        class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
+      >
+        <span class="text-gray-600 font-semibold">На странице:</span>
+        <select
+          v-model.number="filters.per_page"
+          @change="changePerPage"
+          class="bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-900 font-semibold"
         >
-          Экспорт CSV
-        </button>
-        <button
-          @click="exportToJSON"
-          :disabled="loading"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          Экспорт JSON
-        </button>
+          <option v-for="n in [10, 20, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+        </select>
       </div>
-      -->
     </div>
 
     <!-- Фильтры -->
@@ -212,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.min.css'
 import Sortable from 'sortablejs'
@@ -332,6 +332,25 @@ const USER_ROLE_LABELS: Record<string, string> = {
   workshop_worker: 'Работник цеха',
   user: 'Пользователь',
 }
+
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+function validatePerPage(val) {
+  if (!allowedPerPage.includes(val)) return 10
+  return val
+}
+function changePerPage() {
+  filters.value.per_page = validatePerPage(filters.value.per_page)
+  filters.value.page = 1
+  loadLogs()
+}
+watch(
+  () => filters.value.per_page,
+  (newVal) => {
+    filters.value.per_page = validatePerPage(newVal)
+    filters.value.page = 1
+    loadLogs()
+  },
+)
 
 // Инициализация
 onMounted(async () => {

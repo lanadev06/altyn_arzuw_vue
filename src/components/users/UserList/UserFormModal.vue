@@ -183,6 +183,7 @@ const validateForm = () => {
 }
 
 const handleSubmit = async () => {
+  console.log('HANDLE SUBMIT CALLED', form)
   if (!validateForm()) return
   loading.value = true
   try {

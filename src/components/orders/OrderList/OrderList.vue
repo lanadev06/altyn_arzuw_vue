@@ -1,11 +1,33 @@
 <template>
   <div class="order-list flex flex-col">
-    <div class="flex justify-between items-center mb-3">
+    <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
+      <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
+        </div>
+      </div>
+      <div
+        class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
+      >
+        <span class="text-gray-600 font-semibold">На странице:</span>
+        <select
+          v-model.number="perPage"
+          @change="changePerPage"
+          class="bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-900 font-semibold"
+        >
+          <option v-for="n in [10, 20, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </div>
       <div class="flex items-center gap-3">
         <select
           v-model="selectedStage"
           @change="filterByStage"
-          class="w-48 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+          class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
           <option value="">Все</option>
           <option value="draft">Черновик</option>
@@ -19,21 +41,21 @@
         <select
           v-model="selectedArchive"
           @change="filterByArchive"
-          class="w-48 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+          class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
           <option value="">Все заказы</option>
           <option value="active">Активные</option>
           <option value="archived">Архивные</option>
         </select>
-      </div>
-      <div v-if="canCreateEdit()" class="flex gap-2">
-        <UIButton
-          @click="showCreateModal = true"
-          variant="primary"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 text-base transition-colors duration-200 shadow-none border-none"
-        >
-          Добавить заказ
-        </UIButton>
+        <div v-if="canCreateEdit()" class="flex gap-2">
+          <UIButton
+            @click="showCreateModal = true"
+            variant="primary"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 text-base transition-colors duration-200 shadow-none border-none"
+          >
+            Добавить заказ
+          </UIButton>
+        </div>
       </div>
     </div>
     <div class="flex-1 flex flex-col min-h-0">
@@ -214,6 +236,25 @@ const detailsOrderId = ref<number | null>(null)
 
 const selectedStage = ref('')
 const selectedArchive = ref('')
+const selectedAssignmentStatus = ref('')
+
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(30)
+
+function validatePerPage(val) {
+  if (!allowedPerPage.includes(val)) return 30
+  return val
+}
+
+function changePerPage() {
+  perPage.value = validatePerPage(perPage.value)
+  loadOrders(1)
+}
+
+watch(perPage, (newVal) => {
+  perPage.value = validatePerPage(newVal)
+  loadOrders(1)
+})
 
 watch(orders, (val) => {
   console.log('orders changed in OrderList', val)
@@ -227,7 +268,16 @@ function loadOrders(page = 1) {
         ? false
         : undefined
 
-  fetchOrders(page, sortBy.value, sortOrder.value, selectedStage.value || undefined, isArchived)
+  fetchOrders(
+    page,
+    sortBy.value,
+    sortOrder.value,
+    selectedStage.value || undefined,
+    isArchived,
+    undefined,
+    selectedAssignmentStatus.value || undefined,
+    perPage.value,
+  )
 }
 
 function setSort(key: string) {
@@ -325,6 +375,10 @@ function filterByStage() {
 }
 
 function filterByArchive() {
+  loadOrders(1)
+}
+
+function filterByAssignmentStatus() {
   loadOrders(1)
 }
 

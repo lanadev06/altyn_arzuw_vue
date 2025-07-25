@@ -91,6 +91,7 @@ import { API_CONFIG } from '../../../config/api'
 const { orders } = OrderController()
 const props = defineProps<{
   statuses: { key: string; label: string }[]
+  orders: any[]
 }>()
 const emit = defineEmits<{
   (e: 'update:orders'): void
@@ -132,7 +133,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 function ordersByStage(stage: string) {
-  return Array.isArray(orders.value) ? orders.value.filter((order) => order.stage === stage) : []
+  return Array.isArray(props.orders) ? props.orders.filter((order) => order.stage === stage) : []
 }
 function getStatusColor(key: string) {
   switch (key) {

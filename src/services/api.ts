@@ -395,7 +395,9 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
     body: JSON.stringify(data),
   })
   if (!res.ok) throw new Error('Ошибка создания проекта')
-  return (await res.json()).data
+  const json = await res.json()
+  console.log('createProject API response:', json)
+  return json.data || json
 }
 
 export async function updateProject(id: number, data: Partial<Project>): Promise<Project> {
@@ -785,7 +787,7 @@ export async function updateUser(id: number, data: any): Promise<any> {
       })
     }
     const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
-      method: 'POST', // Laravel ожидает POST для multipart
+      method: 'PATCH',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,

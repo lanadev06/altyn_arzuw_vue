@@ -10,6 +10,30 @@
     </div>
 
     <div class="flex-1 flex flex-col min-h-0">
+      <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
+        <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
+          <div class="flex items-center gap-1">
+            <span class="text-gray-500 font-semibold">Всего:</span>
+            <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="text-gray-500 font-semibold">Страницы:</span>
+            <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
+        >
+          <span class="text-gray-600 font-semibold">На странице:</span>
+          <select
+            v-model.number="perPage"
+            @change="changePerPage"
+            class="bg-white border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:outline-none text-gray-900 font-semibold"
+          >
+            <option v-for="n in [10, 20, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
+      </div>
       <div class="bg-white border border-gray-200">
         <table class="w-full border-collapse border-gray-300 text-gray-900 text-base">
           <thead class="bg-gray-50 text-gray-900 font-medium">
@@ -415,6 +439,21 @@ watch(
     fetchProjects(1, newVal, sortBy.value, sortOrder.value)
   },
 )
+
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(10)
+function validatePerPage(val) {
+  if (!allowedPerPage.includes(val)) return 10
+  return val
+}
+function changePerPage() {
+  perPage.value = validatePerPage(perPage.value)
+  goToPage(1)
+}
+watch(perPage, (newVal) => {
+  perPage.value = validatePerPage(newVal)
+  goToPage(1)
+})
 
 onMounted(async () => {
   await nextTick()
