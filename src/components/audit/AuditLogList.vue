@@ -232,7 +232,7 @@ const users = ref([])
 // Фильтры
 const filters = ref<AuditLogFilters>({
   page: 1,
-  per_page: 10,
+  per_page: 30,
 })
 
 // Пагинация
@@ -288,7 +288,7 @@ const changePage = (page: number) => {
 const clearFilters = () => {
   filters.value = {
     page: 1,
-    per_page: 10,
+    per_page: 30,
   }
   loadLogs()
 }
@@ -335,7 +335,7 @@ const USER_ROLE_LABELS: Record<string, string> = {
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 function validatePerPage(val) {
-  if (!allowedPerPage.includes(val)) return 10
+  if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {

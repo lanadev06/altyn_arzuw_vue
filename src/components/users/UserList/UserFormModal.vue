@@ -6,7 +6,7 @@
       </h2>
     </template>
 
-    <form @submit.prevent="handleSubmit" class="space-y-4">
+    <form @submit.prevent="handleSubmit" class="space-y-4" enctype="multipart/form-data">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Имя *</label>
         <UIInput v-model="form.name" placeholder="Введите имя" :error="errors.name" required />
@@ -63,6 +63,8 @@
           @change="handleImageChange"
           accept="image/*"
           class="w-full px-3 py-2 border border-gray-300 text-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          name="image"
+          id="image"
         />
         <p class="text-xs text-gray-500 mt-1">Максимум 2MB, JPG, PNG</p>
       </div>
@@ -105,6 +107,7 @@ const errors = reactive({
   phone: '',
   password: '',
   roles: '',
+  image: '',
 })
 
 const form = reactive({
@@ -149,8 +152,16 @@ const roleOptions = computed(() =>
 
 const handleImageChange = (event: Event) => {
   const target = event.target as HTMLInputElement
+  console.log('handleImageChange called')
+  console.log('target.files:', target.files)
   if (target.files && target.files[0]) {
+    console.log('Setting form.image to:', target.files[0])
     form.image = target.files[0]
+    console.log('form.image after setting:', form.image)
+    console.log('form.image instanceof File:', form.image instanceof File)
+  } else {
+    console.log('No file selected')
+    form.image = null
   }
 }
 
@@ -182,8 +193,57 @@ const validateForm = () => {
   return isValid
 }
 
+const convertHeicToJpg = async (file: File): Promise<File> => {
+  if (!file.name.toLowerCase().endsWith('.heic')) {
+    return file
+  }
+
+  console.log('Converting HEIC to JPG...')
+
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+
+    img.onload = () => {
+      canvas.width = img.width
+      canvas.height = img.height
+      ctx?.drawImage(img, 0, 0)
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const convertedFile = new File([blob], file.name.replace('.heic', '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            })
+            console.log('HEIC converted to JPG:', convertedFile)
+            resolve(convertedFile)
+          } else {
+            console.log('Failed to convert HEIC, using original file')
+            resolve(file)
+          }
+        },
+        'image/jpeg',
+        0.8,
+      )
+    }
+
+    img.onerror = () => {
+      console.log('Failed to load HEIC image, using original file')
+      resolve(file)
+    }
+
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 const handleSubmit = async () => {
   console.log('HANDLE SUBMIT CALLED', form)
+  console.log('form.image type:', typeof form.image)
+  console.log('form.image instanceof File:', form.image instanceof File)
+  console.log('form.image:', form.image)
+
   if (!validateForm()) return
   loading.value = true
   try {
@@ -198,8 +258,32 @@ const handleSubmit = async () => {
         : [],
     }
     if (form.password) dataToSend.password = form.password
-    if (form.image instanceof File) dataToSend.image = form.image
-    emit('submit', dataToSend)
+
+    if (form.image instanceof File) {
+      console.log('Adding image to dataToSend:', form.image)
+      const convertedImage = await convertHeicToJpg(form.image)
+      dataToSend.image = convertedImage
+    }
+
+    console.log('Final dataToSend:', dataToSend)
+    console.log('dataToSend.image type:', typeof dataToSend.image)
+    console.log('dataToSend.image instanceof File:', dataToSend.image instanceof File)
+
+    // Проверяем, что данные не теряются при передаче
+    const eventData = { ...dataToSend }
+    console.log('Event data before emit:', eventData)
+    console.log('Event data.image type:', typeof eventData.image)
+    console.log('Event data.image instanceof File:', eventData.image instanceof File)
+
+    // Тест сериализации
+    try {
+      const serialized = JSON.stringify(eventData)
+      console.log('Serialization test - can serialize:', serialized.length > 0)
+    } catch (e) {
+      console.log('Serialization test - cannot serialize File object:', e)
+    }
+
+    emit('submit', eventData)
     toast.show(props.user ? 'Пользователь обновлён!' : 'Пользователь создан!')
   } catch (error) {
     console.error('Ошибка отправки формы:', error)

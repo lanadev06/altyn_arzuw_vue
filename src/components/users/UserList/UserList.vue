@@ -228,7 +228,8 @@ const {
 const showEditModal = ref(false)
 const editingUser = ref<any>(null)
 const currentPage = ref(1)
-const perPage = ref(10)
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(30)
 
 const SORT_KEY = 'userList_sortBy'
 const ORDER_KEY = 'userList_sortOrder'
@@ -360,6 +361,14 @@ async function toggleUserActive(userId: number) {
 }
 
 const handleCreateUser = async (userData: any) => {
+  console.log('=== handleCreateUser START ===')
+  console.log('userData received:', userData)
+  console.log('userData.image type:', typeof userData.image)
+  console.log('userData.image instanceof File:', userData.image instanceof File)
+  console.log('userData.image:', userData.image)
+  console.log('userData keys:', Object.keys(userData))
+  console.log('=== handleCreateUser END ===')
+
   try {
     await create(userData)
     emit('close-create-modal')
@@ -378,6 +387,14 @@ const handleCreateUser = async (userData: any) => {
 }
 
 const handleUpdateUser = async (userData: any) => {
+  console.log('=== handleUpdateUser START ===')
+  console.log('userData received:', userData)
+  console.log('userData.image type:', typeof userData.image)
+  console.log('userData.image instanceof File:', userData.image instanceof File)
+  console.log('userData.image:', userData.image)
+  console.log('userData keys:', Object.keys(userData))
+  console.log('=== handleUpdateUser END ===')
+
   try {
     if (!editingUser.value) return
     console.log(
@@ -441,9 +458,8 @@ function goToPage(page: number) {
   )
 }
 
-const allowedPerPage = [10, 20, 50, 100, 200, 500]
 function validatePerPage(val) {
-  if (!allowedPerPage.includes(val)) return 10
+  if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {

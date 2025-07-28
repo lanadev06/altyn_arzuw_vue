@@ -367,12 +367,14 @@ export async function getProjects({
   search = '',
   sort_by = 'id',
   sort_order = 'desc',
+  per_page = 30,
 } = {}): Promise<any> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
   if (page) params.push(`page=${page}`)
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
+  if (per_page) params.push(`per_page=${per_page}`)
   const query = params.length ? `?${params.join('&')}` : ''
   const res = await fetch(`${API_CONFIG.BASE_URL}/projects${query}`, {
     headers: {
@@ -433,12 +435,14 @@ export async function getProducts({
   search = '',
   sort_by = 'id',
   sort_order = 'desc',
+  per_page = 30,
 } = {}): Promise<any> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
   if (page) params.push(`page=${page}`)
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
+  if (per_page) params.push(`per_page=${per_page}`)
   const query = params.length ? `?${params.join('&')}` : ''
 
   const url = `${API_CONFIG.BASE_URL}/products${query}`
@@ -706,23 +710,41 @@ export async function updateOrderStage(orderId: number, stage: string): Promise<
 }
 
 export async function createUser(data: any): Promise<any> {
+  console.log('createUser API called with:', data)
+  console.log('data.image type:', typeof data.image)
+  console.log('data.image instanceof File:', data.image instanceof File)
+  console.log('data.image:', data.image)
+
   const formData = new FormData()
   formData.append('name', data.name)
   formData.append('username', data.username)
   formData.append('password', data.password)
   if (data.phone) formData.append('phone', data.phone)
   if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
-  if (data.image instanceof File) formData.append('image', data.image)
+  if (data.image instanceof File) {
+    console.log('Adding image to FormData:', data.image)
+    formData.append('image', data.image)
+  }
   // Если есть массив ролей, добавляем их
   if (data.roles && Array.isArray(data.roles)) {
     data.roles.forEach((role: number, idx: number) => {
       formData.append(`roles[${idx}]`, role.toString())
     })
   }
+
+  console.log('FormData entries:')
+  for (const [key, value] of formData.entries()) {
+    console.log(key, value)
+  }
+
   const res = await apiRequest('/users', {
     method: 'POST',
     body: formData,
   })
+
+  console.log('Server response for createUser:', res)
+  console.log('Response type:', typeof res)
+
   return res
 }
 
@@ -772,31 +794,62 @@ export async function toggleUserActive(id: number): Promise<any> {
 }
 
 export async function updateUser(id: number, data: any): Promise<any> {
+  console.log('updateUser API called with id:', id, 'data:', data)
+  console.log('data.image type:', typeof data.image)
+  console.log('data.image instanceof File:', data.image instanceof File)
+  console.log('data.image:', data.image)
+
   const token = localStorage.getItem('auth_token')
   if (data.image instanceof File) {
+    console.log('Using FormData for update (image present)')
     const formData = new FormData()
     if (data.name !== undefined) formData.append('name', data.name)
     if (data.username !== undefined) formData.append('username', data.username)
     if (data.phone !== undefined) formData.append('phone', data.phone || '')
     if (data.password) formData.append('password', data.password)
     if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
+    console.log('Adding image to FormData:', data.image)
     formData.append('image', data.image)
     if (data.roles && Array.isArray(data.roles)) {
       data.roles.forEach((role: number, idx: number) => {
         formData.append(`roles[${idx}]`, role.toString())
       })
     }
+
+    // Добавляем _method: PUT для Laravel
+    formData.append('_method', 'PUT')
+
+    console.log('FormData entries for update:')
+    for (const [key, value] of formData.entries()) {
+      console.log(key, value)
+    }
+
     const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
-      method: 'PATCH',
+      method: 'POST', // Используем POST вместо PATCH
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
       body: formData,
     })
-    if (!res.ok) throw new Error('Ошибка обновления пользователя')
-    return await res.json()
+
+    console.log('Response status:', res.status)
+    console.log('Response headers:', Object.fromEntries(res.headers.entries()))
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      console.log('Error response data:', errorData)
+      console.log('Error message:', errorData.message)
+      console.log('Validation errors:', errorData.errors)
+      throw new Error(`Ошибка обновления пользователя: ${errorData.message || res.statusText}`)
+    }
+
+    const responseData = await res.json()
+    console.log('Server response for updateUser:', responseData)
+
+    return responseData
   } else {
+    console.log('Using JSON for update (no image)')
     const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
       method: 'PUT',
       headers: {

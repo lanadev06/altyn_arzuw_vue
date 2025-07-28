@@ -16,6 +16,7 @@ export enum UserRole {
   MANAGER = 'manager',
   DESIGNER = 'designer',
   PRINT_OPERATOR = 'print_operator',
+  ENGRAVING_OPERATOR = 'engraving_operator',
   WORKSHOP_WORKER = 'workshop_worker',
 }
 

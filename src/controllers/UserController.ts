@@ -121,7 +121,12 @@ export function useUserController() {
     fetchUsers(1, search, sortBy.value, sortOrder.value)
   }
 
-  async function create(userData: CreateUserData) {
+  async function create(userData: any) {
+    console.log('UserController.create called with:', userData)
+    console.log('userData.image type:', typeof userData.image)
+    console.log('userData.image instanceof File:', userData.image instanceof File)
+    console.log('userData.image:', userData.image)
+
     loading.value = true
     try {
       const created = await createUser(userData)
@@ -133,7 +138,12 @@ export function useUserController() {
     }
   }
 
-  async function update(id: number, userData: UpdateUserData) {
+  async function update(id: number, userData: any) {
+    console.log('UserController.update called with id:', id, 'data:', userData)
+    console.log('userData.image type:', typeof userData.image)
+    console.log('userData.image instanceof File:', userData.image instanceof File)
+    console.log('userData.image:', userData.image)
+
     loading.value = true
     try {
       const updated = await updateUser(id, userData)

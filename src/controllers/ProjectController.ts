@@ -9,7 +9,7 @@ export function ProjectController() {
     current_page: 1,
     last_page: 1,
     total: 0,
-    per_page: 20,
+    per_page: 30,
   })
   const loading = ref(false)
   const error = ref('')
@@ -21,16 +21,17 @@ export function ProjectController() {
     search = '',
     sort_by = sortBy.value,
     sort_order = sortOrder.value,
+    per_page = pagination.per_page,
   ) {
     loading.value = true
     error.value = ''
     try {
-      const res = await getProjects({ page, search, sort_by, sort_order })
+      const res = await getProjects({ page, search, sort_by, sort_order, per_page })
       pagination.data = res.data || []
       pagination.current_page = res.current_page || 1
       pagination.last_page = res.last_page || 1
       pagination.total = res.total || 0
-      pagination.per_page = res.per_page || 20
+      pagination.per_page = res.per_page || 30
       projects.value = res.data || []
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки проектов'

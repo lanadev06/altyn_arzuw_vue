@@ -29,7 +29,6 @@
           <option value="">Все назначения</option>
           <option value="pending">Ожидание</option>
           <option value="in_progress">В работе</option>
-          <option value="completed">Завершено</option>
         </select>
       </div>
       <OrderList v-if="isTableView" ref="orderListRef" />

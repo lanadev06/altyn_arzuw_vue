@@ -85,6 +85,12 @@
                 form.designers = assignments
               }
             "
+            @remove="
+              (idx) => {
+                console.log('REMOVE designer at index:', idx)
+                form.designers.splice(idx, 1)
+              }
+            "
           />
           <button
             type="button"
@@ -108,6 +114,7 @@
                 form.print_operators = assignments
               }
             "
+            @remove="(idx) => { console.log('REMOVE print operator at index:', idx); form.print_operators.splice(idx, 1) }"
           />
           <button
             type="button"
@@ -131,6 +138,7 @@
                 form.engraving_operators = assignments
               }
             "
+            @remove="(idx) => { console.log('REMOVE engraving operator at index:', idx); form.engraving_operators.splice(idx, 1) }"
           />
           <button
             type="button"
@@ -156,6 +164,7 @@
                 form.workshop_workers = assignments
               }
             "
+            @remove="(idx) => { console.log('REMOVE workshop worker at index:', idx); form.workshop_workers.splice(idx, 1) }"
           />
           <button
             type="button"
@@ -456,13 +465,38 @@ function validateForm() {
   return valid
 }
 
+function cleanDuplicateAssignments(assignments: ProductAssignment[]): ProductAssignment[] {
+  const seenUserIds = new Set()
+  return assignments.filter(assignment => {
+    if (!assignment.user_id || assignment.user_id <= 0) return true
+    if (seenUserIds.has(assignment.user_id)) {
+      console.log(`Removing duplicate user_id ${assignment.user_id} from assignments`)
+      return false
+    }
+    seenUserIds.add(assignment.user_id)
+    return true
+  })
+}
+
 function prepareAssignmentsForApi() {
+  // Очищаем дубликаты перед отправкой
+  const cleanedDesigners = cleanDuplicateAssignments(form.designers)
+  const cleanedPrintOperators = cleanDuplicateAssignments(form.print_operators)
+  const cleanedEngravingOperators = cleanDuplicateAssignments(form.engraving_operators)
+  const cleanedWorkshopWorkers = cleanDuplicateAssignments(form.workshop_workers)
+  
+  // Обновляем формы с очищенными данными
+  form.designers = cleanedDesigners
+  form.print_operators = cleanedPrintOperators
+  form.engraving_operators = cleanedEngravingOperators
+  form.workshop_workers = cleanedWorkshopWorkers
+  
   // Возвращает assignmentsByRole для bulk API
   return {
-    designer: form.has_design_stage ? form.designers : [],
-    print_operator: form.has_print_stage ? form.print_operators : [],
-    engraving_operator: form.has_engraving_stage ? form.engraving_operators : [],
-    workshop_worker: form.has_workshop_stage ? form.workshop_workers : [],
+    designer: form.has_design_stage ? cleanedDesigners : [],
+    print_operator: form.has_print_stage ? cleanedPrintOperators : [],
+    engraving_operator: form.has_engraving_stage ? cleanedEngravingOperators : [],
+    workshop_worker: form.has_workshop_stage ? cleanedWorkshopWorkers : [],
   }
 }
 

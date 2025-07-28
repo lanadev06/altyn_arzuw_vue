@@ -6,8 +6,8 @@
     >
       <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
         <img
-          v-if="user.image"
-          :src="user.image"
+          v-if="userImageUrl"
+          :src="userImageUrl"
           :alt="user.name"
           class="w-8 h-8 rounded-full object-cover"
         />
@@ -90,24 +90,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { getUserImageUrl } from '@/utils/user'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { API_CONFIG } from '@/config/api'
 
-defineProps({
+const props = defineProps({
   user: {
     type: Object,
     default: () => ({
       name: 'Пользователь',
-      role: 'Пользователь',
-      avatar: null,
+      role: 'user',
+      image: null,
     }),
   },
 })
 
-const emit = defineEmits(['logout', 'settings'])
+const emit = defineEmits(['logout'])
 
 const isDropdownOpen = ref(false)
-const rootRef = ref<HTMLElement | null>(null)
+const rootRef = ref<HTMLElement>()
+const userImageUrl = ref('')
 
 const USER_ROLE_LABELS: Record<string, string> = {
   admin: 'Администратор',
@@ -115,8 +116,35 @@ const USER_ROLE_LABELS: Record<string, string> = {
   designer: 'Дизайнер',
   print_operator: 'Печатник',
   workshop_worker: 'Работник цеха',
-  user: 'Пользователь',
 }
+
+// Синхронная функция для получения URL изображения
+const getUserImageUrl = (user: any) => {
+  if (user.image_url) return user.image_url
+  if (user.image && user.image.startsWith('http')) return user.image
+  if (user.image) return `${API_CONFIG.BASE_URL.replace('/api', '')}/storage/${user.image}`
+  return ''
+}
+
+// Функция для загрузки URL изображения
+const loadUserImageUrl = () => {
+  console.log('loadUserImageUrl called with user:', props.user)
+  if (props.user) {
+    const url = getUserImageUrl(props.user)
+    console.log('Generated image URL:', url)
+    userImageUrl.value = url
+  } else {
+    console.log('No user data provided')
+    userImageUrl.value = ''
+  }
+}
+
+// Загружаем изображение при изменении пользователя
+watch(() => props.user, loadUserImageUrl, { immediate: true })
+
+onMounted(() => {
+  loadUserImageUrl()
+})
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value

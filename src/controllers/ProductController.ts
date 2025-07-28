@@ -9,7 +9,7 @@ export function ProductController() {
     current_page: 1,
     last_page: 1,
     total: 0,
-    per_page: 10,
+    per_page: 30,
   })
   const loading = ref(false)
   const error = ref('')
@@ -22,25 +22,25 @@ export function ProductController() {
     search = '',
     sort_by = sortBy.value,
     sort_order = sortOrder.value,
+    per_page = pagination.per_page,
   ) {
     loading.value = true
     error.value = ''
     try {
-      // sort_by/sort_order передаются на сервер, но сортировка по name всегда с приоритетом кириллицы (см. backend)
-      const res = await getProducts({ page, search, sort_by, sort_order })
+      const res = await getProducts({ page, search, sort_by, sort_order, per_page })
       // Исправление: поддержка структуры с meta (Laravel Resource)
       if (res.meta && Array.isArray(res.data)) {
         pagination.data = res.data
         pagination.current_page = res.meta.current_page || 1
         pagination.last_page = res.meta.last_page || 1
         pagination.total = res.meta.total || 0
-        pagination.per_page = res.meta.per_page || 10
+        pagination.per_page = res.meta?.per_page || res.per_page || 30
       } else {
         pagination.data = res.data || []
         pagination.current_page = res.current_page || 1
         pagination.last_page = res.last_page || 1
         pagination.total = res.total || 0
-        pagination.per_page = res.per_page || 10
+        pagination.per_page = res.per_page || 30
       }
       products.value = pagination.data
 

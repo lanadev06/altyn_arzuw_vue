@@ -220,9 +220,9 @@ const currentPage = ref(1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(10)
+const perPage = ref(30)
 function validatePerPage(val) {
-  if (!allowedPerPage.includes(val)) return 10
+  if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {
@@ -243,7 +243,7 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  fetchProducts(1, search, sortBy.value, sortOrder.value)
+  fetchProducts(1, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function resetSettings() {
@@ -254,14 +254,14 @@ function resetSettings() {
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
   currentPage.value = 1
-  fetchProducts(1, props.search, sortBy.value, sortOrder.value)
+  fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
   if (!pagination || typeof pagination.last_page === 'undefined') return
   if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
-  fetchProducts(page, props.search, sortBy.value, sortOrder.value)
+  fetchProducts(page, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function editProduct(product: Product) {
@@ -283,7 +283,7 @@ function editProduct(product: Product) {
 async function handleCreateProduct(newProduct: Product) {
   showCreateModal.value = false
   currentPage.value = 1
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleUpdateProduct(updatedProduct: Product) {
@@ -311,7 +311,7 @@ async function handleUpdateProduct(updatedProduct: Product) {
   showEditModal.value = false
 
   console.log('Product updated, fetching products again...')
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleDeleteProduct(productId: number) {
@@ -329,7 +329,13 @@ async function handleDeleteProduct(productId: number) {
       showEditModal.value = false
       editingProduct.value = null
       // Обновить список, чтобы убрать "мертвый" товар
-      await fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
+      await fetchProducts(
+        currentPage.value,
+        props.search,
+        sortBy.value,
+        sortOrder.value,
+        perPage.value,
+      )
     } else {
       toast.show('Ошибка при удалении товара')
     }
@@ -352,7 +358,7 @@ watch(
   () => props.search,
   (newVal) => {
     currentPage.value = 1
-    fetchProducts(1, newVal, sortBy.value, sortOrder.value)
+    fetchProducts(1, newVal, sortBy.value, sortOrder.value, perPage.value)
   },
 )
 
@@ -374,6 +380,6 @@ onMounted(async () => {
       },
     })
   }
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 })
 </script>

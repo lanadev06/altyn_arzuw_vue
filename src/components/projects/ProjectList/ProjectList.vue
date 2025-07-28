@@ -4,9 +4,6 @@
       <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
         >Добавить проект</UIButton
       >
-      <UIButton @click="resetSettings" variant="secondary" class="ml-2">
-        Сбросить настройки
-      </UIButton>
     </div>
 
     <div class="flex-1 flex flex-col min-h-0">
@@ -254,24 +251,13 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  fetchProjects(1, search, sortBy.value, sortOrder.value)
-}
-
-function resetSettings() {
-  columns.value = [...defaultColumns]
-  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
-  sortBy.value = 'id'
-  sortOrder.value = 'asc'
-  localStorage.setItem(SORT_KEY, sortBy.value)
-  localStorage.setItem(ORDER_KEY, sortOrder.value)
-  currentPage.value = 1
-  fetchProjects(1, props.search, sortBy.value, sortOrder.value)
+  fetchProjects(1, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
   if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
-  fetchProjects(page, props.search, sortBy.value, sortOrder.value)
+  fetchProjects(page, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function editProject(project: Project) {
@@ -288,7 +274,7 @@ async function handleCreateProject(newProject: Project) {
 async function handleUpdateProject(updatedProject: Project) {
   await update(updatedProject.id, updatedProject)
   showEditModal.value = false
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleDeleteProject(projectId: number) {
@@ -298,7 +284,7 @@ async function handleDeleteProject(projectId: number) {
   if (pagination?.data?.length === 1 && currentPage.value > 1) {
     currentPage.value--
   }
-  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -364,9 +350,16 @@ async function onAddComment(text: string) {
 }
 async function onDeleteComment(commentId: number) {
   if (!selectedProject.value) return
-  if (!confirm('Удалить комментарий?')) return
-  await deleteProjectComment(commentId)
-  selectedProjectComments.value = await getProjectComments(selectedProject.value.id)
+
+  try {
+    console.log('Начинаем удаление комментария:', commentId)
+    await deleteProjectComment(commentId)
+    console.log('Комментарий успешно удален, обновляем список')
+    selectedProjectComments.value = await getProjectComments(selectedProject.value.id)
+    console.log('Список комментариев обновлен')
+  } catch (error) {
+    console.error('Ошибка при удалении комментария:', error)
+  }
 }
 function onEditComment(payload: any) {}
 function onOpenOrder(order: any) {
@@ -414,6 +407,7 @@ async function addProjectComment(projectId: number, text: string) {
   return await res.json()
 }
 async function deleteProjectComment(commentId: number) {
+  console.log('Удаление комментария с ID:', commentId)
   const res = await fetch(`/api/comments/${commentId}`, {
     method: 'DELETE',
     headers: {
@@ -421,8 +415,29 @@ async function deleteProjectComment(commentId: number) {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  if (!res.ok) throw new Error('Ошибка при удалении комментария')
-  return await res.json()
+  console.log('Статус ответа:', res.status)
+  console.log('Заголовки ответа:', res.headers)
+
+  if (!res.ok) {
+    let errorMessage = 'Ошибка при удалении комментария'
+    try {
+      const errorData = await res.json()
+      console.log('Данные ошибки:', errorData)
+      errorMessage = errorData.message || errorMessage
+    } catch (e) {
+      console.log('Не удалось прочитать JSON ошибки:', e)
+    }
+    throw new Error(errorMessage)
+  }
+
+  try {
+    const responseData = await res.json()
+    console.log('Успешный ответ:', responseData)
+    return responseData
+  } catch (e) {
+    console.log('Ответ не содержит JSON, но статус успешный')
+    return { success: true }
+  }
 }
 
 function getClientNameById(clientId: number | undefined) {
@@ -436,14 +451,14 @@ watch(
   () => props.search,
   (newVal) => {
     currentPage.value = 1
-    fetchProjects(1, newVal, sortBy.value, sortOrder.value)
+    fetchProjects(1, newVal, sortBy.value, sortOrder.value, perPage.value)
   },
 )
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(10)
+const perPage = ref(30)
 function validatePerPage(val) {
-  if (!allowedPerPage.includes(val)) return 10
+  if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {
@@ -472,7 +487,7 @@ onMounted(async () => {
       },
     })
   }
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   try {
     const res = await fetch('/api/clients/all', {
       headers: {

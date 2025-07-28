@@ -118,8 +118,10 @@
               required
               @update:model-value="
                 (val) => {
+                  console.log('Выбран продукт в массовом режиме:', val)
                   order.product_id = val
                   fillStagesAndAssignees(order)
+                  console.log('После fillStagesAndAssignees - order:', order)
                 }
               "
             />
@@ -204,12 +206,18 @@
                   type="checkbox"
                   :checked="order.has_engraving_stage"
                   @change="
-                    onStageToggleMass(
-                      order,
-                      'has_engraving_stage',
-                      'engraving_operator_id',
-                      getProductEngravingOperatorId(order.product_id),
-                    )
+                    (event) => {
+                      const target = event.target
+                      console.log('Чекбокс гравировки изменен:', target?.checked)
+                      console.log('Текущий заказ:', order)
+                      onStageToggleMass(
+                        order,
+                        'has_engraving_stage',
+                        'engraving_operator_id',
+                        getProductEngravingOperatorId(order.product_id),
+                      )
+                      console.log('После onStageToggleMass - заказ:', order)
+                    }
                   "
                 />
                 Гравировка
@@ -422,6 +430,7 @@
             <div class="flex flex-col gap-2 items-start mb-2">
               <AssignmentManager
                 v-if="form.has_design_stage"
+                title="Дизайнеры"
                 :assignments="designAssignments"
                 :all-users="allDesigners"
                 @update="(val) => designAssignments.splice(0, designAssignments.length, ...val)"
@@ -436,6 +445,7 @@
               </button>
               <AssignmentManager
                 v-if="form.has_print_stage"
+                title="Печатники"
                 :assignments="printAssignments"
                 :all-users="allPrintOperators"
                 @update="(val) => printAssignments.splice(0, printAssignments.length, ...val)"
@@ -450,6 +460,7 @@
               </button>
               <AssignmentManager
                 v-if="form.has_engraving_stage"
+                title="Гравировщики"
                 :assignments="engravingAssignments"
                 :all-users="allEngravingOperators"
                 @update="
@@ -466,6 +477,7 @@
               </button>
               <AssignmentManager
                 v-if="form.has_workshop_stage"
+                title="Цех"
                 :assignments="workshopAssignments"
                 :all-users="allWorkshopWorkers"
                 @update="(val) => workshopAssignments.splice(0, workshopAssignments.length, ...val)"
@@ -598,7 +610,7 @@ const { createOrder, createProjectWithOrders, remove } = OrderController()
 const loading = ref(false)
 const loadingData = ref(false)
 
-const products = ref<{ id: number; name: string }[]>([])
+const products = ref<any[]>([])
 const projects = ref<{ id: number; title: string }[]>([])
 const clients = ref<{ id: number; name: string }[]>([])
 
@@ -613,11 +625,12 @@ const orders = ref([
     price: null,
     has_design_stage: false,
     has_print_stage: false,
+    has_engraving_stage: false,
     has_workshop_stage: false,
     designer_id: null,
     print_operator_id: null,
+    engraver_id: null,
     workshop_worker_id: null,
-    engraver_id: null, // Added engraver_id for engraving stage
     designers: [],
     print_operators: [],
     engraving_operators: [],
@@ -771,8 +784,15 @@ function updateWorkshopAssignments(val) {
 
 // Для массового режима (createProject): автозаполнение для каждого заказа
 function autoFillOrderAssignments(order) {
+  console.log('=== autoFillOrderAssignments вызвана ===')
   const prod = products.value.find((p) => p.id === order.product_id)
+  console.log('autoFillOrderAssignments - order.product_id:', order.product_id)
+  console.log('autoFillOrderAssignments - найденный продукт:', prod)
+  console.log('autoFillOrderAssignments - prod.has_engraving_stage:', prod?.has_engraving_stage)
+  console.log('autoFillOrderAssignments - prod.engraving_operators:', prod?.engraving_operators)
+  console.log('autoFillOrderAssignments - prod.assignments:', prod?.assignments)
   const assignments = Array.isArray(prod?.assignments) ? prod.assignments : []
+  console.log('autoFillOrderAssignments - assignments:', assignments)
   if (!order._wasEdited) order._wasEdited = {}
   if (!Array.isArray(order.designers)) order.designers = []
   if (!Array.isArray(order.print_operators)) order.print_operators = []
@@ -793,7 +813,7 @@ function autoFillOrderAssignments(order) {
             user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
             user:
               a.user ||
-              (a.user_id ? allDesigners.find((u) => u.id === Number(a.user_id)) : undefined),
+              (a.user_id ? allDesigners.value.find((u) => u.id === Number(a.user_id)) : undefined),
           })),
       )
     }
@@ -814,7 +834,9 @@ function autoFillOrderAssignments(order) {
             user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
             user:
               a.user ||
-              (a.user_id ? allPrintOperators.find((u) => u.id === Number(a.user_id)) : undefined),
+              (a.user_id
+                ? allPrintOperators.value.find((u) => u.id === Number(a.user_id))
+                : undefined),
           })),
       )
     }
@@ -823,25 +845,56 @@ function autoFillOrderAssignments(order) {
     order.print_operators.splice(0, order.print_operators.length)
   }
   if (prod?.has_engraving_stage) {
+    console.log('=== Включаем гравировку для заказа ===')
     order.has_engraving_stage = true
+    console.log('order._wasEdited.engraving_operator:', order._wasEdited.engraving_operator)
     if (!order._wasEdited.engraving_operator) {
-      order.engraving_operators.splice(
-        0,
-        order.engraving_operators.length,
-        ...assignments
-          .filter((a) => a.role_type === 'engraving_operator')
-          .map((a) => ({
-            ...a,
-            user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
-            user:
-              a.user ||
-              (a.user_id
-                ? allEngravingOperators.find((u) => u.id === Number(a.user_id))
-                : undefined),
-          })),
+      console.log(
+        'Находим назначения гравировщиков в assignments:',
+        assignments.filter((a) => a.role_type === 'engraving_operator'),
       )
+      console.log(
+        'Находим назначения гравировщиков в prod.engraving_operators:',
+        prod.engraving_operators,
+      )
+      console.log('allEngravingOperators.value:', allEngravingOperators.value)
+
+      // Сначала пробуем из prod.engraving_operators
+      let engravingAssignments = []
+      if (Array.isArray(prod.engraving_operators) && prod.engraving_operators.length > 0) {
+        console.log('Используем prod.engraving_operators')
+        engravingAssignments = prod.engraving_operators
+      } else {
+        // Если нет, ищем в общих assignments
+        console.log('Ищем в общих assignments')
+        engravingAssignments = assignments.filter((a) => a.role_type === 'engraving_operator')
+      }
+
+      console.log('Итоговые назначения гравировщиков:', engravingAssignments)
+
+      const mappedAssignments = engravingAssignments.map((a) => {
+        const mapped = {
+          ...a,
+          user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
+          user:
+            a.user ||
+            (a.user_id
+              ? allEngravingOperators.value.find((u) => u.id === Number(a.user_id))
+              : undefined),
+        }
+        console.log('Маппинг назначения:', a, '->', mapped)
+        return mapped
+      })
+
+      console.log('Маппированные назначения:', mappedAssignments)
+
+      order.engraving_operators.splice(0, order.engraving_operators.length, ...mappedAssignments)
+      console.log('После назначения - order.engraving_operators:', order.engraving_operators)
+    } else {
+      console.log('Гравировка уже была отредактирована, пропускаем автозаполнение')
     }
   } else {
+    console.log('=== Выключаем гравировку для заказа ===')
     order.has_engraving_stage = false
     order.engraving_operators.splice(0, order.engraving_operators.length)
   }
@@ -858,7 +911,9 @@ function autoFillOrderAssignments(order) {
             user_id: Number(a.user_id || (a.user && a.user.id) || 0) || null,
             user:
               a.user ||
-              (a.user_id ? allWorkshopWorkers.find((u) => u.id === Number(a.user_id)) : undefined),
+              (a.user_id
+                ? allWorkshopWorkers.value.find((u) => u.id === Number(a.user_id))
+                : undefined),
           })),
       )
     }
@@ -971,6 +1026,19 @@ onMounted(async () => {
       name: p.name,
       ...p,
     }))
+    console.log('Загруженные продукты:', products.value)
+    console.log(
+      'Продукт с гравировкой:',
+      products.value.find((p) => p.has_engraving_stage),
+    )
+    console.log(
+      'Все продукты с гравировкой:',
+      products.value.filter((p) => p.has_engraving_stage),
+    )
+    console.log(
+      'Продукты с engraving_operators:',
+      products.value.filter((p) => p.engraving_operators && p.engraving_operators.length > 0),
+    )
     projects.value = (projectsData.data || projectsData).map((p) => ({
       id: p.id,
       title: p.title,
@@ -983,6 +1051,7 @@ onMounted(async () => {
     allPrintOperators.value = printOperators.data || []
     allWorkshopWorkers.value = workshopWorkers.data || []
     allEngravingOperators.value = engravingOperators.data || []
+    console.log('Загруженные гравировщики:', allEngravingOperators.value)
     await fetchUsers(1, '', 'id', 'asc', 100)
     // --- Заполняем назначения из order.assignments, если есть ---
     if (props.order && props.order.assignments) {
@@ -1060,6 +1129,9 @@ const designerOptions = computed(() => users.value.filter((u) => u.role === User
 const printOperatorOptions = computed(() =>
   users.value.filter((u) => u.role === UserRole.PRINT_OPERATOR),
 )
+const engravingOperatorOptions = computed(() =>
+  users.value.filter((u) => u.role === UserRole.ENGRAVING_OPERATOR),
+)
 const workshopWorkerOptions = computed(() =>
   users.value.filter((u) => u.role === UserRole.WORKSHOP_WORKER),
 )
@@ -1094,11 +1166,17 @@ function onStageToggle(stageKey, roleKey, defaultUserId) {
     }
     if (roleKey === 'engraving_operator_id' && engravingAssignments.length === 0) {
       const prod = products.value.find((p) => p.id === form.product_id)
-      if (prod && Array.isArray(prod.assignments)) {
-        engravingAssignments.push(
-          ...prod.assignments.filter((a) => a.role_type === 'engraving_operator'),
+      console.log('onStageToggle - включаем гравировку')
+      let engravingAssignmentsToAdd = []
+      if (prod && Array.isArray(prod.engraving_operators) && prod.engraving_operators.length > 0) {
+        engravingAssignmentsToAdd = prod.engraving_operators
+      } else if (prod && Array.isArray(prod.assignments)) {
+        engravingAssignmentsToAdd = prod.assignments.filter(
+          (a) => a.role_type === 'engraving_operator',
         )
       }
+      console.log('onStageToggle - назначения гравировщиков:', engravingAssignmentsToAdd)
+      engravingAssignments.push(...engravingAssignmentsToAdd)
     }
     if (roleKey === 'workshop_worker_id' && workshopAssignments.length === 0) {
       const prod = products.value.find((p) => p.id === form.product_id)
@@ -1131,6 +1209,8 @@ function getProductWorkshopWorkerId(product_id) {
 }
 function getProductEngravingOperatorId(product_id) {
   const prod = products.value.find((p) => p.id === product_id)
+  console.log('getProductEngravingOperatorId - prod:', prod)
+  console.log('getProductEngravingOperatorId - prod.engraver_id:', prod?.engraver_id)
   return prod ? prod.engraver_id || null : null
 }
 
@@ -1152,11 +1232,23 @@ function onStageToggleMass(order, stageKey, roleKey, defaultUserId) {
       }
     }
     if (roleKey === 'engraving_operator_id' && order.engraving_operators.length === 0) {
-      if (prod && Array.isArray(prod.assignments)) {
-        order.engraving_operators.push(
-          ...prod.assignments.filter((a) => a.role_type === 'engraving_operator'),
-        )
+      console.log('=== onStageToggleMass - включаем гравировку ===')
+      console.log('prod:', prod)
+      console.log('prod.engraving_operators:', prod?.engraving_operators)
+      console.log('prod.assignments:', prod?.assignments)
+
+      let engravingAssignments = []
+      if (prod && Array.isArray(prod.engraving_operators) && prod.engraving_operators.length > 0) {
+        console.log('Используем prod.engraving_operators')
+        engravingAssignments = prod.engraving_operators
+      } else if (prod && Array.isArray(prod.assignments)) {
+        console.log('Ищем в prod.assignments')
+        engravingAssignments = prod.assignments.filter((a) => a.role_type === 'engraving_operator')
       }
+      console.log('onStageToggleMass - назначения гравировщиков:', engravingAssignments)
+      console.log('До добавления - order.engraving_operators:', order.engraving_operators)
+      order.engraving_operators.push(...engravingAssignments)
+      console.log('После добавления - order.engraving_operators:', order.engraving_operators)
     }
     if (roleKey === 'workshop_worker_id' && order.workshop_workers.length === 0) {
       if (prod && Array.isArray(prod.assignments)) {
@@ -1211,9 +1303,11 @@ watchEffect(() => {
       if (prod) {
         form.has_design_stage = !!prod.has_design_stage
         form.has_print_stage = !!prod.has_print_stage
+        form.has_engraving_stage = !!prod.has_engraving_stage
         form.has_workshop_stage = !!prod.has_workshop_stage
         form.designer_id = prod.designer_id || null
         form.print_operator_id = prod.print_operator_id || null
+        form.engraver_id = prod.engraver_id || null
         form.workshop_worker_id = prod.workshop_worker_id || null
         lastSelectedDesignerId.value = prod.designer_id || null
         lastSelectedPrintOperatorId.value = prod.print_operator_id || null
@@ -1221,9 +1315,11 @@ watchEffect(() => {
       } else {
         form.has_design_stage = false
         form.has_print_stage = false
+        form.has_engraving_stage = false
         form.has_workshop_stage = false
         form.designer_id = null
         form.print_operator_id = null
+        form.engraver_id = null
         form.workshop_worker_id = null
         lastSelectedDesignerId.value = null
         lastSelectedPrintOperatorId.value = null
@@ -1254,19 +1350,21 @@ watch(
             if (prod) {
               order.has_design_stage = !!prod.has_design_stage
               order.has_print_stage = !!prod.has_print_stage
+              order.has_engraving_stage = !!prod.has_engraving_stage
               order.has_workshop_stage = !!prod.has_workshop_stage
               order.designer_id = prod.designer_id || null
               order.print_operator_id = prod.print_operator_id || null
+              order.engraver_id = prod.engraver_id || null
               order.workshop_worker_id = prod.workshop_worker_id || null
-              order.engraver_id = prod.engraver_id || null // Update engraver_id
             } else {
               order.has_design_stage = false
               order.has_print_stage = false
+              order.has_engraving_stage = false
               order.has_workshop_stage = false
               order.designer_id = null
               order.print_operator_id = null
+              order.engraver_id = null
               order.workshop_worker_id = null
-              order.engraver_id = null // Reset engraver_id
             }
           }
         },
@@ -1283,6 +1381,7 @@ function fillStagesAndAssignees(order) {
   if (prod) {
     order.has_design_stage = !!prod.has_design_stage
     order.has_print_stage = !!prod.has_print_stage
+    order.has_engraving_stage = !!prod.has_engraving_stage
     order.has_workshop_stage = !!prod.has_workshop_stage
 
     if (order.has_design_stage) {
@@ -1295,24 +1394,27 @@ function fillStagesAndAssignees(order) {
     } else {
       order.print_operator_id = null
     }
+    if (order.has_engraving_stage) {
+      if (!order.engraver_id) order.engraver_id = prod.engraver_id || null
+      console.log('fillStagesAndAssignees - гравировка включена, engraver_id:', order.engraver_id)
+    } else {
+      order.engraver_id = null
+      console.log('fillStagesAndAssignees - гравировка выключена')
+    }
     if (order.has_workshop_stage) {
       if (!order.workshop_worker_id) order.workshop_worker_id = prod.workshop_worker_id || null
     } else {
       order.workshop_worker_id = null
     }
-    if (order.has_engraving_stage) {
-      if (!order.engraver_id) order.engraver_id = prod.engraver_id || null
-    } else {
-      order.engraver_id = null
-    }
   } else {
     order.has_design_stage = false
     order.has_print_stage = false
+    order.has_engraving_stage = false
     order.has_workshop_stage = false
     order.designer_id = null
     order.print_operator_id = null
-    order.workshop_worker_id = null
     order.engraver_id = null
+    order.workshop_worker_id = null
   }
 }
 
@@ -1683,6 +1785,7 @@ function addPrintOperator(order) {
   })
 }
 function addEngravingOperator(order) {
+  console.log('addEngravingOperator вызвана для заказа:', order)
   order.engraving_operators.push({
     id: Date.now(),
     user_id: null,
@@ -1692,6 +1795,7 @@ function addEngravingOperator(order) {
     has_engraving_stage: order.has_engraving_stage,
     has_workshop_stage: order.has_workshop_stage,
   })
+  console.log('После добавления гравировщика - engraving_operators:', order.engraving_operators)
 }
 function addWorkshopWorker(order) {
   order.workshop_workers.push({
@@ -1812,7 +1916,7 @@ watchEffect(() => {
   )
   console.log(
     'Гравировщики:',
-    users.value.filter((u) => u.role === 'engraving_operator'),
+    users.value.filter((u) => u.role === UserRole.ENGRAVING_OPERATOR),
   )
   console.log(
     'Цех:',

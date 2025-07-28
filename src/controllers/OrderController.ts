@@ -9,7 +9,7 @@ const pagination = reactive({
   current_page: 1,
   last_page: 1,
   total: 0,
-  per_page: 10,
+  per_page: 30,
 })
 const loading = ref(false)
 const error = ref('')
@@ -24,17 +24,27 @@ const fetchOrders = async (
   is_archived?: boolean,
   search?: string,
   assignment_status?: string,
+  per_page = pagination.per_page,
 ) => {
   loading.value = true
   error.value = ''
   try {
-    const params = { page, sort_by, sort_order, stage, is_archived, search, assignment_status }
+    const params = {
+      page,
+      sort_by,
+      sort_order,
+      stage,
+      is_archived,
+      search,
+      assignment_status,
+      per_page,
+    }
     const res = await getAll(params)
     pagination.data = res.data || []
     pagination.current_page = res.current_page || 1
     pagination.last_page = res.last_page || 1
     pagination.total = res.total || 0
-    pagination.per_page = res.per_page || 10
+    pagination.per_page = res.per_page || 30
     orders.value = res.data || []
     console.log('orders updated', orders.value)
   } catch (e: unknown) {

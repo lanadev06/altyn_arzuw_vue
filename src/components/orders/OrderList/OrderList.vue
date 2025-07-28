@@ -240,7 +240,6 @@ const selectedAssignmentStatus = ref('')
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(30)
-
 function validatePerPage(val) {
   if (!allowedPerPage.includes(val)) return 30
   return val

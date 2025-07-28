@@ -287,8 +287,8 @@
                         class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base shadow"
                       >
                         <img
-                          v-if="getUserImageUrlLocal(comment.user)"
-                          :src="getUserImageUrlLocal(comment.user)"
+                          v-if="userImageUrls[comment.user?.name]"
+                          :src="userImageUrls[comment.user?.name]"
                           :alt="comment.user?.name"
                           class="w-8 h-8 rounded-full object-cover"
                         />
@@ -323,10 +323,30 @@
                           <span class="font-bold text-sm text-gray-900">{{
                             comment.user?.name
                           }}</span>
-                          <span
-                            class="text-[10px] text-white bg-blue-500 rounded px-2 py-0.5 font-semibold"
-                            >{{ comment.user?.role }}</span
-                          >
+                          <span v-if="comment.user?.roles && comment.user.roles.length">
+                            <span
+                              v-for="role in comment.user.roles"
+                              :key="typeof role === 'string' ? role : role.name"
+                              class="text-[10px] rounded px-2 py-0.5 font-semibold mr-1"
+                              :class="
+                                getRoleBadgeClass(typeof role === 'string' ? role : role.name)
+                              "
+                            >
+                              {{
+                                getRoleLabel(
+                                  typeof role === 'string' ? role : role.display_name || role.name,
+                                )
+                              }}
+                            </span>
+                          </span>
+                          <span v-else>
+                            <span
+                              class="text-[10px] rounded px-2 py-0.5 font-semibold"
+                              :class="getRoleBadgeClass(comment.user?.role || '')"
+                            >
+                              {{ getRoleLabel(comment.user?.role || '') }}
+                            </span>
+                          </span>
                           <span class="text-[10px] text-gray-400 ml-auto">{{
                             formatDateTime(comment.created_at ? String(comment.created_at) : '')
                           }}</span>
@@ -480,7 +500,7 @@ interface Order {
 interface Comment {
   id: number
   text: string
-  user?: { name: string; role?: string }
+  user?: { name: string; role?: string; roles?: string[] } // Added roles to Comment interface
   created_at: string
 }
 
@@ -717,4 +737,68 @@ function getClientNameById(clientId: number | undefined) {
   if (!client) return '-'
   return client.company_name ? `${client.name} (${client.company_name})` : client.name
 }
+
+function getRoleBadgeClass(role: string) {
+  switch (role) {
+    case 'admin':
+      return 'bg-red-100 text-red-800'
+    case 'manager':
+      return 'bg-purple-100 text-purple-800'
+    case 'designer':
+      return 'bg-blue-100 text-blue-800'
+    case 'print_worker':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'engraver':
+      return 'bg-orange-100 text-orange-800'
+    case 'workshop_worker':
+      return 'bg-green-100 text-green-800'
+    case 'client':
+      return 'bg-gray-100 text-gray-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+function getRoleLabel(role: string) {
+  switch (role) {
+    case 'admin':
+      return 'Администратор'
+    case 'manager':
+      return 'Менеджер'
+    case 'designer':
+      return 'Дизайнер'
+    case 'print_worker':
+      return 'Печатник'
+    case 'engraver':
+      return 'Гравер'
+    case 'workshop_worker':
+      return 'Цехник'
+    case 'client':
+      return 'Клиент'
+    default:
+      return role
+  }
+}
+
+// Исправление getUserImageUrl (ожидает Promise)
+// Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки
+const userImageUrls = ref<Record<string, string>>({})
+async function loadUserImageUrl(user: any) {
+  if (!user || !user.name) return
+  if (!userImageUrls.value[user.name]) {
+    try {
+      const url = await getUserImageUrl(user)
+      userImageUrls.value[user.name] = url
+    } catch {
+      userImageUrls.value[user.name] = ''
+    }
+  }
+}
+watch(
+  () => props.comments,
+  (newComments) => {
+    newComments.forEach((c) => loadUserImageUrl(c.user))
+  },
+  { immediate: true, deep: true },
+)
 </script>
