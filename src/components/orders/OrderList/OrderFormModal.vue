@@ -231,6 +231,13 @@
       <!-- Назначения исполнителей по стадиям -->
       <div v-if="selectedOrderStages.length > 0" class="space-y-6">
         <h3 class="text-lg font-medium text-gray-900">Назначение исполнителей по стадиям</h3>
+        
+        <!-- Debug info -->
+        <div class="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+          Debug: Selected stages: {{ selectedOrderStages.length }}, 
+          Stage objects: {{ selectedOrderStageObjects.length }},
+          All users: {{ Object.keys(allUsers).length }} roles
+        </div>
 
         <div v-for="stage in selectedOrderStageObjects" :key="stage.id" class="space-y-4">
           <div class="border border-gray-200 rounded-lg p-4">
@@ -240,6 +247,9 @@
                 :style="{ backgroundColor: stage.color }"
               ></div>
               <h4 class="text-md font-medium text-gray-900">{{ stage.display_name }}</h4>
+              <span class="text-xs text-gray-500 ml-2">
+                (ID: {{ stage.id }}, Roles: {{ stage.roles?.length || 0 }})
+              </span>
             </div>
 
             <!-- Роли для этой стадии -->
@@ -248,6 +258,10 @@
                 <label class="block text-sm font-medium text-gray-700">
                   {{ getRoleDisplayName(role.name) }}
                   <span class="text-xs text-gray-500">({{ role.name }})</span>
+                  <span class="text-xs text-blue-500 ml-2">
+                    Users: {{ getUsersForRole(role.name).length }}, 
+                    Assignments: {{ getAssignmentsForStageRole(stage.id, role.name).length }}
+                  </span>
                 </label>
                 <AssignmentManager
                   title=""
@@ -316,7 +330,7 @@ import UIButton from '@/components/ui/UIButton.vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import AssignmentManager from '../../products/ProductList/AssignmentManager.vue'
-import type { Order, OrderForm } from '../../../types/order'
+import type { Order, OrderForm, OrderAssignmentCreate } from '../../../types/order'
 import type { Product } from '../../../types/product'
 import type { Stage } from '../../../types/stage'
 import {
@@ -380,7 +394,13 @@ const selectedProduct = computed(() => {
     console.warn('⚠️ products.value is not an array:', products.value)
     return null
   }
-  return products.value.find((p) => p.id === form.product_id) || null
+  const product = products.value.find((p) => p.id === form.product_id) || null
+  console.log('🔄 Selected product changed:', {
+    product_id: form.product_id,
+    product: product,
+    available_stages: product?.available_stages?.length || 0
+  })
+  return product
 })
 
 // Вычисляемое свойство для получения только рабочих стадий (исключаем служебные)
@@ -633,6 +653,7 @@ async function onProductChange(productId: number | null) {
             selectedOrderStages.value = selectedProduct.value.available_stages.map(
               (stage) => stage.id,
             )
+            console.log('✅ Selected stages for order:', selectedOrderStages.value)
           } else {
             console.warn('⚠️ No available stages found for product, using empty selection')
             selectedOrderStages.value = []
@@ -660,6 +681,7 @@ async function onProductChange(productId: number | null) {
           }
 
           console.log('✅ Product assignments copied to order')
+          console.log('📋 Final stageAssignments:', stageAssignments)
         }
       } catch (error) {
         console.warn('⚠️ Could not load product assignments:', error)
@@ -1118,16 +1140,24 @@ function validateForm(): boolean {
 }
 
 async function handleSubmit() {
-  if (!validateForm()) return
+  console.log('🚀 Starting order submission...')
+  
+  if (!validateForm()) {
+    console.log('❌ Form validation failed')
+    return
+  }
 
   loading.value = true
   try {
+    const assignments = getAllAssignments()
+    console.log('📋 Assignments for order:', assignments)
+    
     const orderData = {
       ...form,
       deadline: form.deadline || null,
       price: form.price || null,
       stages: selectedOrderStages.value,
-      assignments: getAllAssignments(),
+      assignments: assignments,
     }
 
     console.log('💾 Saving order with data:', orderData)
@@ -1152,28 +1182,41 @@ async function handleSubmit() {
   }
 }
 
-function getAllAssignments() {
-  const allAssignments = []
+function getAllAssignments(): OrderAssignmentCreate[] {
+  const allAssignments: OrderAssignmentCreate[] = []
+  console.log('🔍 Getting all assignments from stageAssignments:', stageAssignments)
+  
   Object.keys(stageAssignments).forEach((stageId) => {
     const stageAssignmentsForStage = stageAssignments[parseInt(stageId)]
+    console.log(`📋 Stage ${stageId} assignments:`, stageAssignmentsForStage)
+    
     if (stageAssignmentsForStage && typeof stageAssignmentsForStage === 'object') {
       Object.keys(stageAssignmentsForStage).forEach((roleName) => {
         const assignments = stageAssignmentsForStage[roleName]
+        console.log(`  👥 Role ${roleName} assignments:`, assignments)
+        
         if (Array.isArray(assignments)) {
           assignments.forEach((assignment) => {
+            console.log(`    📝 Assignment:`, assignment)
             if (assignment && assignment.user_id && assignment.user_id > 0) {
-              allAssignments.push({
+              const assignmentData = {
                 user_id: assignment.user_id,
                 role_type: roleName,
                 stage_id: parseInt(stageId),
-                is_active: assignment.is_active,
-              })
+                is_active: assignment.is_active !== false, // По умолчанию активен
+              }
+              allAssignments.push(assignmentData)
+              console.log(`    ✅ Added assignment:`, assignmentData)
+            } else {
+              console.log(`    ❌ Skipped assignment (invalid):`, assignment)
             }
           })
         }
       })
     }
   })
+  
+  console.log('📋 Final allAssignments:', allAssignments)
   return allAssignments
 }
 

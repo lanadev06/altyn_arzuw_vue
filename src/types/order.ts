@@ -13,6 +13,13 @@ export interface OrderAssignment {
   user: User
 }
 
+export interface OrderAssignmentCreate {
+  user_id: number
+  role_type: string
+  stage_id?: number
+  is_active?: boolean
+}
+
 export interface Order {
   id: number
   client_id: number | null
@@ -84,7 +91,7 @@ export interface OrderForm {
   stage?: string
   work_type?: string
   stages?: number[] // ID выбранных стадий
-  assignments?: OrderAssignment[] // Назначения по стадиям
+  assignments?: OrderAssignmentCreate[] // Назначения по стадиям
 
   // Устаревшие поля (для обратной совместимости)
   has_design_stage?: boolean
@@ -106,7 +113,7 @@ export interface OrderUpdateForm {
   stage?: string
   work_type?: string
   stages?: number[]
-  assignments?: OrderAssignment[]
+  assignments?: OrderAssignmentCreate[]
 }
 
 export interface StageUpdateForm {

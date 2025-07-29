@@ -62,8 +62,8 @@ import { computed, watch } from 'vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import UIButton from '@/components/ui/UIButton.vue'
-import type { User } from '@/types/user'
-import type { ProductAssignment } from '@/types/product'
+import type { User } from '../../../types/user'
+import type { ProductAssignment } from '../../../types/product'
 
 interface Props {
   title: string

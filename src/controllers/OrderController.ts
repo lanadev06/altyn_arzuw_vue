@@ -1,7 +1,7 @@
 import { ref, reactive } from 'vue'
 import { API_CONFIG } from '../config/api'
 import { handle401Error } from '../utils/auth'
-import type { Order, OrderForm, OrderUpdateForm, StageUpdateForm } from '../types/order'
+import type { Order, OrderForm, OrderUpdateForm, StageUpdateForm, OrderAssignmentCreate } from '../types/order'
 
 // Создаем синглтон экземпляр
 const orders = ref<Order[]>([])
@@ -180,6 +180,8 @@ const getById = async (id: number) => {
 }
 
 const create = async (data: OrderForm) => {
+  console.log('🚀 Creating order with data:', data)
+  
   const response = await fetch(`${API_CONFIG.BASE_URL}/orders`, {
     method: 'POST',
     headers: {
@@ -217,10 +219,15 @@ const create = async (data: OrderForm) => {
 
     throw new Error(errorMessage)
   }
-  return await response.json()
+  
+  const result = await response.json()
+  console.log('✅ Order created successfully:', result)
+  return result
 }
 
 const update = async (id: number, data: OrderUpdateForm) => {
+  console.log('🚀 Updating order with data:', { id, data })
+  
   const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}`, {
     method: 'PUT',
     headers: {
@@ -244,6 +251,7 @@ const update = async (id: number, data: OrderUpdateForm) => {
   }
 
   const result = await response.json()
+  console.log('✅ Order updated successfully:', result)
   return result
 }
 
