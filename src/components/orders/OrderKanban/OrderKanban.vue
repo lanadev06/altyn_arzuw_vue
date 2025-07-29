@@ -85,8 +85,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import OrderCard from './OrderCard.vue'
 import { OrderController } from '../../../controllers/OrderController'
-import { canCreateEdit } from '@/utils/permissions'
+import { canCreateEdit } from '../../../utils/permissions'
 import { API_CONFIG } from '../../../config/api'
+import { getStageColor } from '../../../utils/stageColors'
 
 const { orders } = OrderController()
 const props = defineProps<{
@@ -136,26 +137,7 @@ function ordersByStage(stage: string) {
   return Array.isArray(props.orders) ? props.orders.filter((order) => order.stage === stage) : []
 }
 function getStatusColor(key: string) {
-  switch (key) {
-    case 'draft':
-      return '#d1d5db'
-    case 'design':
-      return '#3b82f6'
-    case 'print':
-      return '#fbbf24'
-    case 'engraving':
-      return '#f97316'
-    case 'workshop':
-      return '#8b5cf6'
-    case 'final':
-      return '#22c55e'
-    case 'completed':
-      return '#059669'
-    case 'cancelled':
-      return '#ef4444'
-    default:
-      return '#6366f1'
-  }
+  return getStageColor(key)
 }
 function onDragStart(order: any) {
   console.log('dragStart', order)
@@ -222,6 +204,8 @@ async function onDrop(event: DragEvent, newStage: string) {
 
 function getStatusLabel(stage: string): string {
   switch (stage) {
+    case 'draft':
+      return 'Черновик'
     case 'design':
       return 'Дизайн'
     case 'print':
@@ -230,6 +214,14 @@ function getStatusLabel(stage: string): string {
       return 'Гравировка'
     case 'workshop':
       return 'Цех'
+    case 'die_cutting':
+      return 'Высечка'
+    case 'final':
+      return 'Финал'
+    case 'completed':
+      return 'Завершен'
+    case 'cancelled':
+      return 'Отменен'
     default:
       return stage
   }

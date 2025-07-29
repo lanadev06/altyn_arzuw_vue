@@ -99,7 +99,8 @@ const kanbanStatuses = [
   { key: 'print', label: 'Печать' },
   { key: 'engraving', label: 'Гравировка' },
   { key: 'workshop', label: 'Цех' },
-  { key: 'final', label: 'Финальный' },
+  { key: 'die_cutting', label: 'Высечка' },
+  { key: 'final', label: 'Финал' },
   { key: 'completed', label: 'Завершен' },
   { key: 'cancelled', label: 'Отменен' },
 ]

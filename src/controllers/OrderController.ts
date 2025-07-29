@@ -1,5 +1,6 @@
 import { ref, reactive } from 'vue'
 import { API_CONFIG } from '../config/api'
+import { handle401Error } from '../utils/auth'
 import type { Order, OrderForm, OrderUpdateForm, StageUpdateForm } from '../types/order'
 
 // Создаем синглтон экземпляр
@@ -15,6 +16,20 @@ const loading = ref(false)
 const error = ref('')
 const sortBy = ref('id')
 const sortOrder = ref<'asc' | 'desc'>('desc')
+
+// Вспомогательная функция для обработки ответов с проверкой 401
+const handleResponse = async (response: Response) => {
+  if (response.status === 401) {
+    handle401Error('Сессия истекла. Необходимо войти в систему заново.')
+    throw new Error('Сессия истекла. Необходимо войти в систему заново.')
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  return response.json()
+}
 
 const fetchOrders = async (
   page = 1,
@@ -161,8 +176,7 @@ const getById = async (id: number) => {
     },
   })
 
-  if (!response.ok) throw new Error('Ошибка загрузки заказа')
-  return await response.json()
+  return await handleResponse(response)
 }
 
 const create = async (data: OrderForm) => {

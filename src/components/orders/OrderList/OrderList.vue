@@ -24,12 +24,14 @@
         </select>
       </div>
       <div class="flex items-center gap-3">
+        <!-- ✅ НОВОЕ! Фильтр стадий - будет загружаться динамически -->
         <select
           v-model="selectedStage"
           @change="filterByStage"
           class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <option value="">Все</option>
+          <option value="">Все стадии</option>
+          <!-- TODO: Загрузить стадии из API -->
           <option value="draft">Черновик</option>
           <option value="design">Дизайн</option>
           <option value="print">Печать</option>
@@ -118,13 +120,24 @@
                 <template v-else-if="col.key === 'quantity'">
                   <span class="text-gray-900">{{ item.quantity }}</span>
                 </template>
+                <!-- ✅ НОВОЕ! Отображение текущей стадии с динамической цветовой индикацией -->
                 <template v-else-if="col.key === 'stage'">
                   <div class="flex flex-col items-center gap-1">
                     <span
-                      :class="getStatusClass(item.stage || '')"
+                      v-if="item.current_stage_info"
+                      class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full text-white cursor-pointer"
+                      :style="{ backgroundColor: item.current_stage_info.color }"
+                    >
+                      <div class="w-1.5 h-1.5 bg-white rounded-full opacity-80"></div>
+                      {{ item.current_stage_info.display_name }}
+                    </span>
+                    <!-- ❌ FALLBACK: Старая система (для обратной совместимости) -->
+                    <span
+                      v-else
+                      :class="getStatusClass(item.stage || item.current_stage || '')"
                       class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer"
                     >
-                      {{ getStatusText(item.stage || '') }}
+                      {{ getStatusText(item.stage || item.current_stage || '') }}
                     </span>
                     <span
                       v-if="item.is_archived"

@@ -1,7 +1,12 @@
+import type { Stage } from './stage'
+
 export interface ProductAssignment {
   id: number
   user_id: number | null
   user?: { id: number; name: string }
+  role_type?: string
+  stage_id?: number
+  is_active?: boolean
 }
 
 export interface Product {
@@ -14,6 +19,10 @@ export interface Product {
   has_print_stage: boolean
   has_engraving_stage: boolean
   has_workshop_stage: boolean
+
+  // Новая система стадий
+  available_stages?: Stage[]
+
   // Новые поля для множественных назначений
   designers?: ProductAssignment[]
   print_operators?: ProductAssignment[]
@@ -40,4 +49,6 @@ export interface ProductForm {
   print_operators: ProductAssignment[]
   engraving_operators: ProductAssignment[] // Отдельные назначения для гравировки
   workshop_workers: ProductAssignment[]
+  // Новая система стадий
+  available_stages?: Stage[]
 }

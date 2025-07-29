@@ -54,10 +54,10 @@
                       v-if="order"
                       :class="[
                         'inline-block px-4 py-1 rounded-full text-base font-bold shadow',
-                        statusBadge(order.stage),
+                        statusBadge(order.stage || ''),
                       ]"
                     >
-                      {{ getStatusText(order.stage) }}
+                      {{ getStatusText(order.stage || '') }}
                     </span>
                   </div>
                 </div>
@@ -663,7 +663,13 @@
 </style>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
+import EditableField from '../../ui/EditableField.vue'
+import { API_CONFIG } from '../../../config/api'
+import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
+import { getUserImageUrl } from '../../../utils/user'
+import { useToast, toast } from '../../../stores/toast'
+import { getStageColorClasses } from '../../../utils/stageColors'
 import {
   getOrderDetails,
   getOrderComments,
@@ -672,19 +678,14 @@ import {
   getOrderStatusLogs,
   deleteOrderComment,
   getByRole,
-} from '@/services/api'
-import type { Order } from '@/types/order'
-import type { Project } from '@/types/project'
-import { OrderController } from '@/controllers/OrderController'
-import EditableField from '@/components/ui/EditableField.vue'
+} from '../../../services/api'
+import type { Order } from '../../../types/order'
+import type { Project } from '../../../types/project'
+import { OrderController } from '../../../controllers/OrderController'
 import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
-import { API_CONFIG } from '@/config/api'
-import { canCreateEdit, canViewPrices } from '@/utils/permissions'
-import { getUserImageUrl } from '@/utils/user'
-import { toast } from '@/stores/toast'
 
 const props = defineProps<{ orderId?: number | null; errorMsg?: string }>()
 const emit = defineEmits(['close', 'updated'])
@@ -742,7 +743,8 @@ const stages = [
   { value: 'print', label: 'Печать' },
   { value: 'engraving', label: 'Гравировка' },
   { value: 'workshop', label: 'Цех' },
-  { value: 'final', label: 'Финальный' },
+  { value: 'die_cutting', label: 'Высечка' },
+  { value: 'final', label: 'Финал' },
   { value: 'completed', label: 'Завершен' },
   { value: 'cancelled', label: 'Отменен' },
 ]
@@ -937,7 +939,8 @@ function getStatusText(stage: string) {
       print: 'Печать',
       engraving: 'Гравировка',
       workshop: 'Цех',
-      final: 'Финальный',
+      die_cutting: 'Высечка',
+      final: 'Финал',
       completed: 'Завершен',
       cancelled: 'Отменен',
     }[stage] || stage
@@ -952,6 +955,7 @@ function statusBadge(stage: string) {
       print: 'bg-yellow-400 text-gray-900',
       engraving: 'bg-orange-500 text-white',
       workshop: 'bg-purple-500 text-white',
+      die_cutting: 'bg-purple-500 text-white',
       final: 'bg-green-500 text-white',
       completed: 'bg-emerald-600 text-white',
       cancelled: 'bg-red-500 text-white',
@@ -960,18 +964,12 @@ function statusBadge(stage: string) {
 }
 
 function getStageColor(stage: string, current: string | undefined, completed: string[]) {
-  const palette: Record<string, [string, string]> = {
-    draft: ['bg-gray-400 text-white', 'bg-gray-200 text-gray-700'],
-    design: ['bg-blue-600 text-white', 'bg-blue-200 text-blue-800'],
-    print: ['bg-yellow-400 text-gray-900', 'bg-yellow-200 text-yellow-800'],
-    engraving: ['bg-orange-500 text-white', 'bg-orange-200 text-orange-800'],
-    workshop: ['bg-purple-600 text-white', 'bg-purple-200 text-purple-800'],
-    final: ['bg-green-600 text-white', 'bg-green-200 text-green-800'],
-    completed: ['bg-emerald-600 text-white', 'bg-emerald-200 text-emerald-800'],
-    cancelled: ['bg-red-600 text-white', 'bg-red-200 text-red-800'],
+  if (current === stage) {
+    return getStageColorClasses(stage, undefined, true)
   }
-  if (current === stage) return palette[stage]?.[0] || 'bg-gray-400 text-white'
-  if (completed.includes(stage)) return palette[stage]?.[1] || 'bg-gray-200 text-gray-700'
+  if (completed.includes(stage)) {
+    return getStageColorClasses(stage, undefined, false)
+  }
   return 'bg-gray-100 text-gray-400'
 }
 
@@ -1000,7 +998,7 @@ async function autoAssignForStage(
   const currentAssignments = data.data || data
 
   // Фильтруем только тех, кто уже назначен с нужной ролью
-  const assignedForRole = currentAssignments.filter((a) => a.role_type === roleType)
+  const assignedForRole = currentAssignments.filter((a: any) => a.role_type === roleType)
 
   // Если никого нет — ничего не делаем
   if (assignedForRole.length === 0) return
@@ -1237,9 +1235,31 @@ async function fetchAssignments() {
     })
     if (!res.ok) throw new Error('Ошибка загрузки назначений')
     const data = await res.json()
-    assignments.value = (data.data || data).map((a) => ({ ...a, user: normalizeUser(a.user) }))
-    // ЛОГ для проверки:
-    console.log('assignments.value:', assignments.value)
+    assignments.value = (data.data || data).map((a: any) => ({ ...a, user: normalizeUser(a.user) }))
+
+    // ДЕТАЛЬНЫЕ ЛОГИ для отладки
+    console.log('🔍 Загружены назначения для заказа:', order.value.id)
+    console.log('📋 Всего назначений:', assignments.value.length)
+    console.log(
+      '📊 Назначения по ролям:',
+      assignments.value.reduce((acc: any, a: any) => {
+        acc[a.role_type] = (acc[a.role_type] || 0) + 1
+        return acc
+      }, {}),
+    )
+    console.log(
+      '📝 Детали назначений:',
+      assignments.value.map((a: any) => ({
+        id: a.id,
+        user: a.user?.name,
+        role_type: a.role_type,
+        status: a.status,
+        has_design_stage: a.has_design_stage,
+        has_print_stage: a.has_print_stage,
+        has_engraving_stage: a.has_engraving_stage,
+        has_workshop_stage: a.has_workshop_stage,
+      })),
+    )
   } catch (e) {
     console.error('Ошибка загрузки назначений:', e)
     assignments.value = []
@@ -1371,19 +1391,45 @@ const stageRoleMap = {
   workshop: 'workshop_worker',
 }
 
-// Исправление currentStageAssignments типов
+// Отображение назначений для текущей стадии
 const currentStageAssignments = computed(() => {
   if (!order.value) return []
+
+  // Получаем все назначения для текущей стадии
   const stage = order.value?.stage as keyof typeof stageRoleMap
   const roleType = stageRoleMap[stage]
-  const stageKey = {
-    design: 'has_design_stage',
-    print: 'has_print_stage',
-    engraving: 'has_engraving_stage',
-    workshop: 'has_workshop_stage',
-  }[stage]
-  if (!roleType || !stageKey) return []
-  return assignments.value.filter((a: any) => a.role_type === roleType && a[stageKey])
+
+  console.log('🎯 currentStageAssignments computed:', {
+    stage,
+    roleType,
+    totalAssignments: assignments.value.length,
+    allAssignments: assignments.value.map((a: any) => ({
+      id: a.id,
+      user: a.user?.name,
+      role_type: a.role_type,
+      status: a.status,
+    })),
+  })
+
+  if (!roleType) {
+    // Если стадия не требует назначений (draft, final, completed, cancelled), показываем все
+    console.log('📌 Показываем все назначения для стадии:', stage)
+    return assignments.value
+  }
+
+  // Для конкретной стадии показываем только сотрудников нужной роли
+  const filtered = assignments.value.filter((a: any) => a.role_type === roleType)
+  console.log('🔍 Отфильтрованные назначения для стадии', stage, ':', {
+    roleType,
+    filtered: filtered.map((a: any) => ({
+      id: a.id,
+      user: a.user?.name,
+      role_type: a.role_type,
+      status: a.status,
+    })),
+  })
+
+  return filtered
 })
 
 function getRoleForStage(stage: string) {
@@ -1443,10 +1489,10 @@ watch(
 
     // Проверяем только назначения для текущей стадии
     const currentStageAssignments = newAssignments.filter((a: any) => {
-      if (order.value?.stage === 'design') return a.user?.role === 'designer'
-      if (order.value?.stage === 'print') return a.user?.role === 'print_operator'
-      if (order.value?.stage === 'engraving') return a.user?.role === 'engraving_operator'
-      if (order.value?.stage === 'workshop') return a.user?.role === 'workshop_worker'
+      if (order.value?.stage === 'design') return a.role_type === 'designer'
+      if (order.value?.stage === 'print') return a.role_type === 'print_operator'
+      if (order.value?.stage === 'engraving') return a.role_type === 'engraving_operator'
+      if (order.value?.stage === 'workshop') return a.role_type === 'workshop_worker'
       return false
     })
 
@@ -1465,7 +1511,7 @@ watch(
       stage: order.value.stage,
       currentStageAssignments: currentStageAssignments.map((a) => ({
         user: a.user?.name,
-        role: a.user?.role,
+        role_type: a.role_type,
         status: a.status,
       })),
       allCurrentStageApproved,

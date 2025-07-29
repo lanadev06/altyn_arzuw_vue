@@ -134,6 +134,42 @@
         </svg>
         <span>Действия</span>
       </router-link>
+
+      <!-- Управление стадиями - только для админов -->
+      <router-link
+        v-if="canViewAuditLogs()"
+        to="/stages"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
+        active-class="bg-white bg-opacity-20"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+          />
+        </svg>
+        <span>Стадии</span>
+      </router-link>
+
+      <!-- Управление ролями - только для админов -->
+      <router-link
+        v-if="canViewAuditLogs()"
+        to="/roles"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
+        active-class="bg-white bg-opacity-20"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-7a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+        <span>Роли</span>
+      </router-link>
     </nav>
   </aside>
 </template>

@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { canViewPrices } from '@/utils/permissions'
+import { canViewPrices } from '../../../utils/permissions'
 
 const props = defineProps<{ order: any; compact?: boolean; dragging?: boolean }>()
 const emit = defineEmits<{
@@ -80,12 +80,14 @@ function getStageLabel(stage: string) {
       return 'Гравировка'
     case 'workshop':
       return 'Цех'
+    case 'die_cutting':
+      return 'Высечка'
     case 'final':
-      return 'Финальный'
+      return 'Финал'
     case 'completed':
-      return 'Завершён'
+      return 'Завершен'
     case 'cancelled':
-      return 'Отменён'
+      return 'Отменен'
     default:
       return stage
   }

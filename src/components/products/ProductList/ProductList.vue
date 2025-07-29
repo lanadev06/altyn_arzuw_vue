@@ -11,11 +11,15 @@
         <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
           <div class="flex items-center gap-1">
             <span class="text-gray-500 font-semibold">Всего:</span>
-            <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
+            <span class="text-blue-600 font-bold">{{
+              pagination && pagination.total ? pagination.total : 0
+            }}</span>
           </div>
           <div class="flex items-center gap-1">
             <span class="text-gray-500 font-semibold">Страницы:</span>
-            <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
+            <span class="text-blue-600 font-bold">{{
+              pagination && pagination.last_page ? pagination.last_page : 1
+            }}</span>
           </div>
         </div>
         <div
@@ -36,7 +40,7 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
-                v-for="col in columns"
+                v-for="col in dynamicColumns"
                 :key="col.key"
                 @click="col.sortable ? setSort(col.key, props.search) : null"
                 :class="[
@@ -57,8 +61,10 @@
 
           <tbody>
             <tr
-              v-for="(product, index) in pagination.data"
-              :key="product.id"
+              v-for="(product, index) in pagination && pagination.data
+                ? pagination.data.filter((p) => p)
+                : []"
+              :key="product && product.id ? product.id : index"
               :class="[
                 'cursor-pointer border-b border-gray-100',
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
@@ -68,7 +74,7 @@
               style="height: 44px"
             >
               <td
-                v-for="col in columns"
+                v-for="col in dynamicColumns"
                 :key="col.key"
                 class="border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle"
               >
@@ -78,40 +84,13 @@
                 <template v-else-if="col.key === 'name'">
                   <span class="font-medium text-gray-900">{{ product.name }}</span>
                 </template>
-                <template v-else-if="col.key === 'designer'">
+                <!-- Колонки для назначений -->
+                <template v-else-if="col.type === 'stage_assignments'">
                   <AssignmentDisplay
-                    :assignments="
-                      product.assignments
-                        ? product.assignments.filter((a) => a.role_type === 'designer')
-                        : []
-                    "
-                  />
-                </template>
-                <template v-else-if="col.key === 'print_operator'">
-                  <AssignmentDisplay
-                    :assignments="
-                      product.assignments
-                        ? product.assignments.filter((a) => a.role_type === 'print_operator')
-                        : []
-                    "
-                  />
-                </template>
-                <template v-else-if="col.key === 'engraving_operator'">
-                  <AssignmentDisplay
-                    :assignments="
-                      product.assignments
-                        ? product.assignments.filter((a) => a.role_type === 'engraving_operator')
-                        : []
-                    "
-                  />
-                </template>
-                <template v-else-if="col.key === 'workshop_worker'">
-                  <AssignmentDisplay
-                    :assignments="
-                      product.assignments
-                        ? product.assignments.filter((a) => a.role_type === 'workshop_worker')
-                        : []
-                    "
+                    :assignments="getStageAssignments(product, col.stageId, col.roleType)"
+                    :role-type="col.roleType"
+                    empty-message="Не назначены"
+                    :show-status="true"
                   />
                 </template>
                 <template v-else-if="col.key === 'created_at'">
@@ -121,17 +100,17 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-gray-500">
                 Загрузка товаров...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500">
+              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-red-500">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-gray-500">
                 {{ props.search ? 'Товары не найдены' : 'Товары отсутствуют' }}
               </td>
             </tr>
@@ -172,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
@@ -180,8 +159,10 @@ import ProductFormModal from './ProductFormModal.vue'
 import AssignmentDisplay from './AssignmentDisplay.vue'
 import productController from '@/controllers/productControllerInstance'
 import type { Product, ProductForm } from '@/types/product'
+import type { Stage } from '@/types/stage'
 import { canCreateEdit } from '@/utils/permissions'
 import { toast } from '@/stores/toast'
+import { getAllStages } from '@/services/api'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -195,20 +176,196 @@ const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
 
-const defaultColumns = [
+// Загружаем все доступные стадии для создания колонок
+const availableStages = ref<Stage[]>([])
+
+// Безопасная функция для получения доступных стадий
+const getAvailableStages = () => {
+  return availableStages.value || []
+}
+
+// Тип для колонок
+interface Column {
+  key: string
+  label: string
+  sortable: boolean
+  type?: string
+  stageId?: number
+  roleType?: string
+  color?: string
+}
+
+// Базовые колонки (без статичных колонок для ролей)
+const baseColumns: Column[] = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Название', sortable: true },
-  { key: 'designer', label: 'Дизайнер', sortable: false },
-  { key: 'print_operator', label: 'Печатник', sortable: false },
-  { key: 'engraving_operator', label: 'Гравировщик', sortable: false },
-  { key: 'workshop_worker', label: 'Работник цеха', sortable: false },
   { key: 'created_at', label: 'Создано', sortable: true },
 ]
 
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
-
+// Сначала определяем pagination и другие переменные из контроллера
 const { pagination, loading, error, fetchProducts, sortBy, sortOrder, update, remove } =
   productController
+
+// Теперь определяем dynamicColumns после pagination
+const dynamicColumns = computed<Column[]>(() => {
+  try {
+    const columns = [...baseColumns]
+
+    // Получаем все уникальные стадии с назначениями из всех продуктов
+    const stageAssignments = new Map()
+
+    console.log('🔍 Building dynamic columns from products:', pagination.value?.data?.length || 0)
+    console.log('🔍 Available stages count:', getAvailableStages().length)
+
+    // Сначала собираем все стадии из всех продуктов
+    if (pagination.value?.data) {
+      pagination.value.data.forEach((product, index) => {
+        console.log(`📦 Product ${index + 1}:`, {
+          id: product.id,
+          name: product.name,
+          available_stages: product.available_stages?.length || 0,
+          designers: product.designers?.length || 0,
+          print_operators: product.print_operators?.length || 0,
+          engraving_operators: product.engraving_operators?.length || 0,
+          workshop_workers: product.workshop_workers?.length || 0,
+        })
+
+        if (product.available_stages) {
+          product.available_stages.forEach((stage) => {
+            console.log(`  🎯 Stage: ${stage.display_name} (${stage.id})`, {
+              roles: stage.roles?.length || 0,
+              roles_list: stage.roles?.map((r) => r.name) || [],
+            })
+
+            if (stage.roles && stage.roles.length > 0) {
+              stage.roles.forEach((role) => {
+                // Исключаем роль die_cutting_operator из колонок
+                if (role.name === 'die_cutting_operator') {
+                  console.log(`    ❌ Skipping die_cutting_operator column`)
+                  return
+                }
+
+                const key = `${stage.id}_${role.name}`
+                if (!stageAssignments.has(key)) {
+                  stageAssignments.set(key, {
+                    stageId: stage.id,
+                    stageName: stage.display_name,
+                    roleType: role.name,
+                    roleDisplayName: role.display_name,
+                    color: stage.color,
+                  })
+                  console.log(
+                    `    ✅ Added column for: ${stage.display_name} (${role.display_name})`,
+                  )
+                }
+              })
+            }
+          })
+        } else {
+          console.log(`  ⚠️ Product ${product.id} has no available_stages`)
+        }
+      })
+    }
+
+    // Дополнительно добавляем стадии из глобального списка стадий (если есть)
+    // Это обеспечит появление колонок для новых стадий, даже если они еще не назначены ни одному продукту
+    const globalStages = getAvailableStages()
+    if (globalStages.length > 0) {
+      console.log('🌐 Adding global stages to columns:', globalStages.length)
+      globalStages.forEach((stage) => {
+        if (stage.roles && stage.roles.length > 0) {
+          stage.roles.forEach((role) => {
+            // Исключаем роль die_cutting_operator из колонок
+            if (role.name === 'die_cutting_operator') {
+              console.log(`    ❌ Skipping global die_cutting_operator column`)
+              return
+            }
+
+            const key = `${stage.id}_${role.name}`
+            if (!stageAssignments.has(key)) {
+              stageAssignments.set(key, {
+                stageId: stage.id,
+                stageName: stage.display_name,
+                roleType: role.name,
+                roleDisplayName: role.display_name,
+                color: stage.color,
+              })
+              console.log(
+                `    🌐 Added global column for: ${stage.display_name} (${role.display_name})`,
+              )
+            }
+          })
+        }
+      })
+    }
+
+    console.log(`📊 Total stage assignments found: ${stageAssignments.size}`)
+
+    // Создаем колонки для каждой стадии с назначениями
+    stageAssignments.forEach((assignment, key) => {
+      columns.push({
+        key: `stage_${key}`,
+        label: assignment.stageName, // Только display_name стадии
+        sortable: false,
+        type: 'stage_assignments',
+        stageId: assignment.stageId,
+        roleType: assignment.roleType,
+        color: assignment.color,
+      })
+    })
+
+    console.log(
+      `🎯 Final columns: ${columns.length}`,
+      columns.map((c) => c.label),
+    )
+
+    // Убираем статичные колонки - используем только динамические
+    console.log(`🎯 Final dynamic columns: ${columns.length}`)
+
+    return columns
+  } catch (error) {
+    console.error('❌ Error building dynamic columns:', error)
+    return baseColumns
+  }
+})
+
+// Функция для получения назначений для конкретной стадии и роли
+function getStageAssignments(product: Product, stageId: number, roleType: string) {
+  console.log(`🔍 Getting assignments for role ${roleType} in product ${product.id}`)
+
+  // Динамически получаем назначения из продукта
+  const rolePropertyName = `${roleType}s` // добавляем 's' для множественного числа
+  const assignments = product[rolePropertyName] || []
+
+  console.log(`📋 Assignments for ${roleType}:`, assignments.length)
+  return assignments
+}
+
+// Функция для отображения названий ролей
+function getRoleDisplayName(roleType: string): string {
+  // Специальные названия для известных ролей
+  const names = {
+    designer: 'Дизайнеры',
+    print_operator: 'Печатники',
+    engraving_operator: 'Гравировщики',
+    workshop_worker: 'Работники цеха',
+    die_cutting_operator: 'Операторы высечки',
+  }
+
+  // Если роль не найдена, автоматически создаем красивое название
+  if (!names[roleType]) {
+    return (
+      roleType
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ') + 'ы'
+    )
+  }
+
+  return names[roleType]
+}
+
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : baseColumns)
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
 if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
@@ -247,7 +404,7 @@ function setSort(key: string, search = '') {
 }
 
 function resetSettings() {
-  columns.value = [...defaultColumns]
+  columns.value = [...baseColumns]
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
   sortBy.value = 'id'
   sortOrder.value = 'asc'
@@ -267,6 +424,12 @@ function goToPage(page: number) {
 function editProduct(product: Product) {
   if (!canCreateEdit()) return
 
+  // Защита от null/undefined
+  if (!product) {
+    console.error('❌ editProduct: product is null or undefined')
+    return
+  }
+
   console.log('Editing product:', {
     id: product.id,
     name: product.name,
@@ -278,6 +441,12 @@ function editProduct(product: Product) {
 
   editingProduct.value = product
   showEditModal.value = true
+
+  console.log('🔧 Modal state after setting:', {
+    showEditModal: showEditModal.value,
+    editingProduct: editingProduct.value?.id,
+    canCreateEdit: canCreateEdit(),
+  })
 }
 
 async function handleCreateProduct(newProduct: Product) {
@@ -289,28 +458,22 @@ async function handleCreateProduct(newProduct: Product) {
 async function handleUpdateProduct(updatedProduct: Product) {
   console.log('handleUpdateProduct called with:', updatedProduct)
 
-  // Преобразуем Product в ProductForm для API
+  // Новая структура для Laravel API
   const productForm: ProductForm = {
     name: updatedProduct.name,
-    designer_id: updatedProduct.designer_id,
-    print_operator_id: updatedProduct.print_operator_id,
-    workshop_worker_id: updatedProduct.workshop_worker_id,
+    // Поддержка старых полей для совместимости
     has_design_stage: updatedProduct.has_design_stage,
     has_print_stage: updatedProduct.has_print_stage,
     has_engraving_stage: updatedProduct.has_engraving_stage,
     has_workshop_stage: updatedProduct.has_workshop_stage,
-    designers: updatedProduct.designers || [],
-    print_operators: updatedProduct.print_operators || [],
-    engraving_operators: updatedProduct.engraving_operators || [],
-    workshop_workers: updatedProduct.workshop_workers || [],
   }
 
-  console.log('Sending to API:', productForm)
+  console.log('💾 Sending product to API:', productForm)
 
   await update(updatedProduct.id, productForm)
   showEditModal.value = false
 
-  console.log('Product updated, fetching products again...')
+  console.log('✅ Product updated, refreshing list...')
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -363,6 +526,15 @@ watch(
 )
 
 onMounted(async () => {
+  // Загружаем все доступные стадии для создания колонок
+  try {
+    const stagesResult = await getAllStages()
+    availableStages.value = stagesResult.data || stagesResult || []
+    console.log('📋 Loaded available stages for columns:', availableStages.value.length)
+  } catch (error) {
+    console.error('❌ Failed to load stages for columns:', error)
+  }
+
   // Принудительно сбрасываем productList_columns в localStorage, чтобы обновить колонки
   localStorage.removeItem('productList_columns')
   await nextTick()

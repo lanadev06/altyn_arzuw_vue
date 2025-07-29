@@ -1,4 +1,8 @@
 import { API_CONFIG, API_ENDPOINTS, ERROR_MESSAGES } from '../config/api'
+import { handle401Error } from '../utils/auth'
+
+// Development mode flag
+const DEV_MODE = import.meta.env.DEV || false
 
 // Типы для Laravel API
 export interface LoginCredentials {
@@ -12,7 +16,7 @@ export interface RegisterData {
   password_confirmation: string // Laravel требует подтверждение пароля
   name: string
   phone?: string
-  role: 'admin' | 'manager' | 'designer' | 'print_operator' | 'workshop_worker'
+  roles: number[] // массив ID ролей
 }
 
 export interface LoginResponse {
@@ -21,7 +25,11 @@ export interface LoginResponse {
     username: string
     name: string
     phone?: string
-    role: string
+    roles: Array<{
+      id: number
+      name: string
+      display_name?: string
+    }>
     created_at: string
     updated_at: string
   }
@@ -91,12 +99,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw new Error(validationErrors)
       }
 
-      // --- Добавить обработку 401/403 ---
+      // --- Обработка 401/403 ошибок ---
       if (response.status === 401 || response.status === 403) {
-        // localStorage.removeItem('auth_token')
-        // localStorage.removeItem('user')
-        // window.location.href = '/login'
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+        const message = errorData.message || 'Сессия истекла. Необходимо войти в систему заново.'
+        handle401Error(message)
+        throw new Error(message)
       }
       // --- конец блока ---
 
@@ -143,7 +150,10 @@ export const authApi = {
               username: credentials.username,
               name: 'Администратор',
               phone: '+7 (999) 123-45-67',
-              role: 'admin',
+              roles: [
+                { id: 1, name: 'admin', display_name: 'Администратор' },
+                { id: 2, name: 'manager', display_name: 'Менеджер' },
+              ],
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -555,6 +565,50 @@ export async function deleteProduct(id: number): Promise<void> {
   }
 }
 
+// Product Stages API - для работы с таблицей product_stages
+export async function getProductStages(productId: number) {
+  console.log('🔍 Getting product stages for product:', productId)
+  console.log('🔍 DEV_MODE is:', DEV_MODE)
+
+  if (DEV_MODE) {
+    console.log('📝 Using mock data for product stages')
+    // Моковые данные для разработки - некоторые выключены для тестирования
+    const mockData = {
+      data: [
+        { id: 1, product_id: productId, stage_id: 2, is_available: true, is_default: false }, // design - включено
+        { id: 2, product_id: productId, stage_id: 3, is_available: false, is_default: false }, // print - выключено
+        { id: 3, product_id: productId, stage_id: 5, is_available: false, is_default: false }, // engraving - выключено
+        { id: 4, product_id: productId, stage_id: 7, is_available: true, is_default: false }, // workshop - включено
+      ],
+    }
+    console.log('📋 Mock product stages:', mockData)
+    return mockData
+  }
+
+  console.log('📡 Making API request to Laravel backend...')
+  const response = await apiRequest(`/products/${productId}/stages`, { method: 'GET' })
+  console.log('📡 Laravel API response:', response)
+  return response
+}
+
+export async function updateProductStages(
+  productId: number,
+  stages: Array<{ stage_id: number; is_available: boolean }>,
+) {
+  console.log('💾 Updating product stages:', { productId, stages })
+
+  if (DEV_MODE) {
+    console.log('📝 Mock: Product stages updated')
+    return { data: stages }
+  }
+
+  const response = await apiRequest(`/products/${productId}/stages`, {
+    method: 'PUT',
+    data: { stages },
+  })
+  return response
+}
+
 // --- Дизайнеры ---
 export async function getByRole(role: string): Promise<{ data: any[] }> {
   const url = `${API_CONFIG.BASE_URL}/users/role/${role}`
@@ -869,4 +923,239 @@ export async function getRoles(): Promise<
 > {
   const res = await apiRequest('/roles')
   return res.data || res // поддержка разных форматов ответа
+}
+
+// Алиас для совместимости
+export { getAllRoles as getRolesNew }
+
+// === НОВЫЕ API ФУНКЦИИ ДЛЯ LARAVEL BACKEND ===
+
+// --- Стадии (Stages) ---
+export async function getAllStages(): Promise<any> {
+  const res = await apiRequest('/stages')
+  return res
+}
+
+export async function createStage(data: any): Promise<any> {
+  const res = await apiRequest('/stages', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function updateStage(id: number, data: any): Promise<any> {
+  const res = await apiRequest(`/stages/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function deleteStage(id: number): Promise<void> {
+  await apiRequest(`/stages/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function reorderStages(stages: { id: number; order: number }[]): Promise<any> {
+  const res = await apiRequest('/stages/reorder', {
+    method: 'POST',
+    body: JSON.stringify({ stages }),
+  })
+  return res
+}
+
+export async function getAvailableRoles(): Promise<any> {
+  const res = await apiRequest('/stages/available-roles')
+  return res
+}
+
+// Получить пользователей по ролям конкретной стадии
+export async function getUsersByStageRoles(stageId: number): Promise<any> {
+  const res = await apiRequest(`/stages/${stageId}/users-by-roles`)
+  return res
+}
+
+// Получить всех пользователей по ролям всех стадий
+export async function getAllUsersByStageRoles(): Promise<any> {
+  const res = await apiRequest('/stages/users-by-roles/all')
+  return res
+}
+
+// --- Роли (Roles) ---
+export async function getAllRoles(): Promise<any> {
+  const res = await apiRequest('/roles')
+  return res
+}
+
+export async function createRole(data: any): Promise<any> {
+  const res = await apiRequest('/roles', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function updateRole(id: number, data: any): Promise<any> {
+  const res = await apiRequest(`/roles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function deleteRole(id: number): Promise<void> {
+  await apiRequest(`/roles/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function assignUsersToRole(roleId: number, userIds: number[]): Promise<any> {
+  const res = await apiRequest(`/roles/${roleId}/assign-users`, {
+    method: 'POST',
+    body: JSON.stringify({ user_ids: userIds }),
+  })
+  return res
+}
+
+export async function removeUsersFromRole(roleId: number, userIds: number[]): Promise<any> {
+  const res = await apiRequest(`/roles/${roleId}/remove-users`, {
+    method: 'POST',
+    body: JSON.stringify({ user_ids: userIds }),
+  })
+  return res
+}
+
+// --- Управление стадиями продуктов --- (дублированные функции удалены, используем те что выше)
+
+export async function addStageToProduct(productId: number, stageId: number): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/stages`, {
+    method: 'POST',
+    body: JSON.stringify({ stage_id: stageId }),
+  })
+  return res
+}
+
+export async function removeStageFromProduct(productId: number, stageId: number): Promise<void> {
+  await apiRequest(`/products/${productId}/stages/${stageId}`, {
+    method: 'DELETE',
+  })
+}
+
+// --- Назначения продуктов (Product Assignments) ---
+export async function getProductAssignments(productId: number): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/assignments`)
+  return res
+}
+
+export async function createProductAssignment(productId: number, data: any): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/assignments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function updateProductAssignment(
+  productId: number,
+  assignmentId: number,
+  data: any,
+): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/assignments/${assignmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function deleteProductAssignment(
+  productId: number,
+  assignmentId: number,
+): Promise<void> {
+  await apiRequest(`/products/${productId}/assignments/${assignmentId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function bulkAssignProductUsers(productId: number, data: any): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/assignments/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function getAvailableUsersForProduct(productId: number): Promise<any> {
+  const res = await apiRequest(`/products/${productId}/assignments/available-users`)
+  return res
+}
+
+// --- Назначения заказов (Order Assignments) ---
+export async function assignOrderToUser(orderId: number, data: any): Promise<any> {
+  const res = await apiRequest(`/orders/${orderId}/assign`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function bulkAssignOrders(orderId: number, data: any): Promise<any> {
+  const res = await apiRequest(`/orders/${orderId}/bulk-assign`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function getOrderAssignments(): Promise<any> {
+  const res = await apiRequest('/assignments')
+  return res
+}
+
+export async function getOrderAssignment(assignmentId: number): Promise<any> {
+  const res = await apiRequest(`/assignments/${assignmentId}`)
+  return res
+}
+
+export async function updateOrderAssignmentStatus(
+  assignmentId: number,
+  status: string,
+): Promise<any> {
+  const res = await apiRequest(`/assignments/${assignmentId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+  return res
+}
+
+export async function deleteOrderAssignment(assignmentId: number): Promise<void> {
+  await apiRequest(`/assignments/${assignmentId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Массовые операции с назначениями
+export async function bulkAssignGlobal(data: any): Promise<any> {
+  const res = await apiRequest('/assignments/bulk-assign', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function bulkReassignOrders(data: any): Promise<any> {
+  const res = await apiRequest('/assignments/bulk-reassign', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function bulkUpdateAssignments(data: any): Promise<any> {
+  const res = await apiRequest('/assignments/bulk-update', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
 }

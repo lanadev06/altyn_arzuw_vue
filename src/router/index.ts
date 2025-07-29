@@ -54,6 +54,18 @@ const router = createRouter({
       component: () => import('../views/AuditLogsView.vue'),
       meta: { title: 'Аудит-логи', requiresAuth: true },
     },
+    {
+      path: '/stages',
+      name: 'stages',
+      component: () => import('../views/StagesView.vue'),
+      meta: { title: 'Управление стадиями', requiresAuth: true },
+    },
+    {
+      path: '/roles',
+      name: 'roles',
+      component: () => import('../views/RolesView.vue'),
+      meta: { title: 'Управление ролями', requiresAuth: true },
+    },
   ],
 })
 

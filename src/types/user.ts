@@ -1,14 +1,26 @@
+export interface Role {
+  id: number
+  name: string
+  display_name?: string
+  created_at?: string
+  updated_at?: string
+}
+
 export interface User {
   id: number
   name: string
   username: string
   phone?: string
-  role: UserRole
-  roles?: string[] // массив ролей
   image?: string
   is_active?: boolean
   created_at?: string
   updated_at?: string
+
+  // Новая система множественных ролей (Laravel)
+  roles: Role[]
+
+  // Устаревшие поля (для обратной совместимости)
+  role?: UserRole
 }
 
 export enum UserRole {
@@ -23,6 +35,7 @@ export enum UserRole {
 export interface UserFilters {
   role?: UserRole
   search?: string
+  is_active?: boolean
 }
 
 export interface CreateUserData {
@@ -30,16 +43,29 @@ export interface CreateUserData {
   username: string
   phone?: string
   password: string
-  role: UserRole
-  roles?: string[] // массив ролей для создания
+  password_confirmation?: string
+  is_active?: boolean
   image?: File
+
+  // Новая система ролей (Laravel)
+  roles: number[] // массив ID ролей
+
+  // Устаревшие поля (для обратной совместимости)
+  role?: UserRole
 }
 
 export interface UpdateUserData {
   name?: string
+  username?: string
   phone?: string
   password?: string
-  role?: UserRole
-  roles?: string[] // массив ролей для обновления
+  password_confirmation?: string
+  is_active?: boolean
   image?: File
+
+  // Новая система ролей (Laravel)
+  roles?: number[] // массив ID ролей
+
+  // Устаревшие поля (для обратной совместимости)
+  role?: UserRole
 }

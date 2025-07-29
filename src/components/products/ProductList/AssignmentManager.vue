@@ -2,11 +2,15 @@
   <div class="space-y-4">
     <div v-if="title" class="flex items-center justify-between">
       <h4 class="text-sm font-medium text-gray-700">{{ title }}</h4>
-      <!-- Удаляю дефолтную кнопку 'Добавить' -->
+      <UIButton type="button" variant="primary" size="sm" @click="addAssignment">
+        Добавить
+      </UIButton>
     </div>
 
     <div v-else class="flex items-center justify-end">
-      <!-- Удаляю дефолтную кнопку 'Добавить' -->
+      <UIButton type="button" variant="primary" size="sm" @click="addAssignment">
+        Добавить
+      </UIButton>
     </div>
 
     <div v-if="assignments.length === 0" class="text-sm text-gray-500 italic py-2">
@@ -30,7 +34,16 @@
             @update:model-value="(val) => handleUserSelect(val, assignment, index)"
           />
         </div>
-        <UIButton type="button" variant="danger" size="sm" @click="$emit('remove', index)">
+        <span
+          v-if="assignment.is_active !== undefined"
+          :class="[
+            'px-2 py-1 text-xs rounded-full',
+            assignment.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600',
+          ]"
+        >
+          {{ assignment.is_active ? 'Активен' : 'Неактивен' }}
+        </span>
+        <UIButton type="button" variant="danger" size="sm" @click="removeAssignment(index)">
           Удалить
         </UIButton>
       </div>
@@ -49,11 +62,14 @@ import { computed, watch } from 'vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import UIButton from '@/components/ui/UIButton.vue'
+import type { User } from '@/types/user'
+import type { ProductAssignment } from '@/types/product'
 
 interface Props {
   title: string
-  assignments: Array<{ id: number; user_id: number | null; user?: { id: number; name: string } }>
-  allUsers: Array<{ id: number; name: string }>
+  roleType: string
+  assignments: ProductAssignment[]
+  allUsers: User[]
   errors?: string[]
 }
 
@@ -62,130 +78,100 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  update: [
-    assignments: Array<{ id: number; user_id: number | null; user?: { id: number; name: string } }>,
-  ]
-  remove: [index: number]
+  update: [assignments: ProductAssignment[]]
 }>()
 
-// Исправление reduceUser для безопасного возврата объекта
-function reduceUser(u: { id: number; name: string } | undefined) {
-  if (!u) return 0
-  return u.id
+// Доступные пользователи - исключаем уже назначенных
+const availableUsers = computed(() => {
+  const assignedUserIds = props.assignments
+    .filter((a) => a.user && a.is_active !== false)
+    .map((a) => a.user?.id)
+    .filter((id) => id !== undefined)
+
+  const result = props.allUsers.filter((user) => !assignedUserIds.includes(user.id))
+
+  console.log(`👥 AssignmentManager [${props.roleType}] available users:`, {
+    totalUsers: props.allUsers.length,
+    assignedUserIds: assignedUserIds,
+    availableUsers: result.length,
+    assignments: props.assignments.length,
+  })
+
+  return result
+})
+
+function addAssignment() {
+  const newAssignment: ProductAssignment = {
+    id: 0, // Временный ID, будет заменен сервером
+    role_type: props.roleType,
+    is_active: true,
+    user: null,
+    user_id: 0,
+  }
+
+  const updatedAssignments = [...props.assignments, newAssignment]
+  emit('update', updatedAssignments)
 }
 
-// Для отладки: выводим allUsers и user_id каждого назначения
+function removeAssignment(index: number) {
+  console.log(
+    '🗑️ Removing assignment at index:',
+    index,
+    'from',
+    props.assignments.length,
+    'assignments',
+  )
+  const updatedAssignments = props.assignments.filter((_, i) => i !== index)
+  console.log('🗑️ After removal:', updatedAssignments.length, 'assignments remain')
+  emit('update', updatedAssignments)
+}
+
+function handleUserSelect(
+  val: User | undefined,
+  assignment: ProductAssignment,
+  index: number,
+): void {
+  const updatedAssignments = [...props.assignments]
+
+  if (val) {
+    updatedAssignments[index] = {
+      ...assignment,
+      user: val,
+      user_id: val.id,
+      is_active: true,
+    }
+  } else {
+    updatedAssignments[index] = {
+      ...assignment,
+      user: null,
+      user_id: 0,
+    }
+  }
+
+  emit('update', updatedAssignments)
+}
+
+// Отладка для разработки
 watch(
   () => props.assignments,
   (assignments) => {
-    console.log('AssignmentManager allUsers:', props.allUsers)
-    assignments.forEach((a, i) => {
-      const foundUser = props.allUsers.find((u) => u.id === a.user_id)
-      console.log(`Assignment[${i}] user_id:`, a.user_id, 'reduceUser:', reduceUser(foundUser))
-    })
-    
-    // Проверяем и исправляем дубликаты при изменении assignments
-    const userIds = assignments.map((a) => a.user_id).filter((id) => id && id > 0)
-    const uniqueUserIds = new Set(userIds)
-    
-    if (userIds.length !== uniqueUserIds.size) {
-      console.log('Found duplicates in assignments, cleaning up...')
-      const cleanedAssignments = [...assignments]
-      const seenUserIds = new Set()
-      
-      for (let i = 0; i < cleanedAssignments.length; i++) {
-        const assignment = cleanedAssignments[i]
-        if (assignment.user_id && assignment.user_id > 0) {
-          if (seenUserIds.has(assignment.user_id)) {
-            console.log(`Clearing duplicate user_id ${assignment.user_id} at index ${i}`)
-            cleanedAssignments[i].user_id = null
-            cleanedAssignments[i].user = undefined
-          } else {
-            seenUserIds.add(assignment.user_id)
-          }
-        }
-      }
-      
-      // Эмитим очищенные assignments только если они изменились
-      if (JSON.stringify(cleanedAssignments) !== JSON.stringify(assignments)) {
-        console.log('Emitting cleaned assignments:', cleanedAssignments)
-        emit('update', cleanedAssignments)
-      }
+    if (assignments.length > 0) {
+      console.log(
+        `✅ AssignmentManager [${props.roleType}] received:`,
+        assignments.length,
+        'assignments',
+      )
+      console.log(`👤 First assignment:`, {
+        id: assignments[0].id,
+        user_id: assignments[0].user_id,
+        user_name: assignments[0].user?.name,
+        is_active: assignments[0].is_active,
+        role_type: assignments[0].role_type,
+      })
+    } else {
+      console.log(`❌ AssignmentManager [${props.roleType}] received: 0 assignments`)
     }
   },
   { immediate: true },
 )
-
-const availableUsers = computed(() => {
-  const assignedUserIds = props.assignments.map((a) => a.user_id).filter((id) => id && id > 0)
-  const filtered = props.allUsers.filter((user) => !assignedUserIds.includes(user.id))
-
-  console.log('AssignmentManager availableUsers:', {
-    allUsers: props.allUsers.length,
-    assignedUserIds,
-    availableUsers: filtered.length,
-    assignments: props.assignments.length,
-  })
-
-  return filtered
-})
-
-function removeAssignment(index: number) {
-  // emit только индекс, чтобы родитель мог удалить
-  emit('remove', index)
-}
-
-function updateAssignment(index: number) {
-  console.log('updateAssignment called for index:', index)
-
-  const updatedAssignments = [...props.assignments]
-  const currentAssignment = updatedAssignments[index]
-
-  // Новый лог для отладки user_id и user
-  console.log('Assignment debug:', {
-    index,
-    user_id: currentAssignment.user_id,
-    user: currentAssignment.user,
-    allUsers: props.allUsers,
-  })
-
-  // Проверяем уникальность user_id только если user_id не null
-  if (currentAssignment.user_id && currentAssignment.user_id > 0) {
-    const userIds = updatedAssignments.map((a) => a.user_id).filter((id) => id && id > 0)
-    const uniqueUserIds = new Set(userIds)
-
-    if (userIds.length !== uniqueUserIds.size) {
-      // Есть дубликаты - находим все индексы с этим user_id
-      const duplicateIndexes = updatedAssignments
-        .map((a, i) => ({ assignment: a, index: i }))
-        .filter(({ assignment }) => assignment.user_id === currentAssignment.user_id)
-        .map(({ index }) => index)
-
-      console.log('Duplicate indexes:', duplicateIndexes)
-
-      // Если текущий индекс не первый в списке дубликатов, сбрасываем его
-      if (duplicateIndexes[0] !== index) {
-        console.log('Resetting assignment at index:', index)
-        updatedAssignments[index].user_id = null as number | null
-        updatedAssignments[index].user = undefined
-      }
-    }
-  }
-
-  console.log('Updated assignments:', updatedAssignments)
-  emit('update', updatedAssignments)
-}
-
-type Assignment = { id: number; user_id: number | null; user?: { id: number; name: string } }
-function handleUserSelect(
-  val: any,
-  assignment: Assignment,
-  index: number,
-): void {
-  assignment.user = val ?? undefined
-  assignment.user_id = val ? val.id : null
-  updateAssignment(index)
-}
 </script>
-
-export default {}
