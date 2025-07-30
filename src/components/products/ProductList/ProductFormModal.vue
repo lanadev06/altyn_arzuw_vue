@@ -192,8 +192,6 @@ import { toast } from '@/stores/toast'
 const props = defineProps<{ product?: Product | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
 
-console.log('🚀 ProductFormModal loaded with product:', props.product?.id || 'new')
-
 const { update, remove, create } = productController
 
 const loading = ref(false)
@@ -220,19 +218,6 @@ const workingStages = computed(() => {
   const serviceStages = ['draft', 'completed', 'cancelled', 'final']
   const filtered = availableStages.value.filter((stage) => !serviceStages.includes(stage.name))
 
-  console.log('🔍 Working stages filter:', {
-    total: availableStages.value.length,
-    filtered: filtered.length,
-    workingStages: filtered.map((s) => s.name),
-    selectedStages: selectedStages.value,
-    selectedStageNames: selectedStages.value
-      .map((id) => availableStages.value.find((s) => s.id === id)?.name)
-      .filter(Boolean),
-    serviceStagesFiltered: availableStages.value
-      .filter((stage) => serviceStages.includes(stage.name))
-      .map((s) => s.name),
-  })
-
   return filtered
 })
 
@@ -253,18 +238,6 @@ function getAssignmentsForStageRole(stageId: number, roleName: string): ProductA
   }
 
   const assignments = stageAssignments[stageId][roleName]
-  console.log(
-    `📋 Getting assignments for stage ${stageId}, role ${roleName}:`,
-    assignments.length,
-    'assignments',
-    assignments.map((a) => ({
-      id: a.id,
-      user_id: a.user_id,
-      user_name: a.user?.name,
-      is_active: a.is_active,
-      role_type: a.role_type,
-    })),
-  )
 
   return assignments
 }
@@ -279,17 +252,6 @@ function updateAssignmentsForStageRole(
   }
   stageAssignments[stageId][roleName] = assignments
 
-  console.log(`🔄 Updated assignments for stage ${stageId}, role ${roleName}:`, assignments.length)
-  console.log(
-    `📋 Assignment details:`,
-    assignments.map((a) => ({
-      user_id: a.user_id,
-      role_type: a.role_type,
-      stage_id: a.stage_id,
-      user_name: a.user?.name,
-    })),
-  )
-
   // Проверяем, что назначения действительно сохранились
   console.log(
     `🔍 Verification - stageAssignments[${stageId}][${roleName}]:`,
@@ -299,9 +261,7 @@ function updateAssignmentsForStageRole(
 }
 
 function getUsersForRole(roleName: string): User[] {
-  const users = allUsers[roleName] || []
-  console.log(`👥 Getting users for role ${roleName}:`, users.length, 'users')
-  return users
+  return allUsers[roleName] || []
 }
 
 function getErrorsForStageRole(stageId: number, roleName: string): string[] {
@@ -340,12 +300,9 @@ function getRoleDisplayName(roleName: string): string {
 
 function toggleStage(stageId: number) {
   try {
-    console.log('🔄 Toggling stage:', stageId, 'Current selected stages:', selectedStages.value)
-
     // Проверяем, что стадия существует в доступных стадиях
     const stageExists = workingStages.value.some((stage) => stage.id === stageId)
     if (!stageExists) {
-      console.error('❌ Stage not found:', stageId)
       return
     }
 
@@ -353,25 +310,18 @@ function toggleStage(stageId: number) {
     if (index > -1) {
       // Удаляем стадию из выбранных
       selectedStages.value.splice(index, 1)
-      console.log('❌ Removed stage:', stageId, 'New selected stages:', selectedStages.value)
-
-      // НЕ удаляем назначения для отключенной стадии - они должны сохраняться
-      console.log('💾 Keeping assignments for disabled stage:', stageId)
     } else {
       // Добавляем стадию в выбранные
       selectedStages.value.push(stageId)
-      console.log('✅ Added stage:', stageId, 'New selected stages:', selectedStages.value)
 
       // Инициализируем пустые назначения для новой стадии
       if (!stageAssignments[stageId]) {
         stageAssignments[stageId] = {}
-        console.log('📋 Initialized empty assignments for stage:', stageId)
       }
     }
 
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-    console.log('🔄 Force updated selectedStages:', selectedStages.value)
   } catch (error) {
     console.error('❌ Error toggling stage:', error)
   }
@@ -1231,12 +1181,29 @@ async function handleDelete() {
 
   try {
     await remove(props.product.id)
-    toast.show('Товар удален!')
+    toast.show('Товар успешно удален!', 'success')
     emit('delete', props.product.id)
     emit('close')
-  } catch (error) {
-    console.error('Ошибка удаления:', error)
-    toast.show('Ошибка при удалении товара', 'error')
+  } catch (error: any) {
+    console.error('❌ Ошибка удаления товара:', props.product.id, error)
+
+    // Обрабатываем ошибки от сервера
+    let message = 'Произошла неизвестная ошибка при удалении товара'
+
+    if (error?.response?.data?.message) {
+      // Ошибка от Laravel (например, товар используется в заказах)
+      message = error.response.data.message
+    } else if (error.message && error.message.includes('Ошибка удаления товара')) {
+      // Если ошибка 404 — товар уже удалён
+      toast.show('Товар уже был удалён')
+      emit('delete', props.product.id)
+      emit('close')
+      return
+    } else if (error instanceof Error && error.message) {
+      message = `Ошибка удаления товара: ${error.message}`
+    }
+
+    toast.show(message, 'error')
   }
 }
 </script>

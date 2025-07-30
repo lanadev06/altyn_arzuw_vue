@@ -1,12 +1,33 @@
 <template>
   <Modal @close="$emit('close')">
     <template #header>
-      <h2 class="text-xl font-semibold text-gray-900">
-        {{ user ? 'Редактировать пользователя' : 'Добавить пользователя' }}
-      </h2>
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center"
+        >
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            ></path>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">
+            {{ user ? 'Редактировать пользователя' : 'Добавить пользователя' }}
+          </h2>
+          <p class="text-sm text-gray-600">
+            {{
+              user ? 'Обновите информацию о пользователе' : 'Добавьте нового пользователя в систему'
+            }}
+          </p>
+        </div>
+      </div>
     </template>
 
-    <form @submit.prevent="handleSubmit" class="space-y-4" enctype="multipart/form-data">
+    <form @submit.prevent="handleSubmit" class="space-y-6" enctype="multipart/form-data">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Имя *</label>
         <UIInput v-model="form.name" placeholder="Введите имя" :error="errors.name" required />
@@ -23,7 +44,13 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
-        <UIInput v-model="form.phone" placeholder="+7 (999) 123-45-67" :error="errors.phone" />
+        <UIInput
+          :model-value="form.phone"
+          @update:model-value="handlePhoneChange"
+          placeholder="+993 XX YYYYYY"
+          :error="errors.phone"
+        />
+        <p class="text-xs text-gray-500 mt-1">Формат: +993 XX YYYYYY (например: +993 12 345678)</p>
       </div>
 
       <div>
@@ -150,17 +177,72 @@ const roleOptions = computed(() =>
   allRoles.value.map((r) => ({ value: r.id, label: r.display_name || r.name })),
 )
 
+// Функция для форматирования телефона
+const formatPhoneNumber = (value: string): string => {
+  // Удаляем все символы кроме цифр
+  const cleaned = value.replace(/\D/g, '')
+
+  // Если номер начинается с 993, добавляем +
+  if (cleaned.startsWith('993')) {
+    const rest = cleaned.slice(3)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с 7 или 8 (российский), конвертируем в туркменский
+  if (cleaned.startsWith('7') || cleaned.startsWith('8')) {
+    const rest = cleaned.slice(1)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с 9 (без кода страны)
+  if (cleaned.startsWith('9')) {
+    const rest = cleaned.slice(1)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с цифр (код оператора)
+  if (cleaned.length <= 2) {
+    return `+993 ${cleaned}`
+  } else if (cleaned.length <= 8) {
+    return `+993 ${cleaned.slice(0, 2)} ${cleaned.slice(2)}`
+  } else {
+    return `+993 ${cleaned.slice(0, 2)} ${cleaned.slice(2, 8)}`
+  }
+}
+
+// Обработчик изменения телефона с автоматическим форматированием
+const handlePhoneChange = (value: string) => {
+  if (value && value.trim()) {
+    form.phone = formatPhoneNumber(value)
+  } else {
+    form.phone = value
+  }
+}
+
 const handleImageChange = (event: Event) => {
   const target = event.target as HTMLInputElement
-  console.log('handleImageChange called')
-  console.log('target.files:', target.files)
+
   if (target.files && target.files[0]) {
-    console.log('Setting form.image to:', target.files[0])
     form.image = target.files[0]
-    console.log('form.image after setting:', form.image)
-    console.log('form.image instanceof File:', form.image instanceof File)
   } else {
-    console.log('No file selected')
     form.image = null
   }
 }
@@ -190,6 +272,16 @@ const validateForm = () => {
     errors.roles = 'Нужно выбрать хотя бы одну роль'
     isValid = false
   }
+
+  // Валидация телефона (если указан)
+  if (form.phone && form.phone.trim()) {
+    const phoneRegex = /^\+993[-\s]?\d{2}[-\s]?\d{6}$/
+    if (!phoneRegex.test(form.phone.trim())) {
+      errors.phone = 'Телефон должен быть в формате +993 XX YYYYYY'
+      isValid = false
+    }
+  }
+
   return isValid
 }
 
@@ -197,8 +289,6 @@ const convertHeicToJpg = async (file: File): Promise<File> => {
   if (!file.name.toLowerCase().endsWith('.heic')) {
     return file
   }
-
-  console.log('Converting HEIC to JPG...')
 
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
@@ -217,10 +307,9 @@ const convertHeicToJpg = async (file: File): Promise<File> => {
               type: 'image/jpeg',
               lastModified: Date.now(),
             })
-            console.log('HEIC converted to JPG:', convertedFile)
+
             resolve(convertedFile)
           } else {
-            console.log('Failed to convert HEIC, using original file')
             resolve(file)
           }
         },
@@ -230,7 +319,6 @@ const convertHeicToJpg = async (file: File): Promise<File> => {
     }
 
     img.onerror = () => {
-      console.log('Failed to load HEIC image, using original file')
       resolve(file)
     }
 
@@ -239,11 +327,6 @@ const convertHeicToJpg = async (file: File): Promise<File> => {
 }
 
 const handleSubmit = async () => {
-  console.log('HANDLE SUBMIT CALLED', form)
-  console.log('form.image type:', typeof form.image)
-  console.log('form.image instanceof File:', form.image instanceof File)
-  console.log('form.image:', form.image)
-
   if (!validateForm()) return
   loading.value = true
   try {
@@ -260,28 +343,17 @@ const handleSubmit = async () => {
     if (form.password) dataToSend.password = form.password
 
     if (form.image instanceof File) {
-      console.log('Adding image to dataToSend:', form.image)
       const convertedImage = await convertHeicToJpg(form.image)
       dataToSend.image = convertedImage
     }
 
-    console.log('Final dataToSend:', dataToSend)
-    console.log('dataToSend.image type:', typeof dataToSend.image)
-    console.log('dataToSend.image instanceof File:', dataToSend.image instanceof File)
-
     // Проверяем, что данные не теряются при передаче
     const eventData = { ...dataToSend }
-    console.log('Event data before emit:', eventData)
-    console.log('Event data.image type:', typeof eventData.image)
-    console.log('Event data.image instanceof File:', eventData.image instanceof File)
 
     // Тест сериализации
     try {
       const serialized = JSON.stringify(eventData)
-      console.log('Serialization test - can serialize:', serialized.length > 0)
-    } catch (e) {
-      console.log('Serialization test - cannot serialize File object:', e)
-    }
+    } catch (e) {}
 
     emit('submit', eventData)
     toast.show(props.user ? 'Пользователь обновлён!' : 'Пользователь создан!')
@@ -292,10 +364,23 @@ const handleSubmit = async () => {
   }
 }
 
-const handleDelete = () => {
-  if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
-    emit('delete', props.user.id)
-    toast.show('Пользователь удалён!')
+const handleDelete = async () => {
+  if (!props.user?.id) return
+
+  // Показываем toast с подтверждением вместо alert
+  toast.show('Удаление пользователя...', 'info')
+
+  try {
+    await emit('delete', props.user.id)
+    toast.show('Пользователь удалён!', 'success')
+  } catch (err: any) {
+    let message = 'Произошла неизвестная ошибка при удалении пользователя'
+    if (err?.response?.data?.message) {
+      message = err.response.data.message
+    } else if (err instanceof Error && err.message) {
+      message = `Ошибка удаления пользователя: ${err.message}`
+    }
+    toast.show(message, 'error')
   }
 }
 </script>

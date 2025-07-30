@@ -1,7 +1,13 @@
 import { ref, reactive } from 'vue'
 import { API_CONFIG } from '../config/api'
 import { handle401Error } from '../utils/auth'
-import type { Order, OrderForm, OrderUpdateForm, StageUpdateForm, OrderAssignmentCreate } from '../types/order'
+import type {
+  Order,
+  OrderForm,
+  OrderUpdateForm,
+  StageUpdateForm,
+  OrderAssignmentCreate,
+} from '../types/order'
 
 // Создаем синглтон экземпляр
 const orders = ref<Order[]>([])
@@ -61,7 +67,6 @@ const fetchOrders = async (
     pagination.total = res.total || 0
     pagination.per_page = res.per_page || 30
     orders.value = res.data || []
-    console.log('orders updated', orders.value)
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
     error.value = errorMessage
@@ -83,7 +88,7 @@ const fetchAllOrdersForKanban = async (assignment_status?: string) => {
     if (assignment_status) params.assignment_status = assignment_status
     const res = await getAll(params)
     orders.value = res.data || []
-    console.log('all orders for kanban updated', orders.value.length)
+    
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
     error.value = errorMessage
@@ -180,8 +185,8 @@ const getById = async (id: number) => {
 }
 
 const create = async (data: OrderForm) => {
-  console.log('🚀 Creating order with data:', data)
   
+
   const response = await fetch(`${API_CONFIG.BASE_URL}/orders`, {
     method: 'POST',
     headers: {
@@ -219,15 +224,15 @@ const create = async (data: OrderForm) => {
 
     throw new Error(errorMessage)
   }
-  
+
   const result = await response.json()
-  console.log('✅ Order created successfully:', result)
+  
   return result
 }
 
 const update = async (id: number, data: OrderUpdateForm) => {
-  console.log('🚀 Updating order with data:', { id, data })
   
+
   const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}`, {
     method: 'PUT',
     headers: {
@@ -251,7 +256,7 @@ const update = async (id: number, data: OrderUpdateForm) => {
   }
 
   const result = await response.json()
-  console.log('✅ Order updated successfully:', result)
+  
   return result
 }
 

@@ -62,7 +62,10 @@
               @click="editUser(user)"
               style="height: 44px"
             >
-              <template v-for="col in columns" :key="col.key">
+              <template
+                v-for="(col, colIndex) in columns"
+                :key="`${user.id}-${col.key}-${colIndex}`"
+              >
                 <td
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
@@ -104,6 +107,7 @@
                         :key="role.id"
                         class="px-2 py-1 rounded-full text-xs font-medium mr-1"
                         :class="getRoleBadgeClass(role.name)"
+                        :style="getRoleBadgeStyle(role.name)"
                       >
                         {{ getRoleLabel(role.display_name || role.name) }}
                       </span>
@@ -201,14 +205,20 @@ import UserFormModal from './UserFormModal.vue'
 import { API_CONFIG } from '@/config/api'
 import Pagination from './Pagination.vue'
 import Sortable from 'sortablejs'
+import { useToast } from '@/stores/toast'
+import { getRoleColorClasses, getRoleColorStyles } from '../../../utils/roleColors'
 
 const props = defineProps<{
   search?: string
   role?: string
   showCreateModal?: boolean
   activeFilter?: string
+  rolesData?: any[]
+  stagesData?: any[]
 }>()
 const emit = defineEmits(['close-create-modal', 'open-create-modal'])
+
+const toast = useToast()
 
 const {
   users,
@@ -225,19 +235,21 @@ const {
   getRoleLabel,
 } = useUserController()
 
-const showEditModal = ref(false)
-const editingUser = ref<any>(null)
-const currentPage = ref(1)
-const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
-
 const SORT_KEY = 'userList_sortBy'
 const ORDER_KEY = 'userList_sortOrder'
 const COLUMNS_KEY = 'userList_columns'
+const PER_PAGE_KEY = 'userList_perPage'
 
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem(PER_PAGE_KEY)
+
+const showEditModal = ref(false)
+const editingUser = ref<any>(null)
+const currentPage = ref(1)
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
 const columns = ref(
   savedColumns
@@ -246,7 +258,7 @@ const columns = ref(
         { key: 'id', label: 'ID', sortable: true },
         { key: 'name', label: 'Имя', sortable: true },
         { key: 'username', label: 'Логин', sortable: true },
-        { key: 'role', label: 'Роль', sortable: true },
+        { key: 'role', label: 'Роль', sortable: false },
         { key: 'phone', label: 'Телефон', sortable: false },
         { key: 'is_active', label: 'Статус', sortable: false },
         { key: 'created_at', label: 'Создано', sortable: true },
@@ -266,10 +278,14 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+
+  // Используем вспомогательную функцию для получения правильного параметра сортировки
+  const sortByParam = getSortByParam(key)
+
   fetchUsers(
     1,
     props.search || '',
-    sortBy.value,
+    sortByParam,
     sortOrder.value,
     perPage.value,
     props.role,
@@ -282,7 +298,7 @@ function resetSettings() {
     { key: 'id', label: 'ID', sortable: true },
     { key: 'name', label: 'Имя', sortable: true },
     { key: 'username', label: 'Логин', sortable: true },
-    { key: 'role', label: 'Роль', sortable: true },
+    { key: 'role', label: 'Роль', sortable: false },
     { key: 'phone', label: 'Телефон', sortable: false },
     { key: 'is_active', label: 'Статус', sortable: false },
     { key: 'created_at', label: 'Создано', sortable: true },
@@ -293,11 +309,16 @@ function resetSettings() {
   sortOrder.value = 'asc'
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  perPage.value = 30
+  localStorage.setItem(PER_PAGE_KEY, perPage.value.toString())
   currentPage.value = 1
+  // Используем вспомогательную функцию для получения правильного параметра сортировки
+  const sortByParam = getSortByParam(sortBy.value)
+
   fetchUsers(
     1,
     props.search || '',
-    sortBy.value,
+    sortByParam,
     sortOrder.value,
     perPage.value,
     props.role,
@@ -327,14 +348,20 @@ function getUserImageUrl(user: any) {
 }
 
 const getRoleBadgeClass = (role: string) => {
-  const classes: Record<string, string> = {
-    admin: 'bg-red-100 text-red-800',
-    manager: 'bg-blue-100 text-blue-800',
-    designer: 'bg-green-100 text-green-800',
-    print_operator: 'bg-yellow-100 text-yellow-800',
-    workshop_worker: 'bg-purple-100 text-purple-800',
-  }
-  return classes[role] || 'bg-gray-100 text-gray-800'
+  // Находим данные роли
+  const roleData = props.rolesData?.find((r) => r.name === role)
+  return getRoleColorClasses(role, roleData, props.stagesData)
+}
+
+const getRoleBadgeStyle = (role: string) => {
+  // Находим данные роли
+  const roleData = props.rolesData?.find((r) => r.name === role)
+  return getRoleColorStyles(role, roleData, props.stagesData)
+}
+
+// Вспомогательная функция для получения правильного параметра сортировки
+function getSortByParam(sortKey: string): string {
+  return sortKey
 }
 
 const editUser = (user: any) => {
@@ -346,10 +373,12 @@ async function toggleUserActive(userId: number) {
   try {
     await toggleActive(userId)
     // Перезагрузить список после изменения
+    const sortByParam = getSortByParam(sortBy.value)
+
     fetchUsers(
       currentPage.value,
       props.search || '',
-      sortBy.value,
+      sortByParam,
       sortOrder.value,
       perPage.value,
       props.role,
@@ -372,10 +401,11 @@ const handleCreateUser = async (userData: any) => {
   try {
     await create(userData)
     emit('close-create-modal')
+    const sortByParam = getSortByParam(sortBy.value)
     fetchUsers(
       currentPage.value,
       props.search || '',
-      sortBy.value,
+      sortByParam,
       sortOrder.value,
       perPage.value,
       props.role,
@@ -410,10 +440,11 @@ const handleUpdateUser = async (userData: any) => {
     await updateUser(editingUser.value.id, userData)
     showEditModal.value = false
     editingUser.value = null
+    const sortByParam = getSortByParam(sortBy.value)
     fetchUsers(
       currentPage.value,
       props.search || '',
-      sortBy.value,
+      sortByParam,
       sortOrder.value,
       perPage.value,
       props.role,
@@ -426,20 +457,36 @@ const handleUpdateUser = async (userData: any) => {
 
 const handleDeleteUser = async (userId: number) => {
   try {
+    console.log('🔄 Начинаем удаление пользователя:', userId)
     await deleteUser(userId)
+    console.log('✅ Пользователь успешно удален:', userId)
     showEditModal.value = false
     editingUser.value = null
+    const sortByParam = getSortByParam(sortBy.value)
     fetchUsers(
       currentPage.value,
       props.search || '',
-      sortBy.value,
+      sortByParam,
       sortOrder.value,
       perPage.value,
       props.role,
       props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
     )
-  } catch (err) {
-    console.error('Ошибка удаления:', err)
+    toast.show('Пользователь успешно удален!', 'success')
+  } catch (err: any) {
+    console.error('❌ Ошибка удаления пользователя:', userId, err)
+
+    // Обрабатываем ошибки от сервера
+    let message = 'Произошла неизвестная ошибка при удалении пользователя'
+
+    if (err?.response?.data?.message) {
+      // Ошибка от Laravel (например, пользователь назначен в заказах)
+      message = err.response.data.message
+    } else if (err instanceof Error && err.message) {
+      message = `Ошибка удаления пользователя: ${err.message}`
+    }
+
+    toast.show(message, 'error')
   }
 }
 
@@ -447,10 +494,13 @@ function goToPage(page: number) {
   if (!pagination || !pagination.last_page) return
   if (page < 1 || page > pagination.last_page) return
   currentPage.value = page
+
+  const sortByParam = getSortByParam(sortBy.value)
+
   fetchUsers(
     page,
     props.search || '',
-    sortBy.value,
+    sortByParam,
     sortOrder.value,
     perPage.value,
     props.role,
@@ -464,10 +514,12 @@ function validatePerPage(val) {
 }
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem(PER_PAGE_KEY, perPage.value.toString())
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
+  localStorage.setItem(PER_PAGE_KEY, perPage.value.toString())
   goToPage(1)
 })
 
@@ -487,10 +539,11 @@ onMounted(async () => {
       },
     })
   }
+  const sortByParam = getSortByParam(sortBy.value)
   fetchUsers(
     currentPage.value,
     props.search || '',
-    sortBy.value,
+    sortByParam,
     sortOrder.value,
     perPage.value,
     props.role,
@@ -503,10 +556,11 @@ watch([() => props.search, () => props.role, () => props.activeFilter], () => {
 })
 
 watch([sortBy, sortOrder], () => {
+  const sortByParam = getSortByParam(sortBy.value)
   fetchUsers(
     currentPage.value,
     props.search || '',
-    sortBy.value,
+    sortByParam,
     sortOrder.value,
     perPage.value,
     props.role,

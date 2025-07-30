@@ -408,7 +408,6 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
   })
   if (!res.ok) throw new Error('Ошибка создания проекта')
   const json = await res.json()
-  console.log('createProject API response:', json)
   return json.data || json
 }
 
@@ -458,8 +457,6 @@ export async function getProducts({
   const url = `${API_CONFIG.BASE_URL}/products${query}`
   const token = localStorage.getItem('auth_token')
 
-  console.log('🔍 API Request URL:', url)
-
   const res = await fetch(url, {
     headers: {
       Accept: 'application/json',
@@ -478,27 +475,10 @@ export async function getProducts({
   }
 
   const data = await res.json()
-  console.log('📡 API Response:', data)
 
   // Проверяем структуру ответа
   if (data.data && Array.isArray(data.data)) {
-    console.log(
-      '📊 Sample product from API:',
-      data.data[0]
-        ? {
-            id: data.data[0].id,
-            name: data.data[0].name,
-            designers: data.data[0].designers,
-            print_operators: data.data[0].print_operators,
-            engraving_operators: data.data[0].engraving_operators,
-            workshop_workers: data.data[0].workshop_workers,
-            has_design_stage: data.data[0].has_design_stage,
-            has_print_stage: data.data[0].has_print_stage,
-            has_engraving_stage: data.data[0].has_engraving_stage,
-            has_workshop_stage: data.data[0].has_workshop_stage,
-          }
-        : 'No products',
-    )
+    // Данные корректны
   }
 
   return data
@@ -519,12 +499,6 @@ export async function createProduct(data: ProductForm): Promise<Product> {
 }
 
 export async function updateProduct(id: number, data: ProductForm): Promise<Product> {
-  console.log('🔄 updateProduct API call:', {
-    url: `${API_CONFIG.BASE_URL}/products/${id}`,
-    method: 'PUT',
-    data: data,
-  })
-
   const res = await fetch(`${API_CONFIG.BASE_URL}/products/${id}`, {
     method: 'PUT',
     headers: {
@@ -546,7 +520,6 @@ export async function updateProduct(id: number, data: ProductForm): Promise<Prod
   }
 
   const responseData = await res.json()
-  console.log('📡 updateProduct API Response:', responseData)
 
   return responseData.data
 }
@@ -559,19 +532,28 @@ export async function deleteProduct(id: number): Promise<void> {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  // Не выбрасывать ошибку при 404 — товар уже удалён
-  if (!res.ok && res.status !== 404) {
-    throw new Error('Ошибка удаления товара')
+
+  // Обрабатываем различные статусы ответа
+  if (!res.ok) {
+    if (res.status === 404) {
+      // Товар уже удалён
+      throw new Error('Ошибка удаления товара')
+    } else if (res.status === 422) {
+      // Ошибка валидации (например, товар используется в заказах)
+      const errorData = await res.json()
+      const error = new Error(errorData.message || 'Ошибка удаления товара')
+      ;(error as any).response = { data: errorData }
+      throw error
+    } else {
+      // Другие ошибки
+      throw new Error('Ошибка удаления товара')
+    }
   }
 }
 
 // Product Stages API - для работы с таблицей product_stages
 export async function getProductStages(productId: number) {
-  console.log('🔍 Getting product stages for product:', productId)
-  console.log('🔍 DEV_MODE is:', DEV_MODE)
-
   if (DEV_MODE) {
-    console.log('📝 Using mock data for product stages')
     // Моковые данные для разработки - некоторые выключены для тестирования
     const mockData = {
       data: [
@@ -581,13 +563,10 @@ export async function getProductStages(productId: number) {
         { id: 4, product_id: productId, stage_id: 7, is_available: true, is_default: false }, // workshop - включено
       ],
     }
-    console.log('📋 Mock product stages:', mockData)
     return mockData
   }
 
-  console.log('📡 Making API request to Laravel backend...')
   const response = await apiRequest(`/products/${productId}/stages`, { method: 'GET' })
-  console.log('📡 Laravel API response:', response)
   return response
 }
 
@@ -595,10 +574,7 @@ export async function updateProductStages(
   productId: number,
   stages: Array<{ stage_id: number; is_available: boolean }>,
 ) {
-  console.log('💾 Updating product stages:', { productId, stages })
-
   if (DEV_MODE) {
-    console.log('📝 Mock: Product stages updated')
     return { data: stages }
   }
 
@@ -764,11 +740,6 @@ export async function updateOrderStage(orderId: number, stage: string): Promise<
 }
 
 export async function createUser(data: any): Promise<any> {
-  console.log('createUser API called with:', data)
-  console.log('data.image type:', typeof data.image)
-  console.log('data.image instanceof File:', data.image instanceof File)
-  console.log('data.image:', data.image)
-
   const formData = new FormData()
   formData.append('name', data.name)
   formData.append('username', data.username)
@@ -776,7 +747,6 @@ export async function createUser(data: any): Promise<any> {
   if (data.phone) formData.append('phone', data.phone)
   if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
   if (data.image instanceof File) {
-    console.log('Adding image to FormData:', data.image)
     formData.append('image', data.image)
   }
   // Если есть массив ролей, добавляем их
@@ -786,18 +756,10 @@ export async function createUser(data: any): Promise<any> {
     })
   }
 
-  console.log('FormData entries:')
-  for (const [key, value] of formData.entries()) {
-    console.log(key, value)
-  }
-
   const res = await apiRequest('/users', {
     method: 'POST',
     body: formData,
   })
-
-  console.log('Server response for createUser:', res)
-  console.log('Response type:', typeof res)
 
   return res
 }
@@ -848,21 +810,14 @@ export async function toggleUserActive(id: number): Promise<any> {
 }
 
 export async function updateUser(id: number, data: any): Promise<any> {
-  console.log('updateUser API called with id:', id, 'data:', data)
-  console.log('data.image type:', typeof data.image)
-  console.log('data.image instanceof File:', data.image instanceof File)
-  console.log('data.image:', data.image)
-
   const token = localStorage.getItem('auth_token')
   if (data.image instanceof File) {
-    console.log('Using FormData for update (image present)')
     const formData = new FormData()
     if (data.name !== undefined) formData.append('name', data.name)
     if (data.username !== undefined) formData.append('username', data.username)
     if (data.phone !== undefined) formData.append('phone', data.phone || '')
     if (data.password) formData.append('password', data.password)
     if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
-    console.log('Adding image to FormData:', data.image)
     formData.append('image', data.image)
     if (data.roles && Array.isArray(data.roles)) {
       data.roles.forEach((role: number, idx: number) => {
@@ -873,11 +828,6 @@ export async function updateUser(id: number, data: any): Promise<any> {
     // Добавляем _method: PUT для Laravel
     formData.append('_method', 'PUT')
 
-    console.log('FormData entries for update:')
-    for (const [key, value] of formData.entries()) {
-      console.log(key, value)
-    }
-
     const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
       method: 'POST', // Используем POST вместо PATCH
       headers: {
@@ -887,23 +837,14 @@ export async function updateUser(id: number, data: any): Promise<any> {
       body: formData,
     })
 
-    console.log('Response status:', res.status)
-    console.log('Response headers:', Object.fromEntries(res.headers.entries()))
-
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}))
-      console.log('Error response data:', errorData)
-      console.log('Error message:', errorData.message)
-      console.log('Validation errors:', errorData.errors)
       throw new Error(`Ошибка обновления пользователя: ${errorData.message || res.statusText}`)
     }
 
     const responseData = await res.json()
-    console.log('Server response for updateUser:', responseData)
-
     return responseData
   } else {
-    console.log('Using JSON for update (no image)')
     const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
       method: 'PUT',
       headers: {
@@ -986,6 +927,12 @@ export async function getAllUsersByStageRoles(): Promise<any> {
 // --- Роли (Roles) ---
 export async function getAllRoles(): Promise<any> {
   const res = await apiRequest('/roles')
+  return res
+}
+
+// Получить роли со связанными стадиями и их цветами
+export async function getRolesWithStages(): Promise<any> {
+  const res = await apiRequest('/roles?with=stages')
   return res
 }
 

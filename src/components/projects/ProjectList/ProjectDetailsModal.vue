@@ -19,7 +19,7 @@
           <div class="flex-1 flex flex-row h-full min-h-0">
             <!-- Левая часть: детали проекта -->
             <div
-              class="w-1/2 bg-gradient-to-br from-blue-200 via-purple-200 to-cyan-200 p-10 flex flex-col gap-8 border-r border-gray-200 min-w-[340px] overflow-y-auto"
+              class="w-1/2 bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 p-10 flex flex-col gap-8 border-r border-gray-200 min-w-[340px] overflow-y-auto"
             >
               <div>
                 <div class="flex items-center gap-4 mb-2">
@@ -40,9 +40,26 @@
                   {{ props.project?.title || '' }}
                 </div>
                 <div
-                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4"
+                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
                 >
-                  <div class="text-2xl font-extrabold text-blue-900 mb-2">Детали проекта</div>
+                  <div
+                    class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
+                  >
+                    <svg
+                      class="w-6 h-6 text-purple-600 transition-transform duration-300 group-hover:scale-110"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      ></path>
+                    </svg>
+                    Детали проекта
+                  </div>
                   <div class="flex flex-col gap-2">
                     <div
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
@@ -62,88 +79,14 @@
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
                       <span class="font-semibold">Клиент:</span>
-                      <div>
-                        <div v-if="!showClientSelect" class="flex items-center group">
-                          <span class="truncate">{{
-                            getClientNameById(getClientId(props.orders[0]?.client)) ||
-                            (props.project?.client
-                              ? `${props.project.client.name}${props.project.client.company_name ? ` (${props.project.client.company_name})` : ''}`
-                              : '-')
-                          }}</span>
-                          <button
-                            @click="showClientSelect = true"
-                            class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Изменить клиента"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              class="h-4 w-4 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.263-1.263l1-4a4 4 0 01.828-1.414z"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                        <div v-if="showClientSelect" class="flex items-center gap-2 mt-1">
-                          <Vue3Select
-                            v-model="selectedClientIdProxy"
-                            :options="allClients"
-                            label="name"
-                            :reduce="clientIdReduce"
-                            placeholder="Выберите клиента"
-                            :clearable="true"
-                            :searchable="true"
-                            class="w-64"
-                          />
-                          <button
-                            @click="confirmClient"
-                            class="p-1 rounded hover:bg-green-100 text-green-500"
-                            title="Подтвердить"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              class="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            @click="cancelClient"
-                            class="p-1 rounded hover:bg-red-100 text-red-500"
-                            title="Отмена"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              class="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                      <span class="text-gray-700 block truncate">
+                        {{
+                          getClientNameById(props.project.orders?.[0]?.client_id) ||
+                          (props.project?.client
+                            ? `${props.project.client.name}${props.project.client.company_name ? ` (${props.project.client.company_name})` : ''}`
+                            : '-')
+                        }}
+                      </span>
                       <span></span>
                     </div>
                     <div
@@ -274,8 +217,27 @@
             <!-- Правая часть: комментарии, связанные заказы и создание заказа -->
             <div class="w-1/2 flex flex-col gap-4 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
               <!-- Комментарии -->
-              <div class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col">
-                <div class="text-2xl font-extrabold text-blue-900 mb-2">Комментарии</div>
+              <div
+                class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+              >
+                <div
+                  class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
+                >
+                  <svg
+                    class="w-6 h-6 text-blue-600 transition-transform duration-300 group-hover:scale-110"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    ></path>
+                  </svg>
+                  Комментарии
+                </div>
                 <div>
                   <ul class="space-y-3">
                     <li
@@ -376,14 +338,14 @@
                     <button
                       @click="addComment"
                       type="button"
-                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition"
+                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
                       ОТПРАВИТЬ
                     </button>
                     <button
                       @click="cancelComment"
                       type="button"
-                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition"
+                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
                       ОТМЕНА
                     </button>
@@ -392,9 +354,26 @@
               </div>
               <!-- Связанные заказы -->
               <div
-                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4"
+                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
               >
-                <div class="text-2xl font-extrabold text-blue-900 mb-2">Связанные заказы</div>
+                <div
+                  class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
+                >
+                  <svg
+                    class="w-6 h-6 text-orange-600 transition-transform duration-300 group-hover:scale-110"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                    ></path>
+                  </svg>
+                  Связанные заказы
+                </div>
                 <div v-if="orders.length === 0" class="text-gray-500">Нет связанных заказов</div>
                 <div v-else class="flex flex-col gap-3">
                   <div
@@ -436,26 +415,6 @@
                   </div>
                 </div>
               </div>
-              <!-- Создать заказ -->
-              <div
-                v-if="canCreateEdit()"
-                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 flex flex-col gap-4"
-              >
-                <div class="text-2xl font-extrabold text-blue-900 mb-2">Создать заказ</div>
-                <OrderFormModal
-                  v-if="showOrderForm"
-                  :project-id="props.project.id"
-                  @close="showOrderForm = false"
-                  @submit="onOrderCreated"
-                />
-                <button
-                  v-else
-                  @click="showOrderForm = true"
-                  class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow font-bold transition border border-blue-600"
-                >
-                  Новый заказ
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -467,7 +426,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import EditableField from '@/components/ui/EditableField.vue'
-import OrderFormModal from '@/components/orders/OrderList/OrderFormModal.vue'
 import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
@@ -489,6 +447,7 @@ interface Project {
   total_price?: number | null
   payment_amount?: number | null
   status?: string
+  orders?: { client_id?: number }[]
 }
 interface Order {
   id: number
@@ -511,7 +470,6 @@ const emit = defineEmits([
   'edit-comment',
   'delete-comment',
   'open-order',
-  'order-created',
 ])
 
 function getClientId(client: any): number | undefined {
@@ -529,7 +487,6 @@ const props = defineProps<{
   assignments: { order_id: number; user_id: number }[]
 }>()
 
-const showOrderForm = ref(false)
 const newComment = ref('')
 const commentFocused = ref(false)
 
@@ -634,11 +591,6 @@ function onCommentBlur() {
 function cancelComment() {
   newComment.value = ''
   commentFocused.value = false
-}
-
-function onOrderCreated(order: Order) {
-  emit('order-created', order)
-  showOrderForm.value = false
 }
 
 function getStatusText(status: string) {

@@ -36,7 +36,9 @@
           </span>
         </div>
         <div class="order-row">
-          <span class="order-value order-status">{{ getStageLabel(order.stage) }}</span>
+          <span class="order-value order-status">{{
+            getStageLabel(order.stage?.name || order.stage)
+          }}</span>
         </div>
       </div>
       <div v-if="order.description" class="order-description">
@@ -114,7 +116,8 @@ const cardBgClass = computed(() => {
 })
 
 const stageClass = computed(() => {
-  switch (props.order.stage) {
+  const stageName = props.order.stage?.name || props.order.stage
+  switch (stageName) {
     case 'draft':
       return 'stage-draft'
     case 'design':

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Тест удаления ролей</title>
+    </head>
+    <body>
+        <h1>Тест удаления ролей</h1>
+        <div>
+            <h2>Проверка токена</h2>
+            <button onclick="checkToken()">Проверить токен</button>
+            <div id="token-status"></div>
+        </div>
+        <div>
+            <h2>Проверка прав доступа</h2>
+            <button onclick="checkPermissions()">Проверить права</button>
+            <div id="permissions-status"></div>
+        </div>
+        <div>
+            <h2>Список ролей</h2>
+            <button onclick="loadRoles()">Загрузить роли</button>
+            <div id="roles-list"></div>
+        </div>
+        <div>
+            <h2>Тест удаления роли</h2>
+            <input
+                type="number"
+                id="roleId"
+                placeholder="ID роли"
+                value="10"
+            >
+            <button onclick="testDeleteRole()">Удалить роль</button>
+            <div id="delete-status"></div>
+        </div>
+        <script>
+        function checkToken() {
+            const token = localStorage.getItem('auth_token');
+            const status = document.getElementById('token-status');
+            if (token) {
+                status.innerHTML = `<p style="color: green;">✅ Токен найден: ${token.substring(0, 20)}...</p>`;
+            } else {
+                status.innerHTML = '<p style="color: red;">❌ Токен не найден</p>';
+            }
+        }
+
+        function checkPermissions() {
+            const userStr = localStorage.getItem('user');
+            const status = document.getElementById('permissions-status');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                const isAdmin = user.roles && user.roles.some(r => r.name === 'admin');
+                status.innerHTML = `
+                    <p>Пользователь: ${user.name || user.email}</p>
+                    <p>Роли: ${user.roles ? user.roles.map(r => r.name).join(', ') : 'Нет ролей'}</p>
+                    <p style="color: ${isAdmin ? 'green' : 'red'};">Админ: ${isAdmin ? 'Да' : 'Нет'}</p>
+                `;
+            } else {
+                status.innerHTML = '<p style="color: red;">❌ Пользователь не найден</p>';
+            }
+        }
+
+        async function loadRoles() {
+            const status = document.getElementById('roles-list');
+            
+            try {
+                status.innerHTML = '<p>🔄 Загружаем роли...</p>';
+                
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    status.innerHTML = '<p style="color: red;">❌ Нет токена авторизации</p>';
+                    return;
+                }
+
+                const response = await fetch('http://localhost:8000/api/roles', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    const roles = await response.json();
+                    status.innerHTML = `
+                        <h3>Доступные роли:</h3>
+                        <ul>
+                            ${roles.map(role => `
+                                <li>
+                                    <strong>${role.display_name}</strong> (${role.name}) - ID: ${role.id}
+                                    <br>
+                                    <small>Пользователей: ${role.users_count || 0}</small>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    status.innerHTML = `<p style="color: red;">❌ Ошибка: ${response.status} - ${errorData.message || response.statusText}</p>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<p style="color: red;">❌ Ошибка сети: ${error.message}</p>`;
+            }
+        }
+
+        async function testDeleteRole() {
+            const roleId = document.getElementById('roleId').value;
+            const status = document.getElementById('delete-status');
+            
+            try {
+                status.innerHTML = '<p>🔄 Удаляем роль...</p>';
+                
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    status.innerHTML = '<p style="color: red;">❌ Нет токена авторизации</p>';
+                    return;
+                }
+
+                const response = await fetch(`http://localhost:8000/api/roles/${roleId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    status.innerHTML = '<p style="color: green;">✅ Роль успешно удалена</p>';
+                } else {
+                    const errorData = await response.json();
+                    status.innerHTML = `<p style="color: red;">❌ Ошибка: ${response.status} - ${errorData.message || response.statusText}</p>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<p style="color: red;">❌ Ошибка сети: ${error.message}</p>`;
+            }
+        }
+
+        // Автоматически проверить при загрузке
+        window.onload = function() {
+            checkToken();
+            checkPermissions();
+        };
+        </script>
+    </body>
+</html>

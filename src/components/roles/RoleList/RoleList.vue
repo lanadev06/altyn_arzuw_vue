@@ -170,7 +170,8 @@ import RoleFormModal from './RoleFormModal.vue'
 import Pagination from '../../users/UserList/Pagination.vue'
 import Sortable from 'sortablejs'
 import type { Role } from '../../../types/role'
-import { canCreateEdit } from '../../../utils/permissions'
+import { canCreateEdit, canDelete } from '../../../utils/permissions'
+import { useToast } from '../../../stores/toast'
 
 const props = defineProps<{
   search?: string
@@ -178,16 +179,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits(['close-create-modal', 'open-create-modal'])
 
-const roles = ref<Role[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-const showEditModal = ref(false)
-const editingRole = ref<Role | null>(null)
-const sortBy = ref('id')
-const sortOrder = ref<'asc' | 'desc'>('asc')
-const currentPage = ref(1)
-const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const toast = useToast()
+
 const pagination = ref<{
   current_page: number
   last_page: number
@@ -202,6 +195,18 @@ const COLUMNS_KEY = 'roleList_columns'
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY) as 'asc' | 'desc' | null
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('roleList_perPage')
+
+const roles = ref<Role[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showEditModal = ref(false)
+const editingRole = ref<Role | null>(null)
+const sortBy = ref('id')
+const sortOrder = ref<'asc' | 'desc'>('asc')
+const currentPage = ref(1)
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
 const columns = ref(
   savedColumns
@@ -329,12 +334,36 @@ const handleUpdateRole = async (roleData: {
 
 const handleDeleteRole = async (roleId: number) => {
   try {
+    console.log('🔄 Начинаем удаление роли:', roleId)
+
+    // Проверяем права доступа
+    if (!canDelete()) {
+      alert('У вас нет прав для удаления ролей')
+      return
+    }
+    console.log('✅ Права доступа проверены')
+
+    // Проверяем токен авторизации
+    const token = localStorage.getItem('auth_token')
+    if (!token) {
+      alert('Необходима авторизация для удаления роли')
+      return
+    }
+    console.log('✅ Токен авторизации найден')
+
     await RoleController.delete(roleId)
+    console.log('✅ Роль успешно удалена:', roleId)
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
   } catch (err: unknown) {
-    console.error('Ошибка удаления:', err)
+    console.error('❌ Ошибка удаления роли:', roleId, err)
+    // Показываем ошибку пользователю
+    if (err instanceof Error) {
+      toast.show(`Ошибка удаления роли: ${err.message}`, 'error')
+    } else {
+      toast.show('Произошла неизвестная ошибка при удалении роли', 'error')
+    }
   }
 }
 
@@ -352,6 +381,7 @@ function validatePerPage(val: number) {
 
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('roleList_perPage', perPage.value.toString())
   goToPage(1)
 }
 
@@ -380,4 +410,10 @@ watch(
     // Search is handled by computed property
   },
 )
+
+watch(perPage, (newVal) => {
+  perPage.value = validatePerPage(newVal)
+  localStorage.setItem('roleList_perPage', perPage.value.toString())
+  goToPage(1)
+})
 </script>

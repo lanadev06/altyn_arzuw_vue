@@ -57,18 +57,6 @@
         </p>
       </div>
 
-      <!-- Активность -->
-      <div>
-        <label class="flex items-center">
-          <input
-            v-model="form.is_active"
-            type="checkbox"
-            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-          />
-          <span class="ml-2 text-sm text-gray-700">Активная стадия</span>
-        </label>
-      </div>
-
       <!-- Цвет стадии -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -169,7 +157,7 @@
         </UIButton>
         <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
         <UIButton
-          v-if="stage"
+          v-if="stage && canDelete()"
           type="button"
           variant="danger"
           @click="handleDelete"
@@ -191,6 +179,7 @@ import type { Stage } from '../../../types/stage'
 import type { Role } from '../../../types/role'
 import { getAvailableRoles } from '../../../services/api'
 import { AVAILABLE_COLORS } from '../../../utils/stageColors'
+import { canDelete } from '../../../utils/permissions'
 
 const props = defineProps<{
   stage?: Stage | null
@@ -231,7 +220,6 @@ const form = reactive({
   display_name: '',
   description: '',
   order: 1,
-  is_active: true,
   color: '#3b82f6', // Default color
 })
 
@@ -242,7 +230,6 @@ const initializeForm = () => {
     form.display_name = props.stage.display_name
     form.description = props.stage.description || '' // Исправлено: используем пустую строку для null/undefined
     form.order = props.stage.order
-    form.is_active = props.stage.is_active
     form.color = props.stage.color || '#3b82f6' // Initialize color
 
     // Загружаем связанные роли
@@ -319,7 +306,6 @@ const handleSubmit = async () => {
       display_name: form.display_name,
       description: form.description.trim() || null, // Исправлено: используем trim() и null вместо undefined
       order: form.order,
-      is_active: form.is_active,
       color: form.color, // Добавляем цвет
       roles: selectedRoles.value, // Добавляем выбранные роли
     }

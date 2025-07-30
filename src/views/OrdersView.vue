@@ -88,7 +88,7 @@ const filteredKanbanOrders = computed(() => {
       String(order.id).includes(q) ||
       (order.product?.name && String(order.product.name).toLowerCase().includes(q)) ||
       (order.client?.name && String(order.client.name).toLowerCase().includes(q)) ||
-      (typeof order.stage === 'string' && order.stage.toLowerCase().includes(q))
+              (typeof (order.stage?.name || order.stage) === 'string' && (order.stage?.name || order.stage).toLowerCase().includes(q))
     )
   })
 })
@@ -216,14 +216,8 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     orderListRef.value?.loadOrders()
     const updatedOrder = orders.value.find((o) => o.id === orderId)
     if (updatedOrder) {
-      console.log('🔍 Заказ после обновления:', {
-        id: updatedOrder.id,
-        oldStage: order.stage,
-        newStage: updatedOrder.stage,
-        expectedStage: newStatus,
-      })
     } else {
-      console.log('❌ Заказ не найден после обновления')
+
     }
   } catch (error: any) {
     console.error('❌ Ошибка обновления статуса:', error)

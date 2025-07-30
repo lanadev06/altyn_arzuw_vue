@@ -33,7 +33,7 @@
               class="text-emerald-500"
               stroke-width="8"
               :stroke-dasharray="276.46"
-              :stroke-dashoffset="276.46 - (dashboardStats.completed_percent / 100) * 276.46"
+              :stroke-dashoffset="276.46 - (dashboardStats.percent_completed / 100) * 276.46"
               stroke-linecap="round"
               stroke="currentColor"
               fill="transparent"
@@ -44,9 +44,9 @@
             />
           </svg>
           <span class="text-2xl font-extrabold text-emerald-600 mt-2">{{
-            isNaN(Number(dashboardStats.completed_percent))
+            isNaN(Number(dashboardStats.percent_completed))
               ? '—'
-              : dashboardStats.completed_percent + '%'
+              : dashboardStats.percent_completed + '%'
           }}</span>
           <span class="text-base font-semibold text-gray-700 mt-1">Завершённых заказов</span>
           <span class="text-xs text-gray-400 mt-1">% от всех заказов</span>
@@ -69,7 +69,7 @@
               class="text-red-500"
               stroke-width="8"
               :stroke-dasharray="276.46"
-              :stroke-dashoffset="276.46 - (dashboardStats.cancelled_percent / 100) * 276.46"
+              :stroke-dashoffset="276.46 - (dashboardStats.percent_cancelled / 100) * 276.46"
               stroke-linecap="round"
               stroke="currentColor"
               fill="transparent"
@@ -80,9 +80,9 @@
             />
           </svg>
           <span class="text-2xl font-extrabold text-red-600 mt-2">{{
-            isNaN(Number(dashboardStats.cancelled_percent))
+            isNaN(Number(dashboardStats.percent_cancelled))
               ? '—'
-              : dashboardStats.cancelled_percent + '%'
+              : dashboardStats.percent_cancelled + '%'
           }}</span>
           <span class="text-base font-semibold text-gray-700 mt-1">Отменённых заказов</span>
           <span class="text-xs text-gray-400 mt-1">% от всех заказов</span>
@@ -100,13 +100,16 @@
           <div class="font-extrabold text-xl mb-6 text-gray-900 tracking-wide">
             Заказы по стадиям
           </div>
-          <div class="flex flex-col gap-6">
+          <div v-if="allStages.length > 0" class="flex flex-col gap-6">
             <div
               v-for="stage in allStages"
               :key="stage"
               class="flex items-center gap-6 group hover:scale-[1.03] hover:shadow-lg transition-all duration-300 rounded-xl px-3 py-2 cursor-pointer"
             >
-              <span :class="['w-6 h-6 rounded-full', stageColor(stage)]"></span>
+              <span
+                :class="['w-6 h-6 rounded-full', stageColor(stage)]"
+                :style="stageColorStyle(stage)"
+              ></span>
               <span class="w-40 font-semibold text-lg text-gray-900 tracking-tight">{{
                 stageLabel(stage)
               }}</span>
@@ -115,6 +118,7 @@
                   class="h-5 rounded-full transition-all duration-500"
                   :class="stageColor(stage)"
                   :style="{
+                    ...stageColorStyle(stage),
                     width:
                       (getStageCount(stage) /
                         Math.max(...allStages.map((s) => getStageCount(s)), 1)) *
@@ -128,6 +132,7 @@
               }}</span>
             </div>
           </div>
+          <div v-else class="text-center text-gray-500 py-8">Загрузка стадий...</div>
         </div>
         <!-- Задержанные назначения -->
         <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[420px] overflow-y-auto">
@@ -152,7 +157,10 @@
                   >#{{ item.order_id }}</span
                 >
                 <span class="flex items-center gap-2">
-                  <span :class="['w-4 h-4 rounded-full', stageColor(item.order_stage)]"></span>
+                  <span
+                    :class="['w-4 h-4 rounded-full', stageColor(item.order_stage)]"
+                    :style="stageColorStyle(item.order_stage)"
+                  ></span>
                   <span class="text-gray-700">{{ stageLabel(item.order_stage) }}</span>
                 </span>
                 <span
@@ -214,21 +222,14 @@
                 <span class="font-medium text-gray-900">{{ order.product_name }}</span>
                 <span
                   class="px-2 py-0.5 rounded text-xs font-semibold"
-                  :class="
-                    statusBadgeClass(
-                      order.stage === 'completed'
-                        ? 'completed'
-                        : order.stage === 'cancelled'
-                          ? 'cancelled'
-                          : order.status,
-                    )
-                  "
+                  :class="stageColor(order.stage?.name || order.stage)"
+                  :style="stageColorStyle(order.stage?.name || order.stage)"
                   >{{
-                    order.stage === 'completed'
+                    (order.stage?.name || order.stage) === 'completed'
                       ? 'Завершён'
-                      : order.stage === 'cancelled'
+                      : (order.stage?.name || order.stage) === 'cancelled'
                         ? 'Отменён'
-                        : stageLabel(order.stage)
+                        : stageLabel(order.stage?.name || order.stage)
                   }}</span
                 >
               </span>
@@ -263,7 +264,9 @@ import { ref, onMounted } from 'vue'
 import { authApi } from '../services/api'
 import { canViewAllUsers, canViewAllClients, canCreateEdit } from '../utils/permissions'
 import { safeApiRequest, safeProcessActivityData } from '../utils/safeData'
+import { getContrastColor } from '../utils/stageColors'
 import axios from 'axios'
+import { API_CONFIG } from '../config/api'
 
 const router = useRouter()
 
@@ -284,22 +287,15 @@ const dashboardStats = ref({
   orders_by_user: [],
   closed_last_30_days: 0,
   delayed_assignments: 0,
+  delayed_assignments_list: [],
   percent_completed: 0,
   percent_cancelled: 0,
 })
 
 const delayedAssignmentsList = ref([])
 
-const allStages = [
-  'draft',
-  'design',
-  'print',
-  'engraving',
-  'workshop',
-  'final',
-  'completed',
-  'cancelled',
-]
+const allStages = ref([])
+const stagesData = ref([])
 
 const showOrderDetailsModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
@@ -314,17 +310,37 @@ function hasRole(user, roleName) {
 }
 
 function stageColor(stage) {
-  const map = {
-    draft: 'bg-gray-400',
-    design: 'bg-blue-500',
-    print: 'bg-yellow-400',
-    engraving: 'bg-orange-500',
-    workshop: 'bg-purple-500',
-    final: 'bg-green-500',
-    completed: 'bg-emerald-500',
-    cancelled: 'bg-red-500',
+  // Сначала ищем в динамических данных
+  const stageData = stagesData.value.find((s) => s.name === stage)
+  if (stageData && stageData.color) {
+    // Используем inline стили для кастомных цветов
+    return 'text-white'
   }
-  return map[stage] || 'bg-gray-300'
+
+  // Fallback на статические Tailwind классы
+  const map = {
+    draft: 'bg-gray-500 text-white',
+    design: 'bg-blue-500 text-white',
+    print: 'bg-yellow-500 text-gray-900',
+    engraving: 'bg-orange-500 text-white',
+    workshop: 'bg-purple-500 text-white',
+    final: 'bg-green-500 text-white',
+    completed: 'bg-emerald-500 text-white',
+    cancelled: 'bg-red-500 text-white',
+  }
+  return map[stage] || 'bg-gray-400 text-white'
+}
+
+function stageColorStyle(stage) {
+  // Сначала ищем в динамических данных
+  const stageData = stagesData.value.find((s) => s.name === stage)
+  if (stageData && stageData.color) {
+    return {
+      backgroundColor: stageData.color,
+      color: getContrastColor(stageData.color),
+    }
+  }
+  return {}
 }
 function statusBadgeClass(status) {
   const map = {
@@ -339,6 +355,13 @@ function statusBadgeClass(status) {
 }
 
 function stageLabel(stage) {
+  // Сначала ищем в динамических данных
+  const stageData = stagesData.value.find((s) => s.name === stage)
+  if (stageData && stageData.display_name) {
+    return stageData.display_name
+  }
+
+  // Fallback на статические названия
   const map = {
     draft: 'Черновик',
     design: 'Дизайн',
@@ -353,9 +376,12 @@ function stageLabel(stage) {
 }
 
 function getStageCount(stage) {
-  return dashboardStats.value.orders_by_stage && dashboardStats.value.orders_by_stage[stage]
-    ? dashboardStats.value.orders_by_stage[stage]
-    : 0
+  // Проверяем, есть ли данные о заказах по стадиям
+  if (!dashboardStats.value.orders_by_stage) return 0
+
+  // Ищем количество заказов для данной стадии
+  const count = dashboardStats.value.orders_by_stage[stage]
+  return count || 0
 }
 
 function statusLabel(status) {
@@ -391,7 +417,7 @@ onMounted(async () => {
     // Уведомления
     try {
       const token = localStorage.getItem('auth_token')
-      const res = await axios.get('/api/notifications/unread', {
+      const res = await axios.get(`${API_CONFIG.BASE_URL}/notifications/unread`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -400,7 +426,7 @@ onMounted(async () => {
       if (notifications.value.length > 0) {
         // Пометить все как прочитанные
         await axios.post(
-          '/api/notifications/read-all',
+          `${API_CONFIG.BASE_URL}/notifications/read-all`,
           {},
           {
             headers: {
@@ -414,16 +440,60 @@ onMounted(async () => {
       notifications.value = []
     }
 
+    // Загрузка стадий
+    try {
+      const stagesRes = await safeApiRequest<any[]>('/api/stages')
+      if (Array.isArray(stagesRes)) {
+        stagesData.value = stagesRes
+        allStages.value = stagesRes.map((s) => s.name)
+      } else {
+        // Fallback на статические стадии
+        allStages.value = [
+          'draft',
+          'design',
+          'print',
+          'engraving',
+          'workshop',
+          'final',
+          'completed',
+          'cancelled',
+        ]
+      }
+    } catch (stagesError) {
+      console.error('Ошибка загрузки стадий:', stagesError)
+      // Fallback на статические стадии
+      allStages.value = [
+        'draft',
+        'design',
+        'print',
+        'engraving',
+        'workshop',
+        'final',
+        'completed',
+        'cancelled',
+      ]
+    }
+
     // Новый эндпоинт для дашборда
     try {
       const token = localStorage.getItem('auth_token')
-      const res = await axios.get('/api/stats/dashboard', {
+      const res = await axios.get(`${API_CONFIG.BASE_URL}/stats/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       dashboardStats.value = res.data
       delayedAssignmentsList.value = res.data.delayed_assignments_list || []
     } catch (e) {
       console.error('Ошибка загрузки dashboard stats:', e)
+      // Устанавливаем значения по умолчанию при ошибке
+      dashboardStats.value = {
+        orders_by_stage: {},
+        orders_by_user: [],
+        closed_last_30_days: 0,
+        delayed_assignments: 0,
+        delayed_assignments_list: [],
+        percent_completed: 0,
+        percent_cancelled: 0,
+      }
     }
   } catch (e) {
     console.error('Ошибка загрузки данных дашборда:', e)

@@ -4,7 +4,6 @@ export interface Stage {
   display_name: string
   description?: string | null
   order: number
-  is_active: boolean
   color?: string
   created_at: string
   updated_at: string
@@ -22,7 +21,8 @@ export interface CreateStageRequest {
   display_name: string
   description?: string
   order?: number
-  is_active?: boolean
+  color?: string
+  roles?: Array<{ role_id: number }>
 }
 
 export interface UpdateStageRequest {
@@ -30,7 +30,8 @@ export interface UpdateStageRequest {
   display_name?: string
   description?: string
   order?: number
-  is_active?: boolean
+  color?: string
+  roles?: Array<{ role_id: number }>
 }
 
 export interface ReorderStagesRequest {

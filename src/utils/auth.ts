@@ -35,7 +35,7 @@ export function setAuth(token: string, user: any): void {
  * Handle 401 Unauthorized errors - clear auth and redirect to login
  */
 export function handle401Error(message?: string): void {
-  console.log('🚨 401 Unauthorized - clearing auth and redirecting to login')
+  
   clearAuth()
 
   // Show message if provided

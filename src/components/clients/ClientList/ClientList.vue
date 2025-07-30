@@ -164,10 +164,13 @@ import Pagination from '@/components/users/UserList/Pagination.vue'
 import type { Client } from '@/types/client'
 import { ClientController } from '@/controllers/ClientController'
 import ContactTypeIcon from './ContactTypeIcon.vue'
+import { useToast } from '@/stores/toast'
 
 const props = defineProps({
   search: { type: String, default: '' },
 })
+
+const toast = useToast()
 
 // Загружаем порядок колонок из localStorage или используем по умолчанию
 const defaultColumns = [
@@ -180,6 +183,7 @@ const defaultColumns = [
 ]
 
 const savedColumns = localStorage.getItem('clientList_columns')
+const savedPerPage = localStorage.getItem('clientList_perPage')
 const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
 const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
@@ -191,7 +195,7 @@ const editingClient = ref<Client | null>(null)
 const columnsHeader = ref<HTMLElement | null>(null)
 const currentPage = ref(1)
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
 function validatePerPage(val: number) {
   if (!allowedPerPage.includes(val)) return 30
@@ -200,6 +204,7 @@ function validatePerPage(val: number) {
 
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('clientList_perPage', perPage.value.toString())
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -221,9 +226,13 @@ function resetSettings() {
   // Сбрасываем сортировку
   setSort('id', props.search)
 
+  // Сбрасываем размер страницы
+  perPage.value = 30
+  localStorage.setItem('clientList_perPage', perPage.value.toString())
+
   // Сбрасываем страницу
   currentPage.value = 1
-  fetchClients(1, props.search, sortBy.value, sortOrder.value)
+  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
@@ -258,13 +267,27 @@ async function handleUpdateClient(updatedClient: Client) {
 }
 
 async function handleDeleteClient(clientId: number) {
-  await remove(clientId)
-  showEditModal.value = false
-  editingClient.value = null
-  if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
-    currentPage.value--
+  try {
+    console.log('🔄 Начинаем удаление клиента:', clientId)
+    await remove(clientId)
+    console.log('✅ Клиент успешно удален:', clientId)
+    showEditModal.value = false
+    editingClient.value = null
+    if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
+      currentPage.value--
+    }
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  } catch (err: any) {
+    console.error('❌ Ошибка удаления клиента:', clientId, err)
+    // Показываем ошибку пользователю
+    let message = 'Произошла неизвестная ошибка при удалении клиента'
+    if (err?.response?.data?.message) {
+      message = err.response.data.message
+    } else if (err instanceof Error && err.message) {
+      message = `Ошибка удаления клиента: ${err.message}`
+    }
+    toast.show(message, 'error')
   }
-  await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -314,6 +337,7 @@ onMounted(async () => {
 
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
+  localStorage.setItem('clientList_perPage', perPage.value.toString())
   fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
   currentPage.value = 1
 })

@@ -51,7 +51,7 @@ class StageController {
     try {
       await stageApi.delete(id)
     } catch (error) {
-      console.error('Error deleting stage:', error)
+      console.error('❌ Error deleting stage:', id, error)
       throw error
     }
   }

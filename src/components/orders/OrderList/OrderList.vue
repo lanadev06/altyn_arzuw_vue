@@ -134,10 +134,10 @@
                     <!-- ❌ FALLBACK: Старая система (для обратной совместимости) -->
                     <span
                       v-else
-                      :class="getStatusClass(item.stage || item.current_stage || '')"
+                      :class="getStatusClass(item.stage?.name || item.current_stage || '')"
                       class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer"
                     >
-                      {{ getStatusText(item.stage || item.current_stage || '') }}
+                      {{ getStatusText(item.stage?.name || item.current_stage || '') }}
                     </span>
                     <span
                       v-if="item.is_archived"
@@ -224,6 +224,7 @@ const COLUMNS_KEY = 'orderList_columns'
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('orderList_perPage')
 
 const defaultColumns = [
   { key: 'id', label: 'ID', sortable: true },
@@ -252,7 +253,7 @@ const selectedArchive = ref('')
 const selectedAssignmentStatus = ref('')
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 function validatePerPage(val) {
   if (!allowedPerPage.includes(val)) return 30
   return val
@@ -260,16 +261,14 @@ function validatePerPage(val) {
 
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('orderList_perPage', perPage.value.toString())
   loadOrders(1)
 }
 
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
+  localStorage.setItem('orderList_perPage', perPage.value.toString())
   loadOrders(1)
-})
-
-watch(orders, (val) => {
-  console.log('orders changed in OrderList', val)
 })
 
 function loadOrders(page = 1) {
@@ -313,6 +312,8 @@ function resetSettings() {
   sortOrder.value = 'asc'
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  perPage.value = 30
+  localStorage.setItem('orderList_perPage', perPage.value.toString())
   loadOrders(1)
 }
 

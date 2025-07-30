@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Тест удаления стадий</title>
+    </head>
+    <body>
+        <h1>Тест удаления стадий</h1>
+        <div>
+            <h2>Проверка токена</h2>
+            <button onclick="checkToken()">Проверить токен</button>
+            <div id="token-status"></div>
+        </div>
+        <div>
+            <h2>Проверка прав доступа</h2>
+            <button onclick="checkPermissions()">Проверить права</button>
+            <div id="permissions-status"></div>
+        </div>
+        <div>
+            <h2>Тест удаления стадии</h2>
+            <input
+                type="number"
+                id="stageId"
+                placeholder="ID стадии"
+                value="13"
+            >
+            <button onclick="testDeleteStage()">Удалить стадию</button>
+            <div id="delete-status"></div>
+        </div>
+        <script>
+        function checkToken() {
+            const token = localStorage.getItem('auth_token');
+            const status = document.getElementById('token-status');
+            if (token) {
+                status.innerHTML = `<p style="color: green;">✅ Токен найден: ${token.substring(0, 20)}...</p>`;
+            } else {
+                status.innerHTML = '<p style="color: red;">❌ Токен не найден</p>';
+            }
+        }
+
+        function checkPermissions() {
+            const userStr = localStorage.getItem('user');
+            const status = document.getElementById('permissions-status');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                const isAdmin = user.roles && user.roles.some(r => r.name === 'admin');
+                status.innerHTML = `
+                    <p>Пользователь: ${user.name || user.email}</p>
+                    <p>Роли: ${user.roles ? user.roles.map(r => r.name).join(', ') : 'Нет ролей'}</p>
+                    <p style="color: ${isAdmin ? 'green' : 'red'};">Админ: ${isAdmin ? 'Да' : 'Нет'}</p>
+                `;
+            } else {
+                status.innerHTML = '<p style="color: red;">❌ Пользователь не найден</p>';
+            }
+        }
+
+        async function testDeleteStage() {
+            const stageId = document.getElementById('stageId').value;
+            const status = document.getElementById('delete-status');
+            
+            try {
+                status.innerHTML = '<p>🔄 Удаляем стадию...</p>';
+                
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    status.innerHTML = '<p style="color: red;">❌ Нет токена авторизации</p>';
+                    return;
+                }
+
+                const response = await fetch(`http://localhost:8000/api/stages/${stageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    status.innerHTML = '<p style="color: green;">✅ Стадия успешно удалена</p>';
+                } else {
+                    const errorData = await response.json();
+                    status.innerHTML = `<p style="color: red;">❌ Ошибка: ${response.status} - ${errorData.message || response.statusText}</p>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<p style="color: red;">❌ Ошибка сети: ${error.message}</p>`;
+            }
+        }
+
+        // Автоматически проверить при загрузке
+        window.onload = function() {
+            checkToken();
+            checkPermissions();
+        };
+        </script>
+    </body>
+</html>

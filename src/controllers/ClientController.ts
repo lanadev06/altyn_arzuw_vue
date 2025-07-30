@@ -38,7 +38,6 @@ export function ClientController() {
     error.value = ''
     try {
       const res = await getClients({ page, search, sort_by, sort_order, per_page })
-      console.log('🔍 API Response:', res)
 
       // Проверяем структуру ответа
       if (res.data && Array.isArray(res.data)) {
@@ -57,8 +56,6 @@ export function ClientController() {
         pagination.per_page = per_page || 30
         clients.value = Array.isArray(res) ? res : []
       }
-
-      console.log('🔍 Pagination after update:', pagination)
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки клиентов'
       console.error('❌ fetchClients error:', e)

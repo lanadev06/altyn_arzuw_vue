@@ -9,6 +9,7 @@ import {
   getUsersByRole,
 } from '@/services/api'
 import type { User, UserRole, CreateUserData, UpdateUserData } from '@/types/user'
+import { getRoleLabel as getRoleLabelFromUtils, getRoleColorClasses } from '@/utils/roleColors'
 import axios from 'axios'
 
 export function useUserController() {
@@ -41,17 +42,18 @@ export function useUserController() {
     loading.value = true
     error.value = ''
     try {
+      // Используем правильный параметр сортировки
+      const sortByParam = getSortByParam(sort_by)
+
       const res = await getUsers({
         page,
         search,
-        sort_by,
+        sort_by: sortByParam,
         sort_order,
         per_page,
         role,
         is_active,
       })
-
-      console.log('🔍 Users API Response:', res)
 
       // Проверяем структуру ответа
       if (res.data && Array.isArray(res.data)) {
@@ -70,8 +72,6 @@ export function useUserController() {
         pagination.per_page = 30
         users.value = Array.isArray(res) ? res : []
       }
-
-      console.log('🔍 Users Pagination after update:', pagination)
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки пользователей'
       console.error('❌ fetchUsers error:', e)
@@ -106,6 +106,11 @@ export function useUserController() {
     }
   }
 
+  // Вспомогательная функция для получения правильного параметра сортировки
+  function getSortByParam(sortKey: string): string {
+    return sortKey
+  }
+
   function setSort(key: string, search = '') {
     if (sortBy.value === key) {
       sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
@@ -118,20 +123,17 @@ export function useUserController() {
     localStorage.setItem('userList_sortBy', sortBy.value)
     localStorage.setItem('userList_sortOrder', sortOrder.value)
 
-    fetchUsers(1, search, sortBy.value, sortOrder.value)
+    // Используем правильный параметр сортировки
+    const sortByParam = getSortByParam(key)
+    fetchUsers(1, search, sortByParam, sortOrder.value)
   }
 
   async function create(userData: any) {
-    console.log('UserController.create called with:', userData)
-    console.log('userData.image type:', typeof userData.image)
-    console.log('userData.image instanceof File:', userData.image instanceof File)
-    console.log('userData.image:', userData.image)
-
     loading.value = true
     try {
       const created = await createUser(userData)
       // Удалён отдельный PATCH-запрос на /users/{id}/roles
-      await fetchUsers(pagination.current_page)
+      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return created
     } finally {
       loading.value = false
@@ -139,16 +141,11 @@ export function useUserController() {
   }
 
   async function update(id: number, userData: any) {
-    console.log('UserController.update called with id:', id, 'data:', userData)
-    console.log('userData.image type:', typeof userData.image)
-    console.log('userData.image instanceof File:', userData.image instanceof File)
-    console.log('userData.image:', userData.image)
-
     loading.value = true
     try {
       const updated = await updateUser(id, userData)
       // Удалён отдельный PATCH-запрос на /users/{id}/roles
-      await fetchUsers(pagination.current_page)
+      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return updated
     } finally {
       loading.value = false
@@ -159,7 +156,7 @@ export function useUserController() {
     loading.value = true
     try {
       await deleteUser(id)
-      await fetchUsers(page)
+      await fetchUsers(page, '', sortBy.value, sortOrder.value)
     } finally {
       loading.value = false
     }
@@ -169,7 +166,7 @@ export function useUserController() {
     loading.value = true
     try {
       const result = await toggleUserActive(id)
-      await fetchUsers(pagination.current_page)
+      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return result
     } finally {
       loading.value = false
@@ -178,26 +175,12 @@ export function useUserController() {
 
   // Функция для получения метки роли
   function getRoleLabel(role: string): string {
-    const labels: Record<string, string> = {
-      admin: 'Администратор',
-      manager: 'Менеджер',
-      designer: 'Дизайнер',
-      print_operator: 'Печатник',
-      workshop_worker: 'Работник цеха',
-    }
-    return labels[role] || role
+    return getRoleLabelFromUtils(role)
   }
 
   // Функция для получения класса бейджа роли
-  function getRoleBadgeClass(role: string): string {
-    const classes: Record<string, string> = {
-      admin: 'bg-red-100 text-red-800',
-      manager: 'bg-blue-100 text-blue-800',
-      designer: 'bg-green-100 text-green-800',
-      print_operator: 'bg-yellow-100 text-yellow-800',
-      workshop_worker: 'bg-purple-100 text-purple-800',
-    }
-    return classes[role] || 'bg-gray-100 text-gray-800'
+  function getRoleBadgeClass(role: string, roleData?: any, stagesData?: any[]): string {
+    return getRoleColorClasses(role, roleData, stagesData)
   }
 
   return {

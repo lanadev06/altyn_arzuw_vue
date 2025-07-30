@@ -40,9 +40,7 @@ class RoleController {
 
   async update(id: number, data: UpdateRoleRequest): Promise<Role> {
     try {
-      console.log('🔄 RoleController.update вызван с:', { id, data })
       const response = await roleApi.update(id, data)
-      console.log('✅ RoleController.update ответ:', response)
       return response
     } catch (error) {
       console.error('❌ Error updating role:', error)
@@ -54,7 +52,7 @@ class RoleController {
     try {
       await roleApi.delete(id)
     } catch (error) {
-      console.error('Error deleting role:', error)
+      console.error('❌ Error deleting role:', id, error)
       throw error
     }
   }

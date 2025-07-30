@@ -229,10 +229,16 @@ const loading = ref(false)
 const selectedLog = ref<AuditLog | null>(null)
 const users = ref([])
 
+// Ключи для localStorage
+const AUDIT_PER_PAGE_KEY = 'auditLogList_perPage'
+
+// Сохраненные настройки
+const savedPerPage = localStorage.getItem(AUDIT_PER_PAGE_KEY)
+
 // Фильтры
 const filters = ref<AuditLogFilters>({
   page: 1,
-  per_page: 30,
+  per_page: savedPerPage ? parseInt(savedPerPage) : 30,
 })
 
 // Пагинация
@@ -290,6 +296,7 @@ const clearFilters = () => {
     page: 1,
     per_page: 30,
   }
+  localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
   loadLogs()
 }
 
@@ -340,6 +347,7 @@ function validatePerPage(val) {
 }
 function changePerPage() {
   filters.value.per_page = validatePerPage(filters.value.per_page)
+  localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
   filters.value.page = 1
   loadLogs()
 }
@@ -347,6 +355,7 @@ watch(
   () => filters.value.per_page,
   (newVal) => {
     filters.value.per_page = validatePerPage(newVal)
+    localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
     filters.value.page = 1
     loadLogs()
   },

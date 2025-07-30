@@ -43,21 +43,6 @@ export function ProductController() {
         pagination.per_page = res.per_page || 30
       }
       products.value = pagination.data
-
-      console.log('fetchProducts завершён, pagination.data:', pagination.data)
-      console.log(
-        'Sample product with assignments:',
-        pagination.data[0]
-          ? {
-              id: pagination.data[0].id,
-              name: pagination.data[0].name,
-              designers: pagination.data[0].designers,
-              print_operators: pagination.data[0].print_operators,
-              engraving_operators: pagination.data[0].engraving_operators,
-              workshop_workers: pagination.data[0].workshop_workers,
-            }
-          : 'No products',
-      )
     } catch (e: any) {
       console.error('❌ Error in fetchProducts:', e)
       error.value = e.message || 'Ошибка загрузки товаров'
@@ -80,9 +65,7 @@ export function ProductController() {
   async function update(id: number, updatedProduct: ProductForm) {
     loading.value = true
     try {
-      console.log('ProductController update called with:', { id, updatedProduct })
       await updateProduct(id, updatedProduct)
-      console.log('ProductController update completed, fetching products...')
       await fetchProducts(pagination.current_page)
     } finally {
       loading.value = false
@@ -93,12 +76,14 @@ export function ProductController() {
     loading.value = true
     try {
       await deleteProduct(id)
-      console.log('Товар удалён, вызываю fetchProducts')
       if (pagination.data.length === 1 && pagination.current_page > 1) {
         await fetchProducts(pagination.current_page - 1)
       } else {
         await fetchProducts(pagination.current_page)
       }
+    } catch (err: any) {
+      // Пробрасываем ошибку дальше для обработки в компоненте
+      throw err
     } finally {
       loading.value = false
     }

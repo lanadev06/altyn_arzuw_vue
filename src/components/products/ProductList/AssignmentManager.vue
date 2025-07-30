@@ -34,15 +34,7 @@
             @update:model-value="(val) => handleUserSelect(val, assignment, index)"
           />
         </div>
-        <span
-          v-if="assignment.is_active !== undefined"
-          :class="[
-            'px-2 py-1 text-xs rounded-full',
-            assignment.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600',
-          ]"
-        >
-          {{ assignment.is_active ? 'Активен' : 'Неактивен' }}
-        </span>
+
         <UIButton type="button" variant="danger" size="sm" @click="removeAssignment(index)">
           Удалить
         </UIButton>
@@ -90,13 +82,6 @@ const availableUsers = computed(() => {
 
   const result = props.allUsers.filter((user) => !assignedUserIds.includes(user.id))
 
-  console.log(`👥 AssignmentManager [${props.roleType}] available users:`, {
-    totalUsers: props.allUsers.length,
-    assignedUserIds: assignedUserIds,
-    availableUsers: result.length,
-    assignments: props.assignments.length,
-  })
-
   return result
 })
 
@@ -104,7 +89,6 @@ function addAssignment() {
   const newAssignment: ProductAssignment = {
     id: 0, // Временный ID, будет заменен сервером
     role_type: props.roleType,
-    is_active: true,
     user: null,
     user_id: 0,
   }
@@ -114,15 +98,7 @@ function addAssignment() {
 }
 
 function removeAssignment(index: number) {
-  console.log(
-    '🗑️ Removing assignment at index:',
-    index,
-    'from',
-    props.assignments.length,
-    'assignments',
-  )
   const updatedAssignments = props.assignments.filter((_, i) => i !== index)
-  console.log('🗑️ After removal:', updatedAssignments.length, 'assignments remain')
   emit('update', updatedAssignments)
 }
 

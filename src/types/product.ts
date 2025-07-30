@@ -5,7 +5,6 @@ export interface ProductAssignment {
   user_id: number | null
   user?: { id: number; name: string }
   role_type?: string
-  stage_id?: number
   is_active?: boolean
 }
 

@@ -90,7 +90,6 @@
                     :assignments="getStageAssignments(product, col.stageId, col.roleType)"
                     :role-type="col.roleType"
                     empty-message="Не назначены"
-                    :show-status="true"
                   />
                 </template>
                 <template v-else-if="col.key === 'created_at'">
@@ -175,6 +174,7 @@ const COLUMNS_KEY = 'productList_columns'
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('productList_perPage')
 
 // Загружаем все доступные стадии для создания колонок
 const availableStages = ref<Stage[]>([])
@@ -214,34 +214,15 @@ const dynamicColumns = computed<Column[]>(() => {
     // Получаем все уникальные стадии с назначениями из всех продуктов
     const stageAssignments = new Map()
 
-    console.log('🔍 Building dynamic columns from products:', pagination.value?.data?.length || 0)
-    console.log('🔍 Available stages count:', getAvailableStages().length)
-
     // Сначала собираем все стадии из всех продуктов
     if (pagination.value?.data) {
       pagination.value.data.forEach((product, index) => {
-        console.log(`📦 Product ${index + 1}:`, {
-          id: product.id,
-          name: product.name,
-          available_stages: product.available_stages?.length || 0,
-          designers: product.designers?.length || 0,
-          print_operators: product.print_operators?.length || 0,
-          engraving_operators: product.engraving_operators?.length || 0,
-          workshop_workers: product.workshop_workers?.length || 0,
-        })
-
         if (product.available_stages) {
           product.available_stages.forEach((stage) => {
-            console.log(`  🎯 Stage: ${stage.display_name} (${stage.id})`, {
-              roles: stage.roles?.length || 0,
-              roles_list: stage.roles?.map((r) => r.name) || [],
-            })
-
             if (stage.roles && stage.roles.length > 0) {
               stage.roles.forEach((role) => {
                 // Исключаем роль die_cutting_operator из колонок
                 if (role.name === 'die_cutting_operator') {
-                  console.log(`    ❌ Skipping die_cutting_operator column`)
                   return
                 }
 
@@ -254,9 +235,6 @@ const dynamicColumns = computed<Column[]>(() => {
                     roleDisplayName: role.display_name,
                     color: stage.color,
                   })
-                  console.log(
-                    `    ✅ Added column for: ${stage.display_name} (${role.display_name})`,
-                  )
                 }
               })
             }
@@ -271,13 +249,11 @@ const dynamicColumns = computed<Column[]>(() => {
     // Это обеспечит появление колонок для новых стадий, даже если они еще не назначены ни одному продукту
     const globalStages = getAvailableStages()
     if (globalStages.length > 0) {
-      console.log('🌐 Adding global stages to columns:', globalStages.length)
       globalStages.forEach((stage) => {
         if (stage.roles && stage.roles.length > 0) {
           stage.roles.forEach((role) => {
             // Исключаем роль die_cutting_operator из колонок
             if (role.name === 'die_cutting_operator') {
-              console.log(`    ❌ Skipping global die_cutting_operator column`)
               return
             }
 
@@ -290,16 +266,11 @@ const dynamicColumns = computed<Column[]>(() => {
                 roleDisplayName: role.display_name,
                 color: stage.color,
               })
-              console.log(
-                `    🌐 Added global column for: ${stage.display_name} (${role.display_name})`,
-              )
             }
           })
         }
       })
     }
-
-    console.log(`📊 Total stage assignments found: ${stageAssignments.size}`)
 
     // Создаем колонки для каждой стадии с назначениями
     stageAssignments.forEach((assignment, key) => {
@@ -331,13 +302,10 @@ const dynamicColumns = computed<Column[]>(() => {
 
 // Функция для получения назначений для конкретной стадии и роли
 function getStageAssignments(product: Product, stageId: number, roleType: string) {
-  console.log(`🔍 Getting assignments for role ${roleType} in product ${product.id}`)
-
   // Динамически получаем назначения из продукта
   const rolePropertyName = `${roleType}s` // добавляем 's' для множественного числа
   const assignments = product[rolePropertyName] || []
 
-  console.log(`📋 Assignments for ${roleType}:`, assignments.length)
   return assignments
 }
 
@@ -377,17 +345,19 @@ const currentPage = ref(1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 function validatePerPage(val) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('productList_perPage', perPage.value.toString())
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
+  localStorage.setItem('productList_perPage', perPage.value.toString())
   goToPage(1)
 })
 
@@ -410,6 +380,8 @@ function resetSettings() {
   sortOrder.value = 'asc'
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  perPage.value = 30
+  localStorage.setItem('productList_perPage', perPage.value.toString())
   currentPage.value = 1
   fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
@@ -485,9 +457,18 @@ async function handleDeleteProduct(productId: number) {
     if (pagination?.data?.length === 1 && currentPage.value > 1) {
       currentPage.value--
     }
+    toast.show('Товар успешно удален!', 'success')
   } catch (e: any) {
-    // Если ошибка 404 — просто закрыть модалку и обновить список
-    if (e.message && e.message.includes('Ошибка удаления товара')) {
+    console.error('❌ Ошибка удаления товара:', productId, e)
+
+    // Обрабатываем ошибки от сервера
+    let message = 'Произошла неизвестная ошибка при удалении товара'
+
+    if (e?.response?.data?.message) {
+      // Ошибка от Laravel (например, товар используется в заказах)
+      message = e.response.data.message
+    } else if (e.message && e.message.includes('Ошибка удаления товара')) {
+      // Если ошибка 404 — просто закрыть модалку и обновить список
       toast.show('Товар уже был удалён')
       showEditModal.value = false
       editingProduct.value = null
@@ -499,9 +480,12 @@ async function handleDeleteProduct(productId: number) {
         sortOrder.value,
         perPage.value,
       )
-    } else {
-      toast.show('Ошибка при удалении товара')
+      return
+    } else if (e instanceof Error && e.message) {
+      message = `Ошибка удаления товара: ${e.message}`
     }
+
+    toast.show(message, 'error')
   }
 }
 

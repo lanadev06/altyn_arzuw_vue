@@ -1,34 +1,95 @@
 <template>
   <Modal @close="$emit('close')">
     <template #header>
-      <h2 class="text-xl font-semibold text-gray-900">
-        {{ client ? 'Редактировать клиента' : 'Добавить клиента' }}
-      </h2>
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center"
+        >
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            ></path>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">
+            {{ client ? 'Редактировать клиента' : 'Добавить клиента' }}
+          </h2>
+          <p class="text-sm text-gray-500 mt-1">
+            {{ client ? 'Обновите информацию о клиенте' : 'Создайте нового клиента в системе' }}
+          </p>
+        </div>
+      </div>
     </template>
-    <form @submit.prevent="handleSubmit" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Имя *</label>
-        <UIInput v-model="form.name" placeholder="Введите имя" :error="errors.name" required />
+
+    <form @submit.prevent="handleSubmit" class="space-y-6">
+      <!-- Основная информация -->
+      <div class="bg-gray-50 rounded-xl p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            ></path>
+          </svg>
+          Основная информация
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+              <span class="text-red-500">*</span>
+              Имя
+            </label>
+            <UIInput
+              v-model="form.name"
+              placeholder="Введите имя клиента"
+              :error="errors.name"
+              required
+              @input="
+                () => {
+                  if (errors.name) errors.name = ''
+                }
+              "
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Компания</label>
+            <UIInput
+              v-model="form.company_name"
+              placeholder="Введите название компании"
+              :error="errors.company_name"
+            />
+          </div>
+        </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Компания</label>
-        <UIInput
-          v-model="form.company_name"
-          placeholder="Введите название компании"
-          :error="errors.company_name"
-        />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Контакты</label>
-        <div class="flex flex-col gap-2">
+
+      <!-- Контактная информация -->
+      <div class="bg-gray-50 rounded-xl p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+            ></path>
+          </svg>
+          Контактная информация
+        </h3>
+        <div class="space-y-4">
           <div
             v-for="(contact, idx) in form.contacts"
             :key="contact.localId || contact.id"
-            class="flex gap-2 items-center text-gray-700"
+            class="flex gap-3 items-center p-4 bg-white rounded-lg border border-gray-200"
           >
             <select
               v-model="contact.type"
-              class="px-2 py-1 border rounded"
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
               required
               @change="handleContactTypeChange($event, idx)"
             >
@@ -39,30 +100,67 @@
               <option value="instagram">Instagram</option>
               <option value="other">Другое</option>
             </select>
-            <ContactTypeIcon :type="contact.type || 'phone'" class="mr-1" />
+            <ContactTypeIcon :type="contact.type || 'phone'" class="mr-2" />
+            <UIInputNoError
+              v-if="contact.type === 'phone'"
+              :model-value="contact.value ?? ''"
+              @update:model-value="(value) => handleContactValueChange(value, idx)"
+              placeholder="Значение"
+              :error="errors.contactErrors[idx]"
+              required
+              class="flex-1"
+            />
             <UIInput
+              v-else
               :model-value="contact.value ?? ''"
               @update:model-value="(value) => handleContactValueChange(value, idx)"
               placeholder="Значение"
               required
               class="flex-1"
             />
-            <UIButton type="button" variant="danger" @click="removeContactHandler(idx)">✕</UIButton>
+            <UIButton
+              type="button"
+              variant="danger"
+              @click="removeContactHandler(idx)"
+              class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200"
+            >
+              ✕
+            </UIButton>
           </div>
-          <UIButton type="button" variant="secondary" @click="addContact"
-            >+ Добавить контакт</UIButton
+          <UIButton
+            type="button"
+            variant="secondary"
+            @click="addContact"
+            class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
           >
+            + Добавить контакт
+          </UIButton>
         </div>
-        <div v-if="errors.contacts" class="text-red-600 text-sm mt-1">{{ errors.contacts }}</div>
+        <div v-if="errors.contacts" class="text-red-600 text-sm mt-3 flex items-center gap-1">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clip-rule="evenodd"
+            ></path>
+          </svg>
+          {{ errors.contacts }}
+        </div>
       </div>
-      <div class="flex gap-3 pt-4">
-        <UIButton type="submit" :loading="loading" class="flex-1">
-          {{ client ? 'Сохранить' : 'Создать' }}
+
+      <!-- Кнопки действий -->
+      <div class="flex gap-4 pt-6 border-t border-gray-200">
+        <UIButton
+          type="submit"
+          :loading="loading"
+          class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+        >
+          {{ client ? 'Сохранить изменения' : 'Создать клиента' }}
         </UIButton>
-        <UIButton v-if="client" type="button" variant="danger" @click="handleDelete" class="flex-1">
+        <UIButton v-if="client" type="button" variant="danger" @click="handleDelete" class="px-6">
           Удалить
         </UIButton>
-        <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="flex-1">
+        <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="px-6">
           Отмена
         </UIButton>
       </div>
@@ -74,6 +172,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
+import UIInputNoError from '@/components/ui/UIInputNoError.vue'
 import UIButton from '@/components/ui/UIButton.vue'
 import type { Client, ClientContact } from '@/types/client'
 import clientController from '@/controllers/clientControllerInstance'
@@ -90,6 +189,7 @@ const errors = reactive({
   name: '',
   company_name: '',
   contacts: '',
+  contactErrors: [] as string[], // Ошибки для каждого контакта
 })
 
 const form = reactive({
@@ -98,15 +198,180 @@ const form = reactive({
   contacts: [] as (Partial<ClientContact> & { localId?: number; id?: number })[],
 })
 
+// Функция для форматирования телефона
+const formatPhoneNumber = (value: string): string => {
+  // Удаляем все символы кроме цифр
+  const cleaned = value.replace(/\D/g, '')
+
+  // Если номер начинается с 993, добавляем +
+  if (cleaned.startsWith('993')) {
+    const rest = cleaned.slice(3)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с 7 или 8 (российский), конвертируем в туркменский
+  if (cleaned.startsWith('7') || cleaned.startsWith('8')) {
+    const rest = cleaned.slice(1)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с 9 (без кода страны)
+  if (cleaned.startsWith('9')) {
+    const rest = cleaned.slice(1)
+    if (rest.length <= 2) {
+      return `+993 ${rest}`
+    } else if (rest.length <= 8) {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2)}`
+    } else {
+      return `+993 ${rest.slice(0, 2)} ${rest.slice(2, 8)}`
+    }
+  }
+
+  // Если номер начинается с цифр (код оператора)
+  if (cleaned.length <= 2) {
+    return `+993 ${cleaned}`
+  } else if (cleaned.length <= 8) {
+    return `+993 ${cleaned.slice(0, 2)} ${cleaned.slice(2)}`
+  } else {
+    return `+993 ${cleaned.slice(0, 2)} ${cleaned.slice(2, 8)}`
+  }
+}
+
+// Функция для проверки валидности телефона
+const validatePhoneNumber = (phone: string): string => {
+  if (!phone || !phone.trim()) {
+    return '' // Пустое поле не является ошибкой
+  }
+
+  const cleanPhone = phone.replace(/[\s-]/g, '')
+  const phoneRegex = /^\+993\d{8}$/
+
+  if (!phoneRegex.test(cleanPhone)) {
+    return 'Телефон должен быть в формате +993 XX YYYYYY'
+  }
+
+  const operatorCode = cleanPhone.substring(4, 6)
+  const validCodes = [
+    '12',
+    '13',
+    '14',
+    '15',
+    '16',
+    '17',
+    '18',
+    '19',
+    '21',
+    '22',
+    '23',
+    '24',
+    '25',
+    '26',
+    '27',
+    '28',
+    '29',
+    '30',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42',
+    '43',
+    '44',
+    '45',
+    '46',
+    '47',
+    '48',
+    '49',
+    '50',
+    '51',
+    '52',
+    '53',
+    '54',
+    '55',
+    '56',
+    '57',
+    '58',
+    '59',
+    '60',
+    '61',
+    '62',
+    '63',
+    '64',
+    '65',
+    '66',
+    '67',
+    '68',
+    '69',
+    '70',
+    '71',
+    '72',
+    '73',
+    '74',
+    '75',
+    '76',
+    '77',
+    '78',
+    '79',
+    '80',
+    '81',
+    '82',
+    '83',
+    '84',
+    '85',
+    '86',
+    '87',
+    '88',
+    '89',
+    '90',
+    '91',
+    '92',
+    '93',
+    '94',
+    '95',
+    '96',
+    '97',
+    '98',
+    '99',
+  ]
+
+  if (!validCodes.includes(operatorCode)) {
+    return 'Неверный код оператора. Используйте код оператора Туркменистана'
+  }
+
+  return ''
+}
+
 onMounted(() => {
   if (props.client) {
     form.name = props.client.name || ''
     form.company_name = props.client.company_name || ''
     form.contacts = props.client.contacts.map((c) => ({ ...c }))
+    // Инициализируем ошибки для существующих контактов
+    errors.contactErrors = new Array(form.contacts.length).fill('')
   } else {
     form.name = ''
     form.company_name = ''
     form.contacts = []
+    errors.contactErrors = []
   }
 })
 
@@ -117,6 +382,7 @@ async function addContact() {
     localId: Date.now() + Math.random(),
   }
   form.contacts.push(newContact)
+  errors.contactErrors.push('') // Добавляем пустую ошибку для нового контакта
   // Не отправляем createContact здесь!
 }
 
@@ -138,47 +404,57 @@ async function removeContactHandler(idx: number) {
     } catch (e) {}
   }
   form.contacts.splice(idx, 1)
+  errors.contactErrors.splice(idx, 1) // Удаляем ошибку для этого контакта
 }
 
 function validateForm() {
+  // Очищаем все ошибки
   errors.name = ''
   errors.company_name = ''
   errors.contacts = ''
+  errors.contactErrors = new Array(form.contacts.length).fill('')
+
   let valid = true
-  if (!form.name.trim()) {
+
+  // Валидация имени - всегда проверяем
+  if (!form.name || !form.name.trim()) {
     errors.name = 'Имя обязательно'
     valid = false
   }
 
-  // Новая проверка: хотя бы один телефон
+  // Проверка: хотя бы один телефон
   const phoneContacts = form.contacts.filter((c) => c.type === 'phone')
-  if (
-    phoneContacts.length === 0 ||
-    !phoneContacts.some((c) => c.value && /^\+993[-\s]?\d{2}[-\s]?\d{6}$/.test(c.value))
-  ) {
-    errors.contacts = 'Нужно указать хотя бы один телефон в формате +993 XX YYYYYY'
+  if (phoneContacts.length === 0) {
+    errors.contacts = 'Нужно указать хотя бы один телефон'
     valid = false
   }
 
-  for (const c of form.contacts) {
+  // Валидация всех контактов
+  for (let i = 0; i < form.contacts.length; i++) {
+    const c = form.contacts[i]
+
+    if (!c.value || !c.type) {
+      errors.contacts = 'Все контакты должны быть заполнены'
+      valid = false
+      break
+    }
+
     if (c.type === 'phone' && c.value) {
-      const phoneRegex = /^\+993[-\s]?\d{2}[-\s]?\d{6}$/
-      if (!phoneRegex.test(c.value)) {
-        errors.contacts = 'Телефон должен быть в формате +993 XX YYYYYY'
+      const phoneError = validatePhoneNumber(c.value)
+      if (phoneError) {
+        errors.contacts = phoneError
+        errors.contactErrors[i] = phoneError
         valid = false
         break
       }
     }
   }
 
-  if (form.contacts.some((c) => !c.value || !c.type)) {
-    errors.contacts = 'Все контакты должны быть заполнены'
-    valid = false
-  }
   return valid
 }
 
 async function handleSubmit() {
+  // Валидация происходит только в validateForm()
   if (!validateForm()) return
   loading.value = true
   try {
@@ -245,17 +521,101 @@ function handleContactTypeChange(event: Event, idx: number) {
 }
 
 function handleContactValueChange(value: any, idx: number) {
-  updateContactField(idx, 'value', String(value || ''))
+  const contact = form.contacts[idx]
+
+  // Если это телефон, применяем форматирование
+  if (contact.type === 'phone' && value && value.trim()) {
+    const formattedValue = formatPhoneNumber(value)
+    updateContactField(idx, 'value', formattedValue)
+    // Очищаем ошибки при вводе
+    errors.contacts = ''
+    errors.contactErrors[idx] = ''
+  } else {
+    updateContactField(idx, 'value', String(value || ''))
+  }
 }
 
-function handleDelete() {
+// Валидация имени
+function validateName() {
+  if (!form.name.trim()) {
+    errors.name = 'Имя обязательно'
+  } else {
+    errors.name = ''
+  }
+}
+
+// Обработчик потери фокуса для валидации контактов
+function handleContactBlur(idx: number) {
+  const contact = form.contacts[idx]
+
+  if (contact.type === 'phone' && contact.value && contact.value.trim()) {
+    const phoneError = validatePhoneNumber(contact.value)
+    if (phoneError) {
+      errors.contacts = phoneError
+      errors.contactErrors[idx] = phoneError
+    } else {
+      errors.contacts = ''
+      errors.contactErrors[idx] = ''
+    }
+  }
+}
+
+async function handleDelete() {
   if (props.client && props.client.id) {
     const clientId = props.client.id
-    remove(clientId).then(() => {
+    try {
+      await remove(clientId)
       toast.show('Клиент удалён!')
       emit('delete', clientId)
       emit('close')
-    })
+    } catch (err: any) {
+      let message = 'Произошла неизвестная ошибка при удалении клиента'
+      if (err?.response?.data?.message) {
+        message = err.response.data.message
+      } else if (err instanceof Error && err.message) {
+        message = `Ошибка удаления клиента: ${err.message}`
+      }
+      toast.show(message, 'error')
+    }
   }
 }
 </script>
+
+<style scoped>
+.modal {
+  border-radius: 20px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15);
+  padding: 32px 24px;
+  background: #fff;
+  max-width: 600px;
+  width: 90vw;
+}
+
+/* Анимации для секций */
+.bg-gray-50 {
+  transition: all 0.3s ease;
+}
+
+.bg-gray-50:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для иконок в заголовках */
+h3 svg {
+  transition: transform 0.2s ease;
+}
+
+h3:hover svg {
+  transform: scale(1.1);
+}
+
+/* Стили для контактов */
+.space-y-4 > div {
+  transition: all 0.2s ease;
+}
+
+.space-y-4 > div:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+</style>

@@ -7,13 +7,12 @@
           @change="handleRoleChange"
           class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style="min-width: 180px"
+          :disabled="loadingRoles"
         >
           <option value="">Все роли</option>
-          <option value="admin">Администратор</option>
-          <option value="manager">Менеджер</option>
-          <option value="designer">Дизайнер</option>
-          <option value="print_operator">Печатник</option>
-          <option value="workshop_worker">Работник цеха</option>
+          <option v-for="role in availableRoles" :key="role.id" :value="role.name">
+            {{ role.display_name || role.name }}
+          </option>
         </select>
         <select
           v-model="activeFilter"
@@ -33,6 +32,8 @@
         :role="selectedRole"
         :activeFilter="activeFilter"
         :showCreateModal="showCreateModal"
+        :roles-data="availableRoles"
+        :stages-data="stagesData"
         @close-create-modal="closeCreateModal"
       />
     </div>
@@ -40,14 +41,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import UserList from '../components/users/UserList/UserList.vue'
 import UIButton from '../components/ui/UIButton.vue'
 import Layout from '../components/layout/Layout.vue'
+import { getAllRoles, getRolesWithStages, getAllStages } from '../services/api'
 
 const showCreateModal = ref(false)
 const selectedRole = ref('')
 const activeFilter = ref('')
+const availableRoles = ref<any[]>([])
+const loadingRoles = ref(false)
+const stagesData = ref<any[]>([])
+
+// Загружаем роли и стадии из API
+async function loadRoles() {
+  loadingRoles.value = true
+  try {
+    // Загружаем роли со связанными стадиями
+    const rolesResponse = await getRolesWithStages()
+    const roles = Array.isArray(rolesResponse) ? rolesResponse : rolesResponse.data || []
+
+    // Загружаем стадии для дополнительной информации о цветах
+    const stagesResponse = await getAllStages()
+    const stages = Array.isArray(stagesResponse) ? stagesResponse : stagesResponse.data || []
+
+    availableRoles.value = roles
+    stagesData.value = stages
+  } catch (error) {
+    console.error('Ошибка загрузки ролей:', error)
+    // Fallback к статическим ролям в случае ошибки
+    availableRoles.value = [
+      { id: 1, name: 'admin', display_name: 'Администратор' },
+      { id: 2, name: 'manager', display_name: 'Менеджер' },
+      { id: 3, name: 'designer', display_name: 'Дизайнер' },
+      { id: 4, name: 'print_operator', display_name: 'Печатник' },
+      { id: 5, name: 'workshop_worker', display_name: 'Работник цеха' },
+    ]
+    stagesData.value = []
+  } finally {
+    loadingRoles.value = false
+  }
+}
 
 function openCreateModal() {
   showCreateModal.value = true
@@ -60,5 +95,8 @@ function closeCreateModal() {
 function handleRoleChange(e: Event) {
   selectedRole.value = (e.target as HTMLSelectElement).value
 }
-// handleActiveFilterChange больше не нужен, фильтрация будет реактивной
+
+onMounted(() => {
+  loadRoles()
+})
 </script>

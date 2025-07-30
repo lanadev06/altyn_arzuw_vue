@@ -178,10 +178,13 @@ import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.v
 import projectController from '@/controllers/projectControllerInstance'
 import type { Project } from '@/types/project'
 import { canCreateEdit, canViewPrices } from '@/utils/permissions'
+import { useToast } from '@/stores/toast'
 
 const props = defineProps({
   search: { type: String, default: '' },
 })
+
+const toast = useToast()
 
 const {
   projects,
@@ -215,6 +218,7 @@ const COLUMNS_KEY = 'projectList_columns'
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('projectList_perPage')
 
 const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
@@ -278,13 +282,31 @@ async function handleUpdateProject(updatedProject: Project) {
 }
 
 async function handleDeleteProject(projectId: number) {
-  await remove(projectId)
-  showEditModal.value = false
-  editingProject.value = null
-  if (pagination?.data?.length === 1 && currentPage.value > 1) {
-    currentPage.value--
+  try {
+    console.log('🔄 Начинаем удаление проекта:', projectId)
+    await remove(projectId)
+    console.log('✅ Проект успешно удален:', projectId)
+    showEditModal.value = false
+    editingProject.value = null
+    if (pagination?.data?.length === 1 && currentPage.value > 1) {
+      currentPage.value--
+    }
+    await fetchProjects(
+      currentPage.value,
+      props.search,
+      sortBy.value,
+      sortOrder.value,
+      perPage.value,
+    )
+  } catch (err: unknown) {
+    console.error('❌ Ошибка удаления проекта:', projectId, err)
+    // Показываем ошибку пользователю
+    if (err instanceof Error) {
+      toast.show(`Ошибка удаления проекта: ${err.message}`, 'error')
+    } else {
+      toast.show('Произошла неизвестная ошибка при удалении проекта', 'error')
+    }
   }
-  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function formatDate(date: string | null | undefined) {
@@ -456,17 +478,19 @@ watch(
 )
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 function validatePerPage(val) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('projectList_perPage', perPage.value.toString())
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
+  localStorage.setItem('projectList_perPage', perPage.value.toString())
   goToPage(1)
 })
 

@@ -287,7 +287,6 @@ async function handleSubmit() {
       }),
     }
 
-    console.log('Отправляемые данные проекта:', projectData)
     await createProjectWithOrders(projectData)
 
     // Обновляем список заказов после создания проекта

@@ -78,6 +78,15 @@
           {{ role ? 'Сохранить' : 'Создать' }}
         </UIButton>
         <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
+        <UIButton
+          v-if="role && canDelete()"
+          type="button"
+          variant="danger"
+          @click="handleDelete"
+          :loading="deleting"
+        >
+          Удалить
+        </UIButton>
       </div>
     </form>
   </Modal>
@@ -89,6 +98,7 @@ import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
 import type { Role } from '../../../types/role'
+import { canDelete } from '../../../utils/permissions'
 
 const props = defineProps<{
   role?: Role | null
@@ -97,9 +107,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   submit: [data: any]
+  delete: [id: number]
 }>()
 
 const loading = ref(false)
+const deleting = ref(false)
 
 const errors = reactive({
   name: '',
@@ -172,6 +184,21 @@ const handleSubmit = async () => {
     console.error('❌ Error submitting form:', error)
   } finally {
     loading.value = false
+  }
+}
+
+// Обработка удаления
+const handleDelete = async () => {
+  if (!props.role?.id) return
+
+  if (!confirm('Вы уверены, что хотите удалить эту роль?')) return
+
+  deleting.value = true
+  try {
+    console.log('🔄 Удаляем роль:', props.role.id)
+    emit('delete', props.role.id)
+  } finally {
+    deleting.value = false
   }
 }
 

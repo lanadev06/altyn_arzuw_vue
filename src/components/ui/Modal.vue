@@ -32,8 +32,6 @@
 defineProps({ visible: { type: Boolean, default: true } })
 </script>
 
-export default { name: 'Modal', }
-
 <style scoped>
 .modal-overlay {
   position: fixed;

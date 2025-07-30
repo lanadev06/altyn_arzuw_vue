@@ -42,16 +42,6 @@
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Тип
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Статус
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
                 Действия
               </th>
             </tr>
@@ -69,32 +59,6 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {{ stage.order }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex gap-1">
-                  <span
-                    v-if="stage.is_initial"
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800"
-                  >
-                    Начальная
-                  </span>
-                  <span
-                    v-if="stage.is_final"
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800"
-                  >
-                    Финальная
-                  </span>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  :class="
-                    stage.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  "
-                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                >
-                  {{ stage.is_active ? 'Активна' : 'Неактивна' }}
-                </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex gap-2">
@@ -172,35 +136,6 @@
           </div>
         </div>
 
-        <div class="space-y-2">
-          <label class="flex items-center">
-            <input
-              v-model="form.is_active"
-              type="checkbox"
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <span class="ml-2 text-sm text-gray-700">Активна</span>
-          </label>
-
-          <label class="flex items-center">
-            <input
-              v-model="form.is_initial"
-              type="checkbox"
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <span class="ml-2 text-sm text-gray-700">Начальная стадия</span>
-          </label>
-
-          <label class="flex items-center">
-            <input
-              v-model="form.is_final"
-              type="checkbox"
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <span class="ml-2 text-sm text-gray-700">Финальная стадия</span>
-          </label>
-        </div>
-
         <div class="flex justify-end gap-3 pt-4">
           <button
             type="button"
@@ -234,9 +169,6 @@ interface Stage {
   description?: string
   order: number
   color: string
-  is_active: boolean
-  is_initial: boolean
-  is_final: boolean
 }
 
 interface StageForm {
@@ -245,9 +177,6 @@ interface StageForm {
   description?: string
   order: number
   color: string
-  is_active: boolean
-  is_initial: boolean
-  is_final: boolean
 }
 
 const toast = useToast()
@@ -262,9 +191,6 @@ const form = ref<StageForm>({
   description: '',
   order: 1,
   color: '#6b7280',
-  is_active: true,
-  is_initial: false,
-  is_final: false,
 })
 
 const modalTitle = computed(() => (isEditing.value ? 'Редактировать стадию' : 'Создать стадию'))
@@ -309,9 +235,6 @@ function resetForm() {
     description: '',
     order: 1,
     color: '#6b7280',
-    is_active: true,
-    is_initial: false,
-    is_final: false,
   }
 }
 

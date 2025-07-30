@@ -13,11 +13,14 @@
       :style="{ borderLeft: idx !== 0 ? '1px solid #ece6f6' : 'none' }"
     >
       <!-- Цветная линия сверху -->
-      <div class="bitrix-top-bar" :style="{ background: getStatusColor(stageObj.key) }"></div>
+      <div
+        class="bitrix-top-bar"
+        :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
+      ></div>
       <div
         class="kanban-column-header bitrix-header flex items-center justify-between px-3 py-2 font-bold relative"
         :class="{ 'first-col-header': idx === 0, 'last-col-header': idx === statuses.length - 1 }"
-        :style="{ background: getStatusColor(stageObj.key) }"
+        :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
       >
         <span class="bitrix-header-title">{{ stageObj.label }}</span>
         <!-- Цветная плашка-счетчик -->
@@ -26,6 +29,7 @@
           :style="{
             borderColor: getStatusColor(stageObj.key),
             color: getStatusColor(stageObj.key),
+            ...getStatusColorStyle(stageObj.key),
           }"
         >
           {{ ordersByStage(stageObj.key).length }}
@@ -87,9 +91,26 @@ import OrderCard from './OrderCard.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import { canCreateEdit } from '../../../utils/permissions'
 import { API_CONFIG } from '../../../config/api'
-import { getStageColor } from '../../../utils/stageColors'
+import { getStageColor, getStageColorStyles } from '../../../utils/stageColors'
+import { stageApi } from '../../../services/stageApi'
 
 const { orders } = OrderController()
+
+// Загружаем стадии для динамических цветов
+const stages = ref<any[]>([])
+
+onMounted(async () => {
+  try {
+    const stagesData = await stageApi.getAll()
+    stages.value = stagesData.map((stage: any) => ({
+      value: stage.name,
+      label: stage.display_name || stage.name,
+      color: stage.color,
+    }))
+  } catch (error) {
+    console.error('Ошибка загрузки стадий:', error)
+  }
+})
 const props = defineProps<{
   statuses: { key: string; label: string }[]
   orders: any[]
@@ -134,13 +155,28 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 function ordersByStage(stage: string) {
-  return Array.isArray(props.orders) ? props.orders.filter((order) => order.stage === stage) : []
+  return Array.isArray(props.orders)
+    ? props.orders.filter((order) => (order.stage?.name || order.stage) === stage)
+    : []
 }
 function getStatusColor(key: string) {
+  // Сначала ищем в динамических данных
+  const stageData = stages.value.find((s) => s.value === key)
+  if (stageData && stageData.color) {
+    return ''
+  }
   return getStageColor(key)
 }
+
+function getStatusColorStyle(key: string) {
+  // Сначала ищем в динамических данных
+  const stageData = stages.value.find((s) => s.value === key)
+  if (stageData && stageData.color) {
+    return getStageColorStyles(key, stageData.color)
+  }
+  return {}
+}
 function onDragStart(order: any) {
-  console.log('dragStart', order)
   draggingOrder.value = order
 }
 function onDragEnd() {
@@ -155,18 +191,16 @@ function onDragLeave(stage: string) {
 async function onDrop(event: DragEvent, newStage: string) {
   event.preventDefault()
   dragOverStage.value = null
-  console.log('DROP', draggingOrder.value, newStage)
+
   const order = draggingOrder.value
   draggingOrder.value = null
   if (!order) {
-    console.log('NO ORDER')
     return
   }
-  if (order.stage === newStage) {
-    console.log('SAME STAGE', order.stage, newStage)
+  if ((order.stage?.name || order.stage) === newStage) {
     return
   }
-  console.log('GO TO REQUEST', order.id, '->', newStage)
+
   const payload: any = { stage: newStage }
   if (newStage === 'cancelled') {
     payload.reason = 'Отменено через kanban'

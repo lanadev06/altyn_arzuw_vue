@@ -109,22 +109,6 @@
                     <span class="text-gray-700">{{ stage.order }}</span>
                   </template>
 
-                  <template v-else-if="col.key === 'is_active'">
-                    <button
-                      @click.stop="toggleStageActive(stage.id)"
-                      :class="
-                        stage.is_active
-                          ? 'bg-green-500 hover:bg-green-600'
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      "
-                      class="px-2 py-1 rounded text-white text-xs transition-colors"
-                      title="Переключить активность"
-                    >
-                      <span v-if="stage.is_active">✓</span>
-                      <span v-else>⏻</span>
-                    </button>
-                  </template>
-
                   <template v-else-if="col.key === 'created_at'">
                     <span class="text-gray-600 text-base">{{ formatDate(stage.created_at) }}</span>
                   </template>
@@ -186,7 +170,8 @@ import Sortable from 'sortablejs'
 import StageFormModal from './StageFormModal.vue'
 import Pagination from '../../users/UserList/Pagination.vue'
 import StageController from '../../../controllers/StageController'
-import { canCreateEdit } from '../../../utils/permissions'
+import { canCreateEdit, canDelete } from '../../../utils/permissions'
+import { useToast } from '../../../stores/toast'
 import { getStageColorStyles } from '../../../utils/stageColors'
 import type { Stage } from '../../../types/stage'
 
@@ -196,16 +181,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits(['close-create-modal', 'open-create-modal'])
 
-const stages = ref<Stage[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-const showEditModal = ref(false)
-const editingStage = ref<Stage | null>(null)
-const sortBy = ref('order')
-const sortOrder = ref<'asc' | 'desc'>('asc')
-const currentPage = ref(1)
-const allowedPerPage = [10, 20, 50, 100, 200, 500]
-const perPage = ref(30)
+const toast = useToast()
+
 const pagination = ref<{
   current_page: number
   last_page: number
@@ -220,6 +197,18 @@ const COLUMNS_KEY = 'stageList_columns'
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY) as 'asc' | 'desc' | null
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('stageList_perPage')
+
+const stages = ref<Stage[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showEditModal = ref(false)
+const editingStage = ref<Stage | null>(null)
+const sortBy = ref('order')
+const sortOrder = ref<'asc' | 'desc'>('asc')
+const currentPage = ref(1)
+const allowedPerPage = [10, 20, 50, 100, 200, 500]
+const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
 const columns = ref(
   savedColumns
@@ -229,7 +218,6 @@ const columns = ref(
         { key: 'name', label: 'Название', sortable: true },
         { key: 'description', label: 'Описание', sortable: false },
         { key: 'order', label: 'Порядок', sortable: true },
-        { key: 'is_active', label: 'Статус', sortable: false },
         { key: 'created_at', label: 'Создано', sortable: true },
         { key: 'updated_at', label: 'Обновлено', sortable: false },
       ],
@@ -314,24 +302,13 @@ const fetchStages = async () => {
   }
 }
 
-const toggleStageActive = async (stageId: number) => {
-  try {
-    const stage = stages.value.find((s) => s.id === stageId)
-    if (!stage) return
-
-    await StageController.update(stageId, { is_active: !stage.is_active })
-    await fetchStages()
-  } catch (err: unknown) {
-    console.error('Ошибка переключения статуса:', err)
-  }
-}
-
 const handleCreateStage = async (stageData: {
   name: string
   display_name: string
   description?: string
   order?: number
-  is_active?: boolean
+  color?: string
+  roles?: Array<{ role_id: number }>
 }) => {
   try {
     await StageController.create(stageData)
@@ -347,7 +324,8 @@ const handleUpdateStage = async (stageData: {
   display_name?: string
   description?: string
   order?: number
-  is_active?: boolean
+  color?: string
+  roles?: Array<{ role_id: number }>
 }) => {
   try {
     if (!editingStage.value) return
@@ -362,12 +340,36 @@ const handleUpdateStage = async (stageData: {
 
 const handleDeleteStage = async (stageId: number) => {
   try {
+    console.log('🔄 Начинаем удаление стадии:', stageId)
+
+    // Проверяем права доступа
+    if (!canDelete()) {
+      alert('У вас нет прав для удаления стадий')
+      return
+    }
+    console.log('✅ Права доступа проверены')
+
+    // Проверяем токен авторизации
+    const token = localStorage.getItem('auth_token')
+    if (!token) {
+      alert('Необходима авторизация для удаления стадии')
+      return
+    }
+    console.log('✅ Токен авторизации найден')
+
     await StageController.delete(stageId)
+    console.log('✅ Стадия успешно удалена:', stageId)
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
   } catch (err: unknown) {
-    console.error('Ошибка удаления:', err)
+    console.error('❌ Ошибка удаления стадии:', stageId, err)
+    // Показываем ошибку пользователю
+    if (err instanceof Error) {
+      toast.show(`Ошибка удаления стадии: ${err.message}`, 'error')
+    } else {
+      toast.show('Произошла неизвестная ошибка при удалении стадии', 'error')
+    }
   }
 }
 
@@ -385,6 +387,7 @@ function validatePerPage(val: number) {
 
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
+  localStorage.setItem('stageList_perPage', perPage.value.toString())
   goToPage(1)
 }
 
@@ -413,4 +416,10 @@ watch(
     // Search is handled by computed property
   },
 )
+
+watch(perPage, (newVal) => {
+  perPage.value = validatePerPage(newVal)
+  localStorage.setItem('stageList_perPage', perPage.value.toString())
+  goToPage(1)
+})
 </script>
