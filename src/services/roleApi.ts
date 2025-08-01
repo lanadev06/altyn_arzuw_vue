@@ -1,4 +1,4 @@
-import { api } from './apiClient'
+import apiClient from './apiClient'
 import type {
   Role,
   CreateRoleRequest,
@@ -9,25 +9,25 @@ import type {
 
 export const roleApi = {
   // Получить все роли
-  getAll: () => api.get<Role[]>('/roles'),
+  getAll: () => apiClient.get('/roles'),
 
   // Получить роль по ID
-  getById: (id: number) => api.get<Role>(`/roles/${id}`),
+  getById: (id: number) => apiClient.get(`/roles/${id}`),
 
   // Создать новую роль
-  create: (data: CreateRoleRequest) => api.post<Role>('/roles', data),
+  create: (data: CreateRoleRequest) => apiClient.post('/roles', data),
 
   // Обновить роль
-  update: (id: number, data: UpdateRoleRequest) => api.put<Role>(`/roles/${id}`, data),
+  update: (id: number, data: UpdateRoleRequest) => apiClient.put(`/roles/${id}`, data),
 
   // Удалить роль
-  delete: (id: number) => api.delete(`/roles/${id}`),
+  delete: (id: number) => apiClient.delete(`/roles/${id}`),
 
   // Назначить пользователей на роль
   assignUsers: (id: number, data: AssignUsersRequest) =>
-    api.post(`/roles/${id}/assign-users`, data),
+    apiClient.post(`/roles/${id}/assign-users`, data),
 
   // Убрать пользователей с роли
   removeUsers: (id: number, data: RemoveUsersRequest) =>
-    api.post(`/roles/${id}/remove-users`, data),
+    apiClient.post(`/roles/${id}/remove-users`, data),
 }

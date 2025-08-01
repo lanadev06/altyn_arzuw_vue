@@ -67,7 +67,8 @@ import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
-import { canCreateEdit } from '../utils/permissions'
+import { canCreateEdit, canViewAllUsers } from '../utils/permissions'
+import { getAllStages } from '../services/api'
 
 const route = useRoute()
 const search = ref(route.query.search || '')
@@ -81,49 +82,74 @@ const { orders, fetchOrders } = OrderController()
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
-  if (!search.value) return orders.value
+  console.log('🔍 Computing filteredKanbanOrders')
+  console.log('📊 Search value:', search.value)
+  console.log('📊 Orders value:', orders.value?.length || 0)
+
+  if (!search.value) {
+    console.log('✅ No search, returning all orders:', orders.value?.length || 0)
+    return orders.value || []
+  }
+
   const q = String(search.value).toLowerCase()
-  return orders.value.filter((order) => {
+  const filtered = (orders.value || []).filter((order) => {
     return (
       String(order.id).includes(q) ||
       (order.product?.name && String(order.product.name).toLowerCase().includes(q)) ||
       (order.client?.name && String(order.client.name).toLowerCase().includes(q)) ||
-              (typeof (order.stage?.name || order.stage) === 'string' && (order.stage?.name || order.stage).toLowerCase().includes(q))
+      (typeof (order.stage?.name || order.stage) === 'string' &&
+        (order.stage?.name || order.stage).toLowerCase().includes(q))
     )
   })
+
+  console.log('✅ Filtered orders:', filtered.length)
+  return filtered
 })
 
-const kanbanStatuses = [
-  { key: 'draft', label: 'Черновик' },
-  { key: 'design', label: 'Дизайн' },
-  { key: 'print', label: 'Печать' },
-  { key: 'engraving', label: 'Гравировка' },
-  { key: 'workshop', label: 'Цех' },
-  { key: 'die_cutting', label: 'Высечка' },
-  { key: 'final', label: 'Финал' },
-  { key: 'completed', label: 'Завершен' },
-  { key: 'cancelled', label: 'Отменен' },
-]
+const kanbanStatuses = ref([])
 
 const orderListRef = ref()
 
 const loadOrders = async () => {
   try {
+    console.log('🔄 Loading orders, isTableView:', isTableView.value)
+
     if (!isTableView.value) {
-      // Для Kanban загружаем все заказы через getAll с большим per_page
-      const { getAll } = OrderController()
-      const res = await getAll({
-        page: 1,
-        per_page: 10000,
-        assignment_status: selectedAssignmentStatus.value || undefined,
-      })
-      orders.value = res.data || []
+      // Для Kanban используем fetchAllOrdersForKanban
+      const { fetchAllOrdersForKanban } = OrderController()
+      console.log('📊 Fetching orders for Kanban...')
+      console.log('📊 selectedAssignmentStatus:', selectedAssignmentStatus.value)
+      await fetchAllOrdersForKanban(selectedAssignmentStatus.value || undefined)
+      console.log('✅ Loaded orders for Kanban:', orders.value.length)
+      console.log('🔍 Стадии заказов:', [
+        ...new Set(orders.value.map((o) => o.stage?.name || o.stage)),
+      ])
+      console.log(
+        '🔍 Первые 5 заказов Kanban:',
+        orders.value.slice(0, 5).map((o) => ({
+          id: o.id,
+          stage: o.stage?.name || o.stage,
+          assignment_status: o.assignment_status,
+        })),
+      )
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
+      console.log('📊 Fetching orders for table...')
+      console.log('📊 search value:', search.value)
       await fetchOrders(1, 'id', 'asc', undefined, undefined, String(search.value))
+      console.log('✅ Loaded orders for table:', orders.value.length)
+      console.log(
+        '🔍 Первые 5 заказов Table:',
+        orders.value.slice(0, 5).map((o) => ({
+          id: o.id,
+          stage: o.stage?.name || o.stage,
+          assignment_status: o.assignment_status,
+        })),
+      )
     }
   } catch (error) {
     console.error('❌ Ошибка загрузки заказов:', error)
+    orders.value = []
   }
 }
 
@@ -139,7 +165,59 @@ watch(isTableView, (newValue) => {
   loadOrders()
 })
 
-onMounted(loadOrders)
+async function loadStages() {
+  try {
+    console.log('🔄 Loading stages for OrdersView...')
+    const stagesData = await getAllStages()
+    console.log('📊 Stages data received:', stagesData)
+
+    let allStages = []
+    if (Array.isArray(stagesData)) {
+      allStages = stagesData
+      console.log('✅ Loaded stages directly:', stagesData.length)
+    } else if (stagesData && stagesData.data && Array.isArray(stagesData.data)) {
+      allStages = stagesData.data
+      console.log('✅ Loaded stages from data property:', stagesData.data.length)
+    } else {
+      console.warn('⚠️ Unexpected stages data format:', stagesData)
+      return
+    }
+
+    // Фильтруем стадии в зависимости от роли пользователя
+    const isAdminOrManager = canViewAllUsers()
+    console.log('🔍 User role check - isAdminOrManager:', isAdminOrManager)
+
+    if (isAdminOrManager) {
+      // Для администраторов и менеджеров показываем все стадии
+      kanbanStatuses.value = allStages.map((stage) => ({
+        key: stage.name,
+        label: stage.display_name || stage.name,
+      }))
+      console.log('✅ Loaded all stages for admin/manager:', allStages.length)
+    } else {
+      // Для всех остальных пользователей (с динамическими ролями) исключаем стадии "Отменено" и "Завершено"
+      const filteredStages = allStages.filter((stage) => {
+        const stageName = stage.name.toLowerCase()
+        const isExcluded = stageName === 'cancelled' || stageName === 'completed'
+        console.log(`🔍 Stage ${stage.name} excluded for user with dynamic role:`, isExcluded)
+        return !isExcluded
+      })
+
+      kanbanStatuses.value = filteredStages.map((stage) => ({
+        key: stage.name,
+        label: stage.display_name || stage.name,
+      }))
+      console.log('✅ Loaded filtered stages for user with dynamic role:', filteredStages.length)
+    }
+  } catch (error) {
+    console.error('❌ Error loading stages:', error)
+  }
+}
+
+onMounted(async () => {
+  await loadStages()
+  loadOrders()
+})
 
 async function openOrderDetails(payload: any) {
   if (payload && payload.order) {
@@ -217,7 +295,6 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     const updatedOrder = orders.value.find((o) => o.id === orderId)
     if (updatedOrder) {
     } else {
-
     }
   } catch (error: any) {
     console.error('❌ Ошибка обновления статуса:', error)

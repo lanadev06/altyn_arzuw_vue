@@ -41,7 +41,6 @@ const currentUser = ref({
 
 const searchQuery = ref('')
 
-// Показывать поиск только на orders, projects, products
 const showSearch = computed(() => {
   return ['/orders', '/projects', '/products', '/users', '/clients'].includes(route.path)
 })
@@ -68,7 +67,7 @@ onMounted(async () => {
   try {
     const response = await authApi.me()
     const user = response.data
-    currentUser.value = user // <-- теперь весь объект, включая roles
+    currentUser.value = user
   } catch (e) {
     currentUser.value = { name: 'Гость', role: '', image: null, roles: [] }
   }

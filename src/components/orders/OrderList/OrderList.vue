@@ -31,14 +31,9 @@
           class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
           <option value="">Все стадии</option>
-          <!-- TODO: Загрузить стадии из API -->
-          <option value="draft">Черновик</option>
-          <option value="design">Дизайн</option>
-          <option value="print">Печать</option>
-          <option value="workshop">Цех</option>
-          <option value="final">Финальный</option>
-          <option value="completed">Завершен</option>
-          <option value="cancelled">Отменен</option>
+          <option v-for="stage in stages" :key="stage.id" :value="stage.name" class="text-gray-900">
+            {{ stage.display_name || stage.name }}
+          </option>
         </select>
         <select
           v-model="selectedArchive"
@@ -123,21 +118,21 @@
                 <!-- ✅ НОВОЕ! Отображение текущей стадии с динамической цветовой индикацией -->
                 <template v-else-if="col.key === 'stage'">
                   <div class="flex flex-col items-center gap-1">
+                    <!-- Получаем название стадии из всех возможных источников -->
                     <span
-                      v-if="item.current_stage_info"
-                      class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full text-white cursor-pointer"
-                      :style="{ backgroundColor: item.current_stage_info.color }"
-                    >
-                      <div class="w-1.5 h-1.5 bg-white rounded-full opacity-80"></div>
-                      {{ item.current_stage_info.display_name }}
-                    </span>
-                    <!-- ❌ FALLBACK: Старая система (для обратной совместимости) -->
-                    <span
-                      v-else
-                      :class="getStatusClass(item.stage?.name || item.current_stage || '')"
+                      v-if="getOrderStageName(item)"
+                      :class="getStatusClass(getOrderStageName(item))"
+                      :style="getOrderStageStyle(item)"
                       class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer"
                     >
-                      {{ getStatusText(item.stage?.name || item.current_stage || '') }}
+                      {{ getStatusText(getOrderStageName(item)) }}
+                    </span>
+                    <!-- Показываем дефолтную стадию если ничего нет -->
+                    <span
+                      v-else
+                      class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 cursor-pointer"
+                    >
+                      Черновик
                     </span>
                     <span
                       v-if="item.is_archived"
@@ -151,9 +146,10 @@
                   <span class="text-gray-700">{{ formatDate(item.deadline) }}</span>
                 </template>
                 <template v-else-if="col.key === 'price'">
-                  <span class="text-blue-500 font-semibold">
+                  <span v-if="canViewPrices()" class="text-blue-500 font-semibold">
                     {{ item.price ?? '-' }} <span class="text-sm">TMT</span>
                   </span>
+                  <span v-else class="text-gray-400">—</span>
                 </template>
                 <template v-else-if="col.key === 'created_at'">
                   <span class="text-gray-600">{{ formatDate(item.created_at) }}</span>
@@ -204,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import Sortable from 'sortablejs'
 import OrderFormModal from './OrderFormModal.vue'
 import ProjectFormModal from './ProjectFormModal.vue'
@@ -213,7 +209,8 @@ import Pagination from '@/components/users/UserList/Pagination.vue'
 import UIButton from '@/components/ui/UIButton.vue'
 import { OrderController } from '@/controllers/OrderController'
 import type { Order } from '@/types/order'
-import { canCreateEdit } from '@/utils/permissions'
+import { canCreateEdit, canViewPrices } from '@/utils/permissions'
+import { getAllStages } from '@/services/api'
 
 const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
 
@@ -233,7 +230,7 @@ const defaultColumns = [
   { key: 'quantity', label: 'Кол-во', sortable: true },
   { key: 'stage', label: 'Статус', sortable: true },
   { key: 'deadline', label: 'Дедлайн', sortable: true },
-  { key: 'price', label: 'Цена', sortable: true },
+  ...(canViewPrices() ? [{ key: 'price', label: 'Цена', sortable: true }] : []),
   { key: 'created_at', label: 'Создано', sortable: true },
 ]
 
@@ -251,6 +248,8 @@ const detailsOrderId = ref<number | null>(null)
 const selectedStage = ref('')
 const selectedArchive = ref('')
 const selectedAssignmentStatus = ref('')
+const stages = ref<any[]>([])
+const loadingStages = ref(false)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
@@ -288,12 +287,23 @@ function loadOrders(page = 1) {
     undefined,
     selectedAssignmentStatus.value || undefined,
     perPage.value,
-  )
+  ).then(() => {
+    // Отладочная информация после загрузки заказов
+    if (orders.value.length > 0) {
+      console.log('First order debug info:', {
+        id: orders.value[0].id,
+        current_stage_info: orders.value[0].current_stage_info,
+        stage: orders.value[0].stage,
+        current_stage: orders.value[0].current_stage,
+        fullOrder: orders.value[0],
+      })
+    }
+  })
 }
 
 function setSort(key: string) {
   // Разрешённые поля для сортировки
-  const allowedSortFields = ['id', 'quantity', 'stage', 'deadline', 'price', 'created_at']
+  const allowedSortFields = ['id', 'quantity', 'stage', 'deadline', ...(canViewPrices() ? ['price'] : []), 'created_at']
   if (!allowedSortFields.includes(key)) return
   if (sortBy.value === key) sortOrder.value = (sortOrder.value as string) === 'asc' ? 'desc' : 'asc'
   else {
@@ -326,9 +336,7 @@ async function deleteOrder(id: number) {
     try {
       await removeOrder(id)
       // Синглтон контроллер автоматически обновит состояние
-    } catch (e) {
-      console.error('Ошибка удаления:', e)
-    }
+    } catch (e) {}
   }
 }
 
@@ -343,6 +351,14 @@ function handleProjectCreated() {
 }
 
 function getStatusClass(stage: string) {
+  // Сначала ищем стадию в загруженных данных
+  const foundStage = stages.value.find((s) => s.name === stage)
+  if (foundStage && foundStage.color) {
+    // Если есть цвет в API, используем только font-semibold
+    return 'font-semibold'
+  }
+
+  // Fallback на старые цвета (когда нет цвета в API)
   return (
     {
       draft: 'bg-gray-100 text-gray-800',
@@ -358,6 +374,13 @@ function getStatusClass(stage: string) {
 }
 
 function getStatusText(stage: string) {
+  // Сначала ищем стадию в загруженных данных
+  const foundStage = stages.value.find((s) => s.name === stage)
+  if (foundStage && foundStage.display_name) {
+    return foundStage.display_name
+  }
+
+  // Fallback на старые названия
   return (
     {
       draft: 'Черновик',
@@ -406,8 +429,110 @@ function closeDetailsModal() {
 }
 
 function handleOrderUpdatedFromModal() {
-  loadOrders() // Немедленно обновляем список
+  console.log('🔄 OrderList: Получено событие обновления от модального окна')
+  // Принудительно обновляем список с небольшой задержкой для синхронизации с сервером
+  setTimeout(() => {
+    console.log('🔄 OrderList: Обновляем данные после изменения статуса')
+    loadOrders()
+  }, 100)
 }
+
+function getOrderStageName(order: any): string | null {
+  // Отладочная информация
+  console.log('getOrderStageName debug:', {
+    id: order.id,
+    current_stage_info: order.current_stage_info,
+    stage: order.stage,
+    current_stage: order.current_stage,
+    stage_id: order.stage_id,
+  })
+
+  // Проверяем все возможные источники названия стадии
+  if (order.current_stage_info?.display_name) {
+    console.log(
+      '✅ Found stage in current_stage_info.display_name:',
+      order.current_stage_info.display_name,
+    )
+    return order.current_stage_info.display_name
+  }
+
+  if (order.current_stage_info?.name) {
+    return order.current_stage_info.name
+  }
+
+  if (order.stage?.display_name) {
+    return order.stage.display_name
+  }
+
+  if (order.stage?.name) {
+    return order.stage.name
+  }
+
+  if (order.current_stage) {
+    return order.current_stage
+  }
+
+  if (order.stage_id) {
+    // Если есть только ID стадии, ищем её в загруженных стадиях
+    const foundStage = stages.value.find((s) => s.id === order.stage_id)
+    if (foundStage) {
+      return foundStage.display_name || foundStage.name
+    }
+  }
+
+  // Если ничего не найдено, возвращаем null
+  return null
+}
+
+function getOrderStageStyle(order: any): any {
+  // Если есть current_stage_info с цветом, используем его
+  if (order.current_stage_info?.color) {
+    return { backgroundColor: order.current_stage_info.color, color: 'white' }
+  }
+
+  // Если есть stage с цветом, используем его
+  if (order.stage?.color) {
+    return { backgroundColor: order.stage.color, color: 'white' }
+  }
+
+  // Если есть название стадии, ищем цвет в загруженных стадиях
+  const stageName = getOrderStageName(order)
+  if (stageName) {
+    const foundStage = stages.value.find(
+      (s) => s.name === stageName || s.display_name === stageName,
+    )
+    if (foundStage?.color) {
+      return { backgroundColor: foundStage.color, color: 'white' }
+    }
+  }
+
+  // Если ничего не найдено, возвращаем пустой объект
+  return {}
+}
+
+async function loadStages() {
+  try {
+    loadingStages.value = true
+
+    const stagesData = await getAllStages()
+
+    if (stagesData && Array.isArray(stagesData)) {
+      stages.value = stagesData
+    } else if (stagesData && stagesData.data && Array.isArray(stagesData.data)) {
+      stages.value = stagesData.data
+    } else {
+      stages.value = []
+    }
+  } catch (error) {
+    stages.value = []
+  } finally {
+    loadingStages.value = false
+  }
+}
+
+// Интервал для автоматического обновления данных
+let autoRefreshInterval: NodeJS.Timeout | null = null
+let handleFocus: (() => void) | null = null
 
 defineExpose({ loadOrders })
 
@@ -427,6 +552,37 @@ onMounted(async () => {
       },
     })
   }
+
+  // Загружаем стадии для фильтра
+  await loadStages()
+
+  // Загружаем заказы
   loadOrders()
+
+  // Запускаем автоматическое обновление каждые 10 секунд
+  autoRefreshInterval = setInterval(() => {
+    console.log('🔄 OrderList: Автоматическое обновление данных')
+    loadOrders()
+  }, 10000)
+
+  // Обновляем данные при фокусе на окне (когда пользователь возвращается к вкладке)
+  handleFocus = () => {
+    console.log('🔄 OrderList: Обновление данных при фокусе на окне')
+    loadOrders()
+  }
+  window.addEventListener('focus', handleFocus)
+})
+
+onUnmounted(() => {
+  // Очищаем интервал при размонтировании компонента
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval)
+    autoRefreshInterval = null
+  }
+
+  // Удаляем обработчик события фокуса
+  if (handleFocus) {
+    window.removeEventListener('focus', handleFocus)
+  }
 })
 </script>

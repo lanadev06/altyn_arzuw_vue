@@ -25,6 +25,7 @@ export interface LoginResponse {
     username: string
     name: string
     phone?: string
+    is_active: boolean
     roles: Array<{
       id: number
       name: string
@@ -99,15 +100,36 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw new Error(validationErrors)
       }
 
-      // --- Обработка 401/403 ошибок ---
+      // Обработка 401/403 ошибок
       if (response.status === 401 || response.status === 403) {
         const message = errorData.message || 'Сессия истекла. Необходимо войти в систему заново.'
-        handle401Error(message)
+
+        // Не вызываем handle401Error для определенных endpoints, которые могут быть недоступны
+        const isPublicEndpoint =
+          endpoint.includes('/users/role/') ||
+          endpoint.includes('/users') ||
+          endpoint.includes('/stages') ||
+          endpoint.includes('/stats/dashboard') ||
+          endpoint.includes('/clients/all') ||
+          endpoint.includes('/projects/') ||
+          endpoint.includes('/orders/') ||
+          endpoint.includes('/comments') ||
+          endpoint.includes('/status-logs') ||
+          endpoint.includes('/status-logs')
+
+        if (!isPublicEndpoint) {
+          handle401Error(message)
+        }
+
         throw new Error(message)
       }
-      // --- конец блока ---
 
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      // Унифицированная обработка ошибок
+      if (errorData.message) {
+        throw new Error(errorData.message)
+      } else {
+        throw new Error(ERROR_MESSAGES.UNKNOWN_ERROR)
+      }
     }
 
     return await response.json()
@@ -130,14 +152,20 @@ export const authApi = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
       // Реальный API вызов к Laravel
-      return await apiRequest<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+      const response = await apiRequest<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
         body: JSON.stringify(credentials),
       })
+
+      // Проверка активности пользователя
+      if (response.user && !response.user.is_active) {
+        throw new Error('Ваш аккаунт деактивирован. Обратитесь к администратору.')
+      }
+
+      return response
     } catch (error) {
       // Если API недоступен и включен fallback, используем имитацию
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-        console.warn('Laravel API недоступен, используем имитацию:', error)
 
         // Имитация API вызова
         await new Promise((resolve) => setTimeout(resolve, API_CONFIG.DEV.MOCK_DELAY))
@@ -190,7 +218,6 @@ export const authApi = {
       await apiRequest<void>(API_ENDPOINTS.AUTH.LOGOUT, { method: 'POST' })
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-        console.warn('Laravel API недоступен, используем локальный logout:', error)
       } else {
         throw error
       }
@@ -207,7 +234,6 @@ export const authApi = {
       return await apiRequest<LoginResponse['user']>(API_ENDPOINTS.AUTH.ME)
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-        console.warn('Laravel API недоступен, используем локальные данные:', error)
 
         const user = localStorage.getItem('user')
         if (user) {
@@ -232,7 +258,6 @@ export const authApi = {
       return { valid: true, user }
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-        console.warn('Laravel API недоступен, проверяем локальный токен:', error)
 
         // Для демонстрации считаем токен валидным, если он есть
         const user = localStorage.getItem('user')
@@ -466,7 +491,7 @@ export async function getProducts({
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.error('❌ API Error:', {
+    console.log('Ошибка загрузки товаров:', {
       status: res.status,
       statusText: res.statusText,
       response: errorText,
@@ -511,7 +536,7 @@ export async function updateProduct(id: number, data: ProductForm): Promise<Prod
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.error('❌ updateProduct API Error:', {
+    console.log('Ошибка обновления товара:', {
       status: res.status,
       statusText: res.statusText,
       response: errorText,
@@ -599,7 +624,7 @@ export async function getByRole(role: string): Promise<{ data: any[] }> {
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.error('❌ getByRole API Error:', {
+    console.log('Ошибка загрузки пользователей по роли:', {
       status: res.status,
       statusText: res.statusText,
       response: errorText,
@@ -656,87 +681,41 @@ export async function getAllProjects(): Promise<any[]> {
 
 // --- Заказы ---
 export async function getOrderDetails(orderId: number) {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки заказа')
-  return await res.json()
+  return await apiRequest(`/orders/${orderId}`)
 }
 
 export async function getOrderStatusLogs(orderId: number) {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}/status-logs`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки истории статусов')
-  return await res.json()
+  return await apiRequest(`/orders/${orderId}/status-logs`)
 }
 
 export async function getOrderComments(orderId: number) {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/comments?order_id=${orderId}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки комментариев')
-  return await res.json()
+  return await apiRequest(`/comments?order_id=${orderId}`)
 }
 
 export async function postOrderComment(orderId: number, text: string) {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/comments`, {
+  return await apiRequest('/comments', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
     body: JSON.stringify({ order_id: orderId, text }),
   })
-  if (!res.ok) throw new Error('Ошибка добавления комментария')
-  return await res.json()
 }
 
 // Добавляем функцию для удаления комментария к заказу
 export async function deleteOrderComment(orderId: number, commentId: number): Promise<void> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/comments/${commentId}?order_id=${orderId}`, {
+  await apiRequest(`/comments/${commentId}?order_id=${orderId}`, {
     method: 'DELETE',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
   })
-  if (!res.ok) throw new Error('Ошибка удаления комментария')
 }
 
 // --- Проекты ---
 export async function getProjectDetails(projectId: number) {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${projectId}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки проекта')
-  return await res.json()
+  return await apiRequest(`/projects/${projectId}`)
 }
 
 export async function updateOrderStage(orderId: number, stage: string): Promise<void> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}/stage`, {
+  await apiRequest(`/orders/${orderId}/stage`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
     body: JSON.stringify({ stage }),
   })
-  if (!res.ok) throw new Error('Ошибка смены статуса заказа')
 }
 
 export async function createUser(data: any): Promise<any> {
@@ -798,7 +777,7 @@ export async function getUsers({
 }
 
 export async function getUsersByRole(role: string): Promise<any> {
-  const res = await apiRequest(`/users/by-role/${role}`)
+  const res = await apiRequest(`/users/role/${role}`)
   return res
 }
 
@@ -815,7 +794,7 @@ export async function updateUser(id: number, data: any): Promise<any> {
     const formData = new FormData()
     if (data.name !== undefined) formData.append('name', data.name)
     if (data.username !== undefined) formData.append('username', data.username)
-    if (data.phone !== undefined) formData.append('phone', data.phone || '')
+    if (data.phone !== undefined) formData.append('phone', data.phone === null ? '' : data.phone)
     if (data.password) formData.append('password', data.password)
     if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
     formData.append('image', data.image)

@@ -1,105 +1,77 @@
-import { API_CONFIG } from '../config/api'
 import { handle401Error } from '../utils/auth'
+import { API_CONFIG } from '../config/api'
 
-// Базовый API клиент
-export const api = {
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' })
-  },
-
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    })
-  },
-
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    })
-  },
-
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' })
-  },
-
-  async patch<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
-    })
-  },
-
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_CONFIG.BASE_URL}${endpoint}`
-
-    // Базовые заголовки
-    const defaultHeaders: Record<string, string> = {
-      ...API_CONFIG.DEFAULT_HEADERS,
-    }
-
-    // Добавляем токен авторизации
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      defaultHeaders['Authorization'] = `Bearer ${token}`
-    }
-
-    const config: RequestInit = {
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-      ...options,
-    }
-
-    // Создаем контроллер для таймаута
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
-
+// Создаем экземпляр axios с базовой конфигурацией
+const apiClient = {
+  async request(config: any) {
     try {
-      const response = await fetch(url, {
-        ...config,
-        signal: controller.signal,
+      // Добавляем токен авторизации
+      const token = localStorage.getItem('auth_token')
+      if (token) {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${token}`,
+        }
+      }
+
+      // Добавляем базовый URL
+      config.url = `${API_CONFIG.BASE_URL}${config.url}`
+
+      const response = await fetch(config.url, {
+        method: config.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...config.headers,
+        },
+        body: config.data ? JSON.stringify(config.data) : undefined,
       })
 
-      clearTimeout(timeoutId)
+      // Обработка 401 ошибки
+      if (response.status === 401) {
+        handle401Error()
+        throw new Error('Unauthorized')
+      }
+
+      // Обработка 403 ошибки
+      if (response.status === 403) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Access denied')
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-
-        // Обработка 401 ошибки
-        if (response.status === 401) {
-          handle401Error()
-          throw new Error('Unauthorized')
-        }
-
-        // Обработка Laravel validation errors
-        if (response.status === 422 && errorData.errors) {
-          const validationErrors = Object.values(errorData.errors).flat().join(', ')
-          throw new Error(validationErrors)
-        }
-
-        // Обработка других ошибок
-        const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`
-        throw new Error(errorMessage)
-      }
-
-      // Для DELETE запросов может не быть тела ответа
-      if (response.status === 204 || response.headers.get('content-length') === '0') {
-        return {} as T
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
       }
 
       return await response.json()
     } catch (error) {
-      clearTimeout(timeoutId)
-
       if (error instanceof Error) {
         throw error
       }
-
       throw new Error('Network error')
     }
   },
+
+  get(url: string, config = {}) {
+    return this.request({ ...config, method: 'GET', url })
+  },
+
+  post(url: string, data?: any, config = {}) {
+    return this.request({ ...config, method: 'POST', url, data })
+  },
+
+  put(url: string, data?: any, config = {}) {
+    return this.request({ ...config, method: 'PUT', url, data })
+  },
+
+  patch(url: string, data?: any, config = {}) {
+    return this.request({ ...config, method: 'PATCH', url, data })
+  },
+
+  delete(url: string, config = {}) {
+    return this.request({ ...config, method: 'DELETE', url })
+  },
 }
+
+export default apiClient

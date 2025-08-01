@@ -55,7 +55,6 @@ const handleLogin = async (formData) => {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка'
     loginFormRef.value?.setError(errorMessage)
-    console.error('Ошибка входа:', err)
   } finally {
     loading.value = false
   }

@@ -109,7 +109,7 @@
                         :class="getRoleBadgeClass(role.name)"
                         :style="getRoleBadgeStyle(role.name)"
                       >
-                        {{ getRoleLabel(role.display_name || role.name) }}
+                        {{ role.display_name || role.name }}
                       </span>
                     </template>
                     <template v-else>
@@ -117,7 +117,7 @@
                         class="px-2 py-1 rounded-full text-xs font-medium"
                         :class="getRoleBadgeClass(user.role)"
                       >
-                        {{ getRoleLabel(user.role) }}
+                        {{ user.role }}
                       </span>
                     </template>
                   </template>
@@ -384,20 +384,10 @@ async function toggleUserActive(userId: number) {
       props.role,
       props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
     )
-  } catch (e) {
-    console.error('Ошибка переключения статуса:', e)
-  }
+  } catch (e) {}
 }
 
 const handleCreateUser = async (userData: any) => {
-  console.log('=== handleCreateUser START ===')
-  console.log('userData received:', userData)
-  console.log('userData.image type:', typeof userData.image)
-  console.log('userData.image instanceof File:', userData.image instanceof File)
-  console.log('userData.image:', userData.image)
-  console.log('userData keys:', Object.keys(userData))
-  console.log('=== handleCreateUser END ===')
-
   try {
     await create(userData)
     emit('close-create-modal')
@@ -411,20 +401,10 @@ const handleCreateUser = async (userData: any) => {
       props.role,
       props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
     )
-  } catch (err) {
-    console.error('Ошибка создания:', err)
-  }
+  } catch (err) {}
 }
 
 const handleUpdateUser = async (userData: any) => {
-  console.log('=== handleUpdateUser START ===')
-  console.log('userData received:', userData)
-  console.log('userData.image type:', typeof userData.image)
-  console.log('userData.image instanceof File:', userData.image instanceof File)
-  console.log('userData.image:', userData.image)
-  console.log('userData keys:', Object.keys(userData))
-  console.log('=== handleUpdateUser END ===')
-
   try {
     if (!editingUser.value) return
     console.log(
@@ -433,6 +413,7 @@ const handleUpdateUser = async (userData: any) => {
       typeof editingUser.value.id,
       editingUser.value,
     )
+    console.log('Sending userData to API:', userData) // Отладка
     if (typeof editingUser.value.id !== 'number') {
       alert('Ошибка: id пользователя не число! ' + editingUser.value.id)
       return
@@ -450,16 +431,12 @@ const handleUpdateUser = async (userData: any) => {
       props.role,
       props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
     )
-  } catch (err) {
-    console.error('Ошибка обновления:', err)
-  }
+  } catch (err) {}
 }
 
 const handleDeleteUser = async (userId: number) => {
   try {
-    console.log('🔄 Начинаем удаление пользователя:', userId)
     await deleteUser(userId)
-    console.log('✅ Пользователь успешно удален:', userId)
     showEditModal.value = false
     editingUser.value = null
     const sortByParam = getSortByParam(sortBy.value)
@@ -474,8 +451,6 @@ const handleDeleteUser = async (userId: number) => {
     )
     toast.show('Пользователь успешно удален!', 'success')
   } catch (err: any) {
-    console.error('❌ Ошибка удаления пользователя:', userId, err)
-
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении пользователя'
 

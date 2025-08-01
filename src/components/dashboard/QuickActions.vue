@@ -105,7 +105,6 @@ import { canViewAllUsers, canViewAllClients, canCreateEdit } from '../../utils/p
 
 const showOrderModal = ref(false)
 
-// Динамический импорт OrderFormModal
 const OrderFormModal = defineAsyncComponent(() => import('../orders/OrderList/OrderFormModal.vue'))
 
 const actions = [

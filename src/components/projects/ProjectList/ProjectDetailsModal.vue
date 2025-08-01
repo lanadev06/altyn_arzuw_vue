@@ -218,7 +218,7 @@
             <div class="w-1/2 flex flex-col gap-4 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
               <!-- Комментарии -->
               <div
-                class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col transition-all duration-300 hover:shadow-lg hover:scale-[1.02] mt-8"
               >
                 <div
                   class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"

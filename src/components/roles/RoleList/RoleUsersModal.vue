@@ -107,7 +107,6 @@ const loadRoleUsers = async () => {
     const role = await RoleController.getById(props.role.id)
     roleUsers.value = role.users || []
   } catch (error) {
-    console.error('Error loading role users:', error)
     toast.show('Ошибка загрузки пользователей роли', 'error')
   }
 }
@@ -119,7 +118,6 @@ const loadAvailableUsers = async () => {
     // Пока используем заглушку
     availableUsers.value = []
   } catch (error) {
-    console.error('Error loading available users:', error)
     toast.show('Ошибка загрузки доступных пользователей', 'error')
   }
 }
@@ -133,7 +131,6 @@ const addUser = async (user: User) => {
     roleUsers.value.push(user)
     toast.show('Пользователь успешно добавлен к роли', 'success')
   } catch (error) {
-    console.error('Error adding user to role:', error)
     toast.show('Ошибка добавления пользователя к роли', 'error')
   }
 }
@@ -151,7 +148,6 @@ const removeUser = async (user: User) => {
     roleUsers.value = roleUsers.value.filter((u) => u.id !== user.id)
     toast.show('Пользователь успешно убран из роли', 'success')
   } catch (error) {
-    console.error('Error removing user from role:', error)
     toast.show('Ошибка удаления пользователя из роли', 'error')
   }
 }

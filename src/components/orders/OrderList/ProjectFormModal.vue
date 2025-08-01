@@ -213,7 +213,6 @@ onMounted(async () => {
       name: c.name,
     }))
   } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
     toast.show('Ошибка загрузки данных', 'error')
   } finally {
     loadingData.value = false
@@ -264,6 +263,11 @@ async function handleSubmit() {
     return
   }
 
+  // Защита от повторного отправления
+  if (loading.value) {
+    return
+  }
+
   loading.value = true
   try {
     const projectData = {
@@ -296,7 +300,6 @@ async function handleSubmit() {
     emit('submit')
     emit('close')
   } catch (e) {
-    console.error('Ошибка при создании проекта:', e)
     const errorMessage = e instanceof Error ? e.message : 'Ошибка при создании проекта'
     toast.show(errorMessage, 'error')
   } finally {

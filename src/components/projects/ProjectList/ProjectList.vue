@@ -283,9 +283,7 @@ async function handleUpdateProject(updatedProject: Project) {
 
 async function handleDeleteProject(projectId: number) {
   try {
-    console.log('🔄 Начинаем удаление проекта:', projectId)
     await remove(projectId)
-    console.log('✅ Проект успешно удален:', projectId)
     showEditModal.value = false
     editingProject.value = null
     if (pagination?.data?.length === 1 && currentPage.value > 1) {
@@ -299,7 +297,6 @@ async function handleDeleteProject(projectId: number) {
       perPage.value,
     )
   } catch (err: unknown) {
-    console.error('❌ Ошибка удаления проекта:', projectId, err)
     // Показываем ошибку пользователю
     if (err instanceof Error) {
       toast.show(`Ошибка удаления проекта: ${err.message}`, 'error')
@@ -374,13 +371,9 @@ async function onDeleteComment(commentId: number) {
   if (!selectedProject.value) return
 
   try {
-    console.log('Начинаем удаление комментария:', commentId)
     await deleteProjectComment(commentId)
-    console.log('Комментарий успешно удален, обновляем список')
     selectedProjectComments.value = await getProjectComments(selectedProject.value.id)
-    console.log('Список комментариев обновлен')
   } catch (error) {
-    console.error('Ошибка при удалении комментария:', error)
   }
 }
 function onEditComment(payload: any) {}
@@ -429,7 +422,6 @@ async function addProjectComment(projectId: number, text: string) {
   return await res.json()
 }
 async function deleteProjectComment(commentId: number) {
-  console.log('Удаление комментария с ID:', commentId)
   const res = await fetch(`/api/comments/${commentId}`, {
     method: 'DELETE',
     headers: {
@@ -437,27 +429,21 @@ async function deleteProjectComment(commentId: number) {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  console.log('Статус ответа:', res.status)
-  console.log('Заголовки ответа:', res.headers)
 
   if (!res.ok) {
     let errorMessage = 'Ошибка при удалении комментария'
     try {
       const errorData = await res.json()
-      console.log('Данные ошибки:', errorData)
       errorMessage = errorData.message || errorMessage
     } catch (e) {
-      console.log('Не удалось прочитать JSON ошибки:', e)
     }
     throw new Error(errorMessage)
   }
 
   try {
     const responseData = await res.json()
-    console.log('Успешный ответ:', responseData)
     return responseData
   } catch (e) {
-    console.log('Ответ не содержит JSON, но статус успешный')
     return { success: true }
   }
 }

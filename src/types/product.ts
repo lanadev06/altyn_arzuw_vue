@@ -30,6 +30,10 @@ export interface Product {
   designer?: { id: number; name: string }
   print_operator?: { id: number; name: string }
   workshop_worker?: { id: number; name: string }
+
+  // Основное поле для назначений (из ProductResource)
+  assignments?: ProductAssignment[]
+
   created_at?: string
   updated_at?: string
 }

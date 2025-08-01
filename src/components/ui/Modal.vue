@@ -1,6 +1,11 @@
 <template>
-  <div v-if="visible" class="modal-overlay" @click="$emit('close')">
-    <div class="modal-container" @click.stop>
+  <div
+    v-if="visible"
+    class="modal-overlay"
+    @click="handleOverlayClick"
+    @dblclick="handleDoubleClick"
+  >
+    <div class="modal-container" @click.stop @dblclick.stop>
       <header class="modal-header">
         <slot name="header">
           <h3 class="modal-title">Заголовок</h3>
@@ -29,7 +34,71 @@
 </template>
 
 <script setup lang="ts">
-defineProps({ visible: { type: Boolean, default: true } })
+import { ref } from 'vue'
+
+/**
+ * Modal Component
+ *
+ * Props:
+ * - visible: Boolean - показывает/скрывает модальное окно
+ * - closeOnOverlayClick: Boolean - разрешает закрытие по клику на overlay (по умолчанию false)
+ * - closeOnDoubleClick: Boolean - разрешает закрытие по двойному клику на overlay (по умолчанию true)
+ *
+ * Events:
+ * - close: Emitted when modal should be closed
+ *
+ * Usage:
+ * <Modal
+ *   :visible="showModal"
+ *   :closeOnOverlayClick="false"
+ *   :closeOnDoubleClick="true"
+ *   @close="showModal = false"
+ * >
+ *   <template #header>
+ *     <h2>Заголовок</h2>
+ *   </template>
+ *   Содержимое модального окна
+ * </Modal>
+ */
+
+const props = defineProps({
+  visible: { type: Boolean, default: true },
+  closeOnOverlayClick: { type: Boolean, default: false },
+  closeOnDoubleClick: { type: Boolean, default: true },
+})
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+function handleOverlayClick(event: Event) {
+  // Проверяем, что клик произошел именно на overlay, а не на модальном контейнере
+  if (event.target === event.currentTarget) {
+    // Обычный клик - закрываем модальное окно только если включена опция
+    if (props.closeOnOverlayClick) {
+      emit('close')
+    }
+  }
+}
+
+function handleDoubleClick(event: Event) {
+  // Проверяем, что двойной клик произошел именно на overlay, а не на модальном контейнере
+  if (event.target === event.currentTarget) {
+    // Двойной клик - закрываем модальное окно только если включена опция
+    if (props.closeOnDoubleClick) {
+      // Добавляем визуальную обратную связь
+      const overlay = event.currentTarget as HTMLElement
+      if (overlay) {
+        overlay.classList.add('double-click')
+        setTimeout(() => {
+          overlay.classList.remove('double-click')
+        }, 300)
+      }
+
+      emit('close')
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -43,6 +112,16 @@ defineProps({ visible: { type: Boolean, default: true } })
   z-index: 1050;
   animation: fade-in 0.25s ease;
   backdrop-filter: blur(3px);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.modal-overlay:hover {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.modal-overlay:active {
+  background: rgba(15, 23, 42, 0.6);
 }
 
 .modal-container {
@@ -57,6 +136,7 @@ defineProps({ visible: { type: Boolean, default: true } })
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: default;
 }
 
 .modal-header {
@@ -121,5 +201,22 @@ defineProps({ visible: { type: Boolean, default: true } })
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* Анимация для двойного клика */
+@keyframes double-click-pulse {
+  0% {
+    background: rgba(15, 23, 42, 0.4);
+  }
+  50% {
+    background: rgba(15, 23, 42, 0.7);
+  }
+  100% {
+    background: rgba(15, 23, 42, 0.4);
+  }
+}
+
+.modal-overlay.double-click {
+  animation: double-click-pulse 0.3s ease;
 }
 </style>

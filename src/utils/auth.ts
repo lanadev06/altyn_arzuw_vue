@@ -4,7 +4,9 @@
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
-  return !!localStorage.getItem('auth_token')
+  const token = localStorage.getItem('auth_token')
+  const user = localStorage.getItem('user')
+  return !!(token && user)
 }
 
 /**
@@ -32,10 +34,30 @@ export function setAuth(token: string, user: any): void {
 }
 
 /**
+ * Validate token and user data
+ */
+export function validateAuth(): boolean {
+  const token = localStorage.getItem('auth_token')
+  const user = localStorage.getItem('user')
+
+  if (!token || !user) {
+    return false
+  }
+
+  try {
+    const userData = JSON.parse(user)
+    return !!(userData && userData.id && userData.username)
+  } catch {
+    return false
+  }
+}
+
+/**
  * Handle 401 Unauthorized errors - clear auth and redirect to login
  */
 export function handle401Error(message?: string): void {
-  
+  console.log('🚨 401 Unauthorized - clearing auth and redirecting to login')
+
   clearAuth()
 
   // Show message if provided
@@ -68,4 +90,11 @@ export function handle401Error(message?: string): void {
       }, 1000) // 1 second delay to show the toast
     }
   }
+}
+
+/**
+ * Check if user has valid session
+ */
+export function hasValidSession(): boolean {
+  return isAuthenticated() && validateAuth()
 }

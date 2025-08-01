@@ -28,6 +28,10 @@ export function ProductController() {
     error.value = ''
     try {
       const res = await getProducts({ page, search, sort_by, sort_order, per_page })
+
+      // Отладочная информация
+      console.log('📦 Raw API response:', res)
+
       // Исправление: поддержка структуры с meta (Laravel Resource)
       if (res.meta && Array.isArray(res.data)) {
         pagination.data = res.data
@@ -42,9 +46,20 @@ export function ProductController() {
         pagination.total = res.total || 0
         pagination.per_page = res.per_page || 30
       }
+
+      // Отладочная информация о продуктах
+      console.log(
+        '📦 Processed products:',
+        pagination.data.map((p) => ({
+          id: p.id,
+          name: p.name,
+          assignments_count: p.assignments?.length || 0,
+          available_stages_count: p.available_stages?.length || 0,
+        })),
+      )
+
       products.value = pagination.data
     } catch (e: any) {
-      console.error('❌ Error in fetchProducts:', e)
       error.value = e.message || 'Ошибка загрузки товаров'
     } finally {
       loading.value = false

@@ -294,7 +294,6 @@ const fetchRoles = async () => {
     roles.value = data
   } catch (err: unknown) {
     error.value = (err as Error)?.message || 'Ошибка загрузки ролей'
-    console.error('Error fetching roles:', err)
   } finally {
     loading.value = false
   }
@@ -310,7 +309,6 @@ const handleCreateRole = async (roleData: {
     emit('close-create-modal')
     await fetchRoles()
   } catch (err: unknown) {
-    console.error('Ошибка создания:', err)
   }
 }
 
@@ -321,27 +319,22 @@ const handleUpdateRole = async (roleData: {
 }) => {
   try {
     if (!editingRole.value) return
-    console.log('🔄 Обновление роли:', editingRole.value.id, roleData)
     await RoleController.update(editingRole.value.id, roleData)
-    console.log('✅ Роль успешно обновлена')
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
   } catch (err: unknown) {
-    console.error('❌ Ошибка обновления:', err)
   }
 }
 
 const handleDeleteRole = async (roleId: number) => {
   try {
-    console.log('🔄 Начинаем удаление роли:', roleId)
 
     // Проверяем права доступа
     if (!canDelete()) {
       alert('У вас нет прав для удаления ролей')
       return
     }
-    console.log('✅ Права доступа проверены')
 
     // Проверяем токен авторизации
     const token = localStorage.getItem('auth_token')
@@ -349,15 +342,12 @@ const handleDeleteRole = async (roleId: number) => {
       alert('Необходима авторизация для удаления роли')
       return
     }
-    console.log('✅ Токен авторизации найден')
 
     await RoleController.delete(roleId)
-    console.log('✅ Роль успешно удалена:', roleId)
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
   } catch (err: unknown) {
-    console.error('❌ Ошибка удаления роли:', roleId, err)
     // Показываем ошибку пользователю
     if (err instanceof Error) {
       toast.show(`Ошибка удаления роли: ${err.message}`, 'error')

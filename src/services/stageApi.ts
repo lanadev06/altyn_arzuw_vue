@@ -1,4 +1,4 @@
-import { api } from './apiClient'
+import apiClient from './apiClient'
 import type {
   Stage,
   CreateStageRequest,
@@ -8,23 +8,23 @@ import type {
 
 export const stageApi = {
   // Получить все стадии
-  getAll: () => api.get<Stage[]>('/stages'),
+  getAll: () => apiClient.get('/stages'),
 
   // Получить стадию по ID
-  getById: (id: number) => api.get<Stage>(`/stages/${id}`),
+  getById: (id: number) => apiClient.get(`/stages/${id}`),
 
   // Создать новую стадию
-  create: (data: CreateStageRequest) => api.post<Stage>('/stages', data),
+  create: (data: CreateStageRequest) => apiClient.post('/stages', data),
 
   // Обновить стадию
-  update: (id: number, data: UpdateStageRequest) => api.put<Stage>(`/stages/${id}`, data),
+  update: (id: number, data: UpdateStageRequest) => apiClient.put(`/stages/${id}`, data),
 
   // Удалить стадию
-  delete: (id: number) => api.delete(`/stages/${id}`),
+  delete: (id: number) => apiClient.delete(`/stages/${id}`),
 
   // Изменить порядок стадий
-  reorder: (data: ReorderStagesRequest) => api.post('/stages/reorder', data),
+  reorder: (data: ReorderStagesRequest) => apiClient.post('/stages/reorder', data),
 
   // Получить доступные роли
-  getAvailableRoles: () => api.get('/stages/available-roles'),
+  getAvailableRoles: () => apiClient.get('/stages/available-roles'),
 }

@@ -94,13 +94,11 @@ export async function safeApiRequest<T>(url: string, options: RequestInit = {}):
     })
 
     if (!response.ok) {
-      console.error(`API Error: ${response.status} ${response.statusText}`)
       return null
     }
 
     return await response.json()
   } catch (error) {
-    console.error('API Request Error:', error)
     return null
   }
 }

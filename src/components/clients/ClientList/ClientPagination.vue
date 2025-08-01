@@ -29,7 +29,6 @@
       </template>
 
       <template v-else>
-        <!-- Первая страница -->
         <button
           @click="$emit('go-to-page', 1)"
           :class="[
@@ -41,11 +40,9 @@
         >
           1
         </button>
-
-        <!-- Многоточие в начале -->
+        
         <span v-if="startPage > 2" class="px-2 py-2 text-gray-500">...</span>
 
-        <!-- Страницы вокруг текущей -->
         <button
           v-for="page in visiblePages"
           :key="page"

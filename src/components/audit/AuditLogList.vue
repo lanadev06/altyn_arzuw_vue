@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-6">
-    <!-- Заголовок и статистика -->
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
@@ -26,7 +25,6 @@
       </div>
     </div>
 
-    <!-- Фильтры -->
     <div class="bg-white p-6 rounded-lg shadow">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
@@ -105,7 +103,6 @@
       </div>
     </div>
 
-    <!-- Список логов -->
     <div class="bg-white border border-gray-200">
       <div v-if="loading" class="p-8 text-center">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -206,7 +203,6 @@
       class="mt-4 shrink-0"
     />
 
-    <!-- Модальное окно с деталями -->
     <AuditLogDetailsModal v-if="selectedLog" :log="selectedLog" @close="selectedLog = null" />
   </div>
 </template>
@@ -221,27 +217,21 @@ import type { AuditLog, AuditLogFilters, AuditLogResponse } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, AUDIT_ACTION_COLORS, AUDIT_MODEL_LABELS } from '@/types/audit'
 import AuditLogDetailsModal from './AuditLogDetailsModal.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
-// import { getAllUsers } from '@/services/api'
 
-// Состояние
 const logs = ref<AuditLog[]>([])
 const loading = ref(false)
 const selectedLog = ref<AuditLog | null>(null)
 const users = ref([])
-
-// Ключи для localStorage
+  
 const AUDIT_PER_PAGE_KEY = 'auditLogList_perPage'
 
-// Сохраненные настройки
 const savedPerPage = localStorage.getItem(AUDIT_PER_PAGE_KEY)
 
-// Фильтры
 const filters = ref<AuditLogFilters>({
   page: 1,
   per_page: savedPerPage ? parseInt(savedPerPage) : 30,
 })
 
-// Пагинация
 const pagination = ref<{
   current_page: number
   last_page: number
@@ -249,7 +239,6 @@ const pagination = ref<{
   total: number
 } | null>(null)
 
-// Описание столбцов для drag-n-drop
 const columns = ref([
   { key: 'created_at', label: 'Время' },
   { key: 'user', label: 'Пользователь' },
@@ -260,7 +249,6 @@ const columns = ref([
 ])
 const columnsHeader = ref(null)
 
-// Загрузка логов
 const loadLogs = async () => {
   loading.value = true
   try {
@@ -273,8 +261,6 @@ const loadLogs = async () => {
       total: response.pagination?.total || response.total,
     }
   } catch (error) {
-    console.error('Ошибка загрузки логов:', error)
-    // Показываем сообщение об ошибке пользователю
     logs.value = []
     pagination.value = null
   } finally {
@@ -282,7 +268,6 @@ const loadLogs = async () => {
   }
 }
 
-// Изменение страницы
 const changePage = (page: number) => {
   if (page >= 1 && page <= (pagination.value?.last_page || 1)) {
     filters.value.page = page
@@ -290,7 +275,6 @@ const changePage = (page: number) => {
   }
 }
 
-// Очистка фильтров
 const clearFilters = () => {
   filters.value = {
     page: 1,
@@ -300,7 +284,6 @@ const clearFilters = () => {
   loadLogs()
 }
 
-// Поиск с задержкой
 let searchTimeout: number
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
@@ -310,12 +293,10 @@ const debouncedSearch = () => {
   }, 500)
 }
 
-// Показать детали лога
 const showDetails = (log: AuditLog) => {
   selectedLog.value = log
 }
 
-// Форматирование даты
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString('ru-RU', {
     year: 'numeric',
@@ -326,11 +307,9 @@ const formatDate = (dateString: string) => {
   })
 }
 
-// flatpickr refs
 const dateFromInput = ref(null)
 const dateToInput = ref(null)
 
-// Словарь ролей пользователей
 const USER_ROLE_LABELS: Record<string, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
@@ -361,7 +340,6 @@ watch(
   },
 )
 
-// Инициализация
 onMounted(async () => {
   loadLogs()
   nextTick(() => {
@@ -383,7 +361,6 @@ onMounted(async () => {
         },
       })
     }
-    // Drag-n-drop для заголовков
     if (columnsHeader.value) {
       Sortable.create(columnsHeader.value, {
         animation: 150,

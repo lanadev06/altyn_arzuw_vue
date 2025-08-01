@@ -30,7 +30,6 @@
         <span>Главная</span>
       </router-link>
 
-      <!-- Пользователи - только для админов и менеджеров -->
       <router-link
         v-if="canViewAllUsers()"
         to="/users"
@@ -48,7 +47,6 @@
         <span>Пользователи</span>
       </router-link>
 
-      <!-- Клиенты - только для админов и менеджеров -->
       <router-link
         v-if="canViewAllClients()"
         to="/clients"
@@ -66,7 +64,6 @@
         <span>Клиенты</span>
       </router-link>
 
-      <!-- Проекты -->
       <router-link
         to="/projects"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -83,7 +80,6 @@
         <span>{{ getNavigationText('projects') }}</span>
       </router-link>
 
-      <!-- Товары -->
       <router-link
         to="/products"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -100,7 +96,6 @@
         <span>{{ getNavigationText('products') }}</span>
       </router-link>
 
-      <!-- Заказы -->
       <router-link
         to="/orders"
         class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
@@ -117,7 +112,6 @@
         <span>{{ getNavigationText('orders') }}</span>
       </router-link>
 
-      <!-- Аудит-логи - только для админов -->
       <router-link
         v-if="canViewAuditLogs()"
         to="/audit-logs"
@@ -135,7 +129,6 @@
         <span>Действия</span>
       </router-link>
 
-      <!-- Управление стадиями - только для админов -->
       <router-link
         v-if="canViewAuditLogs()"
         to="/stages"
@@ -153,7 +146,6 @@
         <span>Стадии</span>
       </router-link>
 
-      <!-- Управление ролями - только для админов -->
       <router-link
         v-if="canViewAuditLogs()"
         to="/roles"

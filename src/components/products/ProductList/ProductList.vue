@@ -91,6 +91,11 @@
                     :role-type="col.roleType"
                     empty-message="Не назначены"
                   />
+                  <!-- Отладочная информация -->
+                  <div v-if="false" class="text-xs text-gray-400">
+                    Debug:
+                    {{ getStageAssignments(product, col.stageId, col.roleType).length }} assignments
+                  </div>
                 </template>
                 <template v-else-if="col.key === 'created_at'">
                   <span class="text-gray-600">{{ formatDate(product.created_at) }}</span>
@@ -218,6 +223,16 @@ const dynamicColumns = computed<Column[]>(() => {
     if (pagination.value?.data) {
       pagination.value.data.forEach((product, index) => {
         if (product.available_stages) {
+          console.log(
+            `🔍 Product ${product.id} stages:`,
+            product.available_stages.map((s) => ({
+              id: s.id,
+              name: s.display_name,
+              roles_count: s.roles?.length || 0,
+              roles: s.roles?.map((r) => r.name) || [],
+            })),
+          )
+
           product.available_stages.forEach((stage) => {
             if (stage.roles && stage.roles.length > 0) {
               stage.roles.forEach((role) => {
@@ -237,6 +252,8 @@ const dynamicColumns = computed<Column[]>(() => {
                   })
                 }
               })
+            } else {
+              console.log(`⚠️ Stage ${stage.id} (${stage.display_name}) has no roles`)
             }
           })
         } else {
@@ -274,7 +291,7 @@ const dynamicColumns = computed<Column[]>(() => {
 
     // Создаем колонки для каждой стадии с назначениями
     stageAssignments.forEach((assignment, key) => {
-      columns.push({
+      const column = {
         key: `stage_${key}`,
         label: assignment.stageName, // Только display_name стадии
         sortable: false,
@@ -282,7 +299,9 @@ const dynamicColumns = computed<Column[]>(() => {
         stageId: assignment.stageId,
         roleType: assignment.roleType,
         color: assignment.color,
-      })
+      }
+      columns.push(column)
+      console.log(`📋 Created column:`, column)
     })
 
     console.log(
@@ -302,11 +321,55 @@ const dynamicColumns = computed<Column[]>(() => {
 
 // Функция для получения назначений для конкретной стадии и роли
 function getStageAssignments(product: Product, stageId: number, roleType: string) {
-  // Динамически получаем назначения из продукта
-  const rolePropertyName = `${roleType}s` // добавляем 's' для множественного числа
-  const assignments = product[rolePropertyName] || []
+  // Сначала пытаемся получить назначения из массива assignments
+  if (product.assignments) {
+    const filteredAssignments = product.assignments.filter(
+      (assignment) => assignment.role_type === roleType && assignment.is_active,
+    )
 
-  return assignments
+    console.log(
+      `🔍 Product ${product.id}, role ${roleType}: found ${filteredAssignments.length} assignments from assignments array`,
+      filteredAssignments.map((a) => ({
+        id: a.id,
+        user: a.user?.name,
+        role_type: a.role_type,
+        is_active: a.is_active,
+      })),
+    )
+
+    if (filteredAssignments.length > 0) {
+      return filteredAssignments
+    }
+  }
+
+  // Fallback: проверяем отдельные поля для ролей
+  const roleFields = {
+    designer: product.designers,
+    print_operator: product.print_operators,
+    engraving_operator: product.engraving_operators,
+    workshop_worker: product.workshop_workers,
+  }
+
+  const roleData = roleFields[roleType as keyof typeof roleFields]
+
+  if (roleData && Array.isArray(roleData)) {
+    console.log(
+      `🔍 Product ${product.id}, role ${roleType}: found ${roleData.length} users from ${roleType} field`,
+      roleData.map((u) => ({ id: u.id, name: u.name })),
+    )
+
+    // Преобразуем пользователей в формат ProductAssignment
+    return roleData.map((user) => ({
+      id: 0,
+      role_type: roleType,
+      user: user,
+      user_id: user.id,
+      is_active: true,
+    }))
+  }
+
+  console.log(`🔍 Product ${product.id}, role ${roleType}: no assignments found`)
+  return []
 }
 
 // Функция для отображения названий ролей

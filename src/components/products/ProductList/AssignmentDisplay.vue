@@ -37,27 +37,40 @@ const normalizedAssignments = computed(() => {
   if (!props.assignments) return []
 
   return props.assignments.map((item) => {
-    // Если это уже ProductAssignment
-    if ('role_type' in item) {
+    // Если это уже ProductAssignment (из assignments поля)
+    if ('role_type' in item && 'user' in item) {
       return item as ProductAssignment
     }
 
-    // Если это User, преобразуем в ProductAssignment
+    // Если это User (из старых полей designers, print_operators и т.д.)
     const user = item as User
     return {
       id: 0,
       role_type: props.roleType || '',
       user: user,
       user_id: user.id,
+      is_active: true,
     } as ProductAssignment
   })
 })
 
 // Показываем ВСЕ назначения (и активные, и неактивные)
 const activeAssignments = computed(() => {
-  return normalizedAssignments.value.filter((assignment) => {
+  const assignments = normalizedAssignments.value.filter((assignment) => {
     // Показываем все назначения, которые имеют пользователя
     return assignment.user
   })
+
+  console.log(
+    `🎯 AssignmentDisplay: roleType=${props.roleType}, assignments=${assignments.length}`,
+    assignments.map((a) => ({
+      id: a.id,
+      user: a.user?.name,
+      role_type: a.role_type,
+      is_active: a.is_active,
+    })),
+  )
+
+  return assignments
 })
 </script>

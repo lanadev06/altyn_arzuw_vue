@@ -24,11 +24,11 @@
               :key="role.id"
               class="inline-block bg-blue-200 text-blue-800 rounded px-2 py-0.5 mr-1"
             >
-              {{ USER_ROLE_LABELS[role.name] || role.display_name || role.name }}
+              {{ role.display_name || role.name }}
             </span>
           </template>
           <template v-else>
-            {{ USER_ROLE_LABELS[user.role] || user.role }}
+            {{ user.role }}
           </template>
         </p>
       </div>
@@ -61,11 +61,11 @@
               :key="role.id"
               class="inline-block bg-blue-100 text-blue-800 rounded px-2 py-0.5 mr-1"
             >
-              {{ USER_ROLE_LABELS[role.name] || role.display_name || role.name }}
+              {{ role.display_name || role.name }}
             </span>
           </template>
           <template v-else>
-            {{ USER_ROLE_LABELS[user.role] || user.role }}
+            {{ user.role }}
           </template>
         </p>
       </div>
@@ -110,15 +110,6 @@ const isDropdownOpen = ref(false)
 const rootRef = ref<HTMLElement>()
 const userImageUrl = ref('')
 
-const USER_ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  designer: 'Дизайнер',
-  print_operator: 'Печатник',
-  workshop_worker: 'Работник цеха',
-}
-
-// Синхронная функция для получения URL изображения
 const getUserImageUrl = (user: any) => {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
@@ -126,20 +117,15 @@ const getUserImageUrl = (user: any) => {
   return ''
 }
 
-// Функция для загрузки URL изображения
 const loadUserImageUrl = () => {
-  console.log('loadUserImageUrl called with user:', props.user)
   if (props.user) {
     const url = getUserImageUrl(props.user)
-    console.log('Generated image URL:', url)
     userImageUrl.value = url
   } else {
-    console.log('No user data provided')
     userImageUrl.value = ''
   }
 }
 
-// Загружаем изображение при изменении пользователя
 watch(() => props.user, loadUserImageUrl, { immediate: true })
 
 onMounted(() => {

@@ -44,13 +44,18 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
-        <UIInput
-          :model-value="form.phone"
-          @update:model-value="handlePhoneChange"
+        <input
+          :value="form.phone"
+          @input="handlePhoneChange"
+          type="text"
           placeholder="+993 XX YYYYYY"
-          :error="errors.phone"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+          :class="{ 'border-red-500 focus:ring-red-500': errors.phone }"
         />
+        <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
         <p class="text-xs text-gray-500 mt-1">Формат: +993 XX YYYYYY (например: +993 12 345678)</p>
+        <p class="text-xs text-gray-400 mt-1">Текущее значение: "{{ form.phone }}"</p>
+        <button type="button" @click="clearPhone" class="text-xs text-red-500 mt-1">Очистить телефон</button>
       </div>
 
       <div>
@@ -112,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIButton from '@/components/ui/UIButton.vue'
@@ -229,12 +234,31 @@ const formatPhoneNumber = (value: string): string => {
 }
 
 // Обработчик изменения телефона с автоматическим форматированием
-const handlePhoneChange = (value: string) => {
-  if (value && value.trim()) {
-    form.phone = formatPhoneNumber(value)
-  } else {
-    form.phone = value
+const handlePhoneChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const value = target.value
+  
+  console.log('handlePhoneChange called with:', value) // Для отладки
+  
+  // Если значение пустая строка, очищаем поле
+  if (!value || value.trim() === '') {
+    console.log('Clearing phone field') // Для отладки
+    form.phone = ''
+    return
   }
+  
+  // Если значение не пустое, форматируем его
+  console.log('Formatting phone:', value) // Для отладки
+  const formatted = formatPhoneNumber(value)
+  console.log('Formatted result:', formatted) // Для отладки
+  form.phone = formatted
+}
+
+// Функция для принудительной очистки телефона
+const clearPhone = () => {
+  console.log('clearPhone called') // Для отладки
+  form.phone = ''
+  console.log('Phone cleared, new value:', form.phone) // Для отладки
 }
 
 const handleImageChange = (event: Event) => {
@@ -333,7 +357,7 @@ const handleSubmit = async () => {
     const dataToSend: any = {
       name: form.name,
       username: form.username,
-      phone: form.phone,
+      phone: form.phone && form.phone.trim() ? form.phone.trim() : null,
       roles: Array.isArray(form.roles)
         ? form.roles
             .map((r) => Number(typeof r === 'object' ? r.id : r))
@@ -350,15 +374,24 @@ const handleSubmit = async () => {
     // Проверяем, что данные не теряются при передаче
     const eventData = { ...dataToSend }
 
+    // Отладочная информация
+    console.log('Sending user data:', {
+      phone: form.phone,
+      phoneTrimmed: form.phone && form.phone.trim(),
+      phoneFinal: eventData.phone,
+    })
+
     // Тест сериализации
     try {
       const serialized = JSON.stringify(eventData)
-    } catch (e) {}
+      console.log('Serialized data:', serialized)
+    } catch (e) {
+      console.error('Serialization error:', e)
+    }
 
     emit('submit', eventData)
     toast.show(props.user ? 'Пользователь обновлён!' : 'Пользователь создан!')
   } catch (error) {
-    console.error('Ошибка отправки формы:', error)
   } finally {
     loading.value = false
   }

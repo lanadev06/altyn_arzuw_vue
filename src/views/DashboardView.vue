@@ -2,8 +2,15 @@
   <Layout>
     <div class="flex flex-col gap-10">
       <!-- Первый ряд: метрики -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div
+        :class="
+          hasAdminOrManagerRole
+            ? 'grid grid-cols-1 md:grid-cols-3 gap-8'
+            : 'grid grid-cols-1 md:grid-cols-2 gap-8'
+        "
+      >
         <StatsCard
+          v-if="hasAdminOrManagerRole"
           title="Выручка за месяц"
           :value="
             stats.revenue.toLocaleString('ru-RU', {
@@ -89,7 +96,7 @@
         </div>
       </div>
       <!-- Быстрые действия и последние действия -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div v-if="hasAdminOrManagerRole" class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <QuickActions />
         <RecentActivity />
       </div>
@@ -260,11 +267,12 @@ import QuickActions from '../components/dashboard/QuickActions.vue'
 import RecentActivity from '../components/dashboard/RecentActivity.vue'
 import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
-import { authApi } from '../services/api'
+import { ref, onMounted, computed } from 'vue'
+import { authApi, getAllStages, apiRequest } from '../services/api'
 import { canViewAllUsers, canViewAllClients, canCreateEdit } from '../utils/permissions'
 import { safeApiRequest, safeProcessActivityData } from '../utils/safeData'
 import { getContrastColor } from '../utils/stageColors'
+import { getCurrentUser } from '../utils/auth'
 import axios from 'axios'
 import { API_CONFIG } from '../config/api'
 
@@ -300,6 +308,15 @@ const stagesData = ref([])
 const showOrderDetailsModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
 
+// Функция для проверки ролей пользователя
+const currentUser = computed(() => getCurrentUser())
+
+const hasAdminOrManagerRole = computed(() => {
+  const user = currentUser.value
+  if (!user || !user.roles) return false
+  return user.roles.some((role: any) => role.name === 'admin' || role.name === 'manager')
+})
+
 function openOrderDetailsModal(orderId: number) {
   selectedOrderId.value = orderId
   showOrderDetailsModal.value = true
@@ -313,8 +330,8 @@ function stageColor(stage) {
   // Сначала ищем в динамических данных
   const stageData = stagesData.value.find((s) => s.name === stage)
   if (stageData && stageData.color) {
-    // Используем inline стили для кастомных цветов
-    return 'text-white'
+    // Если есть цвет в API, используем только font-semibold
+    return 'font-semibold'
   }
 
   // Fallback на статические Tailwind классы
@@ -337,7 +354,7 @@ function stageColorStyle(stage) {
   if (stageData && stageData.color) {
     return {
       backgroundColor: stageData.color,
-      color: getContrastColor(stageData.color),
+      color: 'white', // Всегда белый текст для лучшей читаемости
     }
   }
   return {}
@@ -398,18 +415,37 @@ function statusLabel(status) {
 
 onMounted(async () => {
   try {
-    // Статистика
-    const statsData = await safeApiRequest<typeof stats.value>('/api/stats')
-    if (statsData) {
-      stats.value = statsData
+    // Статистика (только для admin и manager)
+    if (hasAdminOrManagerRole.value) {
+      const statsData = await safeApiRequest<typeof stats.value>('/api/stats')
+      if (statsData) {
+        stats.value = statsData
+      } else {
+        stats.value = { users: 0, orders: 0, revenue: 0, newClients: 0 }
+      }
     } else {
-      stats.value = { users: 0, orders: 0, revenue: 0, newClients: 0 }
+      // Для обычных пользователей загружаем только базовую статистику без выручки
+      const statsData = await safeApiRequest<typeof stats.value>('/api/stats')
+      if (statsData) {
+        stats.value = {
+          users: statsData.users || 0,
+          orders: statsData.orders || 0,
+          revenue: 0, // Скрываем выручку
+          newClients: statsData.newClients || 0,
+        }
+      } else {
+        stats.value = { users: 0, orders: 0, revenue: 0, newClients: 0 }
+      }
     }
 
-    // Активность
-    const activityData = await safeApiRequest<any[]>('/api/activity')
-    if (Array.isArray(activityData)) {
-      staffActivity.value = safeProcessActivityData(activityData) as any[]
+    // Активность (только для admin и manager)
+    if (hasAdminOrManagerRole.value) {
+      const activityData = await safeApiRequest<any[]>('/api/activity')
+      if (Array.isArray(activityData)) {
+        staffActivity.value = safeProcessActivityData(activityData) as any[]
+      } else {
+        staffActivity.value = [] as any[]
+      }
     } else {
       staffActivity.value = [] as any[]
     }
@@ -442,11 +478,20 @@ onMounted(async () => {
 
     // Загрузка стадий
     try {
-      const stagesRes = await safeApiRequest<any[]>('/api/stages')
+      console.log('🔄 Loading stages for DashboardView...')
+      const stagesRes = await getAllStages()
+      console.log('📊 Stages data received:', stagesRes)
+
       if (Array.isArray(stagesRes)) {
         stagesData.value = stagesRes
         allStages.value = stagesRes.map((s) => s.name)
+        console.log('✅ Loaded stages directly:', stagesRes.length)
+      } else if (stagesRes && stagesRes.data && Array.isArray(stagesRes.data)) {
+        stagesData.value = stagesRes.data
+        allStages.value = stagesRes.data.map((s) => s.name)
+        console.log('✅ Loaded stages from data property:', stagesRes.data.length)
       } else {
+        console.warn('⚠️ Unexpected stages data format:', stagesRes)
         // Fallback на статические стадии
         allStages.value = [
           'draft',
@@ -460,7 +505,7 @@ onMounted(async () => {
         ]
       }
     } catch (stagesError) {
-      console.error('Ошибка загрузки стадий:', stagesError)
+      console.error('❌ Error loading stages:', stagesError)
       // Fallback на статические стадии
       allStages.value = [
         'draft',
@@ -476,12 +521,9 @@ onMounted(async () => {
 
     // Новый эндпоинт для дашборда
     try {
-      const token = localStorage.getItem('auth_token')
-      const res = await axios.get(`${API_CONFIG.BASE_URL}/stats/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      dashboardStats.value = res.data
-      delayedAssignmentsList.value = res.data.delayed_assignments_list || []
+      const res = (await apiRequest('/stats/dashboard')) as any
+      dashboardStats.value = res
+      delayedAssignmentsList.value = res.delayed_assignments_list || []
     } catch (e) {
       console.error('Ошибка загрузки dashboard stats:', e)
       // Устанавливаем значения по умолчанию при ошибке

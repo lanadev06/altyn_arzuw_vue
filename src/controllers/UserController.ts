@@ -74,7 +74,6 @@ export function useUserController() {
       }
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки пользователей'
-      console.error('❌ fetchUsers error:', e)
     } finally {
       loading.value = false
     }

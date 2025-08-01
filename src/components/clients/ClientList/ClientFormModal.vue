@@ -26,7 +26,6 @@
     </template>
 
     <form @submit.prevent="handleSubmit" class="space-y-6">
-      <!-- Основная информация -->
       <div class="bg-gray-50 rounded-xl p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +67,6 @@
         </div>
       </div>
 
-      <!-- Контактная информация -->
       <div class="bg-gray-50 rounded-xl p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +146,6 @@
         </div>
       </div>
 
-      <!-- Кнопки действий -->
       <div class="flex gap-4 pt-6 border-t border-gray-200">
         <UIButton
           type="submit"
@@ -189,7 +186,7 @@ const errors = reactive({
   name: '',
   company_name: '',
   contacts: '',
-  contactErrors: [] as string[], // Ошибки для каждого контакта
+  contactErrors: [] as string[],
 })
 
 const form = reactive({
@@ -198,12 +195,9 @@ const form = reactive({
   contacts: [] as (Partial<ClientContact> & { localId?: number; id?: number })[],
 })
 
-// Функция для форматирования телефона
 const formatPhoneNumber = (value: string): string => {
-  // Удаляем все символы кроме цифр
   const cleaned = value.replace(/\D/g, '')
 
-  // Если номер начинается с 993, добавляем +
   if (cleaned.startsWith('993')) {
     const rest = cleaned.slice(3)
     if (rest.length <= 2) {
@@ -215,7 +209,6 @@ const formatPhoneNumber = (value: string): string => {
     }
   }
 
-  // Если номер начинается с 7 или 8 (российский), конвертируем в туркменский
   if (cleaned.startsWith('7') || cleaned.startsWith('8')) {
     const rest = cleaned.slice(1)
     if (rest.length <= 2) {
@@ -227,7 +220,6 @@ const formatPhoneNumber = (value: string): string => {
     }
   }
 
-  // Если номер начинается с 9 (без кода страны)
   if (cleaned.startsWith('9')) {
     const rest = cleaned.slice(1)
     if (rest.length <= 2) {
@@ -239,7 +231,6 @@ const formatPhoneNumber = (value: string): string => {
     }
   }
 
-  // Если номер начинается с цифр (код оператора)
   if (cleaned.length <= 2) {
     return `+993 ${cleaned}`
   } else if (cleaned.length <= 8) {
@@ -249,10 +240,9 @@ const formatPhoneNumber = (value: string): string => {
   }
 }
 
-// Функция для проверки валидности телефона
 const validatePhoneNumber = (phone: string): string => {
   if (!phone || !phone.trim()) {
-    return '' // Пустое поле не является ошибкой
+    return ''
   }
 
   const cleanPhone = phone.replace(/[\s-]/g, '')
@@ -364,8 +354,7 @@ onMounted(() => {
   if (props.client) {
     form.name = props.client.name || ''
     form.company_name = props.client.company_name || ''
-    form.contacts = props.client.contacts.map((c) => ({ ...c }))
-    // Инициализируем ошибки для существующих контактов
+    form.contacts = props.client.contacts.map((c) => ({ ...c }))    
     errors.contactErrors = new Array(form.contacts.length).fill('')
   } else {
     form.name = ''
@@ -382,8 +371,7 @@ async function addContact() {
     localId: Date.now() + Math.random(),
   }
   form.contacts.push(newContact)
-  errors.contactErrors.push('') // Добавляем пустую ошибку для нового контакта
-  // Не отправляем createContact здесь!
+  errors.contactErrors.push('')
 }
 
 async function updateContactField(idx: number, field: 'type' | 'value', value: string) {
@@ -393,7 +381,6 @@ async function updateContactField(idx: number, field: 'type' | 'value', value: s
   } else {
     contact.value = value
   }
-  // Не отправляем запросы здесь! Всё сохраняется при handleSubmit
 }
 
 async function removeContactHandler(idx: number) {
@@ -404,11 +391,10 @@ async function removeContactHandler(idx: number) {
     } catch (e) {}
   }
   form.contacts.splice(idx, 1)
-  errors.contactErrors.splice(idx, 1) // Удаляем ошибку для этого контакта
+  errors.contactErrors.splice(idx, 1)
 }
 
 function validateForm() {
-  // Очищаем все ошибки
   errors.name = ''
   errors.company_name = ''
   errors.contacts = ''
@@ -416,20 +402,17 @@ function validateForm() {
 
   let valid = true
 
-  // Валидация имени - всегда проверяем
   if (!form.name || !form.name.trim()) {
     errors.name = 'Имя обязательно'
     valid = false
   }
 
-  // Проверка: хотя бы один телефон
   const phoneContacts = form.contacts.filter((c) => c.type === 'phone')
   if (phoneContacts.length === 0) {
     errors.contacts = 'Нужно указать хотя бы один телефон'
     valid = false
   }
 
-  // Валидация всех контактов
   for (let i = 0; i < form.contacts.length; i++) {
     const c = form.contacts[i]
 
@@ -454,7 +437,6 @@ function validateForm() {
 }
 
 async function handleSubmit() {
-  // Валидация происходит только в validateForm()
   if (!validateForm()) return
   loading.value = true
   try {
@@ -478,14 +460,13 @@ async function handleSubmit() {
         contacts: form.contacts.map((contact) => ({
           type: contact.type || 'phone',
           value: contact.value || '',
-          client_id: 0, // будет установлено сервером
+          client_id: 0,
         })) as any,
       }
       const created = await create(clientData as any)
       clientId = created.id
       toast.show('Клиент успешно добавлен!')
     }
-    // Сохраняем новые и изменённые контакты
     for (const contact of form.contacts) {
       if (!contact.id && contact.type && contact.value) {
         try {
@@ -494,8 +475,7 @@ async function handleSubmit() {
             value: contact.value,
           })
           contact.id = createdContact.id
-        } catch (e) {
-          // Можно добавить обработку ошибок
+        } catch (e) { 
         }
       } else if (contact.id) {
         try {
@@ -504,7 +484,6 @@ async function handleSubmit() {
             value: contact.value || '',
           })
         } catch (e) {
-          // Можно добавить обработку ошибок
         }
       }
     }
@@ -523,11 +502,9 @@ function handleContactTypeChange(event: Event, idx: number) {
 function handleContactValueChange(value: any, idx: number) {
   const contact = form.contacts[idx]
 
-  // Если это телефон, применяем форматирование
   if (contact.type === 'phone' && value && value.trim()) {
     const formattedValue = formatPhoneNumber(value)
     updateContactField(idx, 'value', formattedValue)
-    // Очищаем ошибки при вводе
     errors.contacts = ''
     errors.contactErrors[idx] = ''
   } else {
@@ -535,7 +512,6 @@ function handleContactValueChange(value: any, idx: number) {
   }
 }
 
-// Валидация имени
 function validateName() {
   if (!form.name.trim()) {
     errors.name = 'Имя обязательно'
@@ -544,7 +520,6 @@ function validateName() {
   }
 }
 
-// Обработчик потери фокуса для валидации контактов
 function handleContactBlur(idx: number) {
   const contact = form.contacts[idx]
 
@@ -591,7 +566,6 @@ async function handleDelete() {
   width: 90vw;
 }
 
-/* Анимации для секций */
 .bg-gray-50 {
   transition: all 0.3s ease;
 }
@@ -601,7 +575,6 @@ async function handleDelete() {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* Стили для иконок в заголовках */
 h3 svg {
   transition: transform 0.2s ease;
 }
@@ -610,7 +583,7 @@ h3:hover svg {
   transform: scale(1.1);
 }
 
-/* Стили для контактов */
+
 .space-y-4 > div {
   transition: all 0.2s ease;
 }

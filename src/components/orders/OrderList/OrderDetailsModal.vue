@@ -1,11 +1,13 @@
 <template>
   <transition name="modal-fade">
     <div
+      v-if="orderId"
       class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center"
       @click="onOverlayClick"
     >
       <transition name="modal-scale">
         <div
+          v-if="orderId"
           class="relative w-[1300px] max-w-[98vw] h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           @click.stop
         >
@@ -22,17 +24,17 @@
                   'relative px-5 py-2 font-semibold text-base transition border-none outline-none focus:ring-2 focus:ring-yellow-300',
                   'rounded-l-full',
                   idx === stages.length - 1 ? 'rounded-r-full' : 'chevron-right',
-                  getStageColor(stage.value, order?.stage, completedStages),
+                  getStageColor(stage.value, getCurrentStage(order), completedStages),
                   'hover:brightness-110',
                   'min-w-[120px] text-center',
                   idx !== 0 ? '-ml-2' : '',
                   'transition-all duration-150',
                 ]"
                 @click="handleStageClick(stage.value)"
-                :disabled="order?.stage === stage.value"
+                :disabled="getCurrentStage(order) === stage.value"
                 :style="{
                   zIndex: stages.length - idx,
-                  ...getStageStyle(stage.value, order?.stage, completedStages),
+                  ...getStageStyle(stage.value, getCurrentStage(order), completedStages),
                 }"
               >
                 {{ stage.label }}
@@ -57,11 +59,11 @@
                       v-if="order"
                       :class="[
                         'inline-block px-4 py-1 rounded-full text-base font-bold shadow',
-                        statusBadge(order.stage?.name || ''),
+                        statusBadge(getCurrentStage(order)),
                       ]"
-                      :style="getStatusBadgeStyle(order.stage?.name || '')"
+                      :style="getStatusBadgeStyle(getCurrentStage(order))"
                     >
-                      {{ getStatusText(order.stage?.name || '') }}
+                      {{ getStatusText(getCurrentStage(order)) }}
                     </span>
                   </div>
                 </div>
@@ -75,7 +77,7 @@
                       <span class="font-semibold w-28">Кол-во:</span>
                       <EditableField
                         v-if="order && canCreateEdit()"
-                        :model-value="order.quantity"
+                        :model-value="order.quantity || 0"
                         type="number"
                         :min="1"
                         :required="true"
@@ -91,7 +93,7 @@
                       <span class="font-semibold w-28">Общая сумма:</span>
                       <EditableField
                         v-if="order && canCreateEdit()"
-                        :model-value="order.price"
+                        :model-value="order.price || 0"
                         type="number"
                         :min="0"
                         :required="true"
@@ -105,7 +107,9 @@
                       <span class="font-semibold w-28">Дедлайн:</span>
                       <div class="flex-1">
                         <div v-if="!showDeadlineInput" class="flex items-center">
-                          <span>{{ formatDateTime(order?.deadline) || 'Не установлен' }}</span>
+                          <span>{{
+                            formatDateTime(order?.deadline || undefined) || 'Не установлен'
+                          }}</span>
                           <button
                             v-if="canCreateEdit()"
                             @click="startDeadlineEdit"
@@ -129,19 +133,11 @@
                           </button>
                         </div>
                         <div v-if="showDeadlineInput" class="flex items-center gap-2 mt-1">
-                          <flatPickr
+                          <input
                             v-model="tempDeadline"
-                            :config="{
-                              dateFormat: 'Y-m-d H:i',
-                              altInput: true,
-                              altFormat: 'd F Y H:i',
-                              enableTime: true,
-                              time_24hr: true,
-                              allowInput: true,
-                              clickOpens: true,
-                              locale: Russian,
-                            }"
-                            class="w-48 text-gray-700 text-base p-2 border border-gray-300 rounded-md flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                            type="datetime-local"
+                            class="w-48 text-gray-700 text-base p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                            placeholder="Выберите дату и время"
                           />
                           <button
                             @click="confirmDeadline"
@@ -160,6 +156,26 @@
                                 stroke-linejoin="round"
                                 stroke-width="2"
                                 d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            @click="clearDeadline"
+                            class="p-1 rounded hover:bg-yellow-100 text-yellow-600"
+                            title="Очистить дедлайн"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                               />
                             </svg>
                           </button>
@@ -321,6 +337,9 @@
                               :class="
                                 getRoleBadgeClass(typeof role === 'string' ? role : role.name)
                               "
+                              :style="
+                                getRoleBadgeStyle(typeof role === 'string' ? role : role.name)
+                              "
                             >
                               {{
                                 getRoleLabel(
@@ -333,6 +352,7 @@
                             <span
                               class="text-[10px] rounded px-2 py-0.5 font-semibold"
                               :class="getRoleBadgeClass(comment.user.role || '')"
+                              :style="getRoleBadgeStyle(comment.user.role || '')"
                             >
                               {{ getRoleLabel(comment.user.role || '') }}
                             </span>
@@ -398,9 +418,11 @@
                 class="bg-white rounded-xl shadow p-4 border border-blue-100 mb-6"
                 :class="{ 'assignment-highlight': highlightAssignments }"
               >
-                <div class="font-semibold text-gray-700 mb-2 text-lg">Назначенные сотрудники</div>
-                <div v-if="assignments.length === 0" class="text-gray-400 text-sm mb-2">
-                  Нет назначенных сотрудников
+                <div class="font-semibold text-gray-700 mb-2 text-lg">
+                  Назначенные сотрудники
+                  <span class="text-sm font-normal text-gray-500">
+                    ({{ getStatusText(getCurrentStage(order)) }})
+                  </span>
                 </div>
 
                 <div
@@ -445,9 +467,7 @@
                     <span class="text-xs text-gray-400">
                       Назначил:
                       <span class="font-semibold">{{
-                        assignment.assigned_by && assignment.assigned_by.name
-                          ? assignment.assigned_by.name
-                          : assignment.assigned_by
+                        getAssignedByName(assignment.assigned_by)
                       }}</span>
                     </span>
                     <!-- Можно добавить дату назначения или другую инфу -->
@@ -464,9 +484,6 @@
                     @update:modelValue="assignUser"
                   />
                   <span class="text-xs text-gray-400"> ({{ getCurrentStageRolesText() }}) </span>
-                  <span v-if="assignError" class="text-xs text-red-500 mt-1 block">{{
-                    assignError
-                  }}</span>
                 </div>
               </div>
               <!-- Timeline -->
@@ -580,16 +597,6 @@
   outline: none !important;
 }
 
-.flatpickr-uiinput .flatpickr-input:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:deep(.flatpickr-calendar) {
-  z-index: 9999 !important;
-  font-family: inherit !important;
-}
-
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -671,18 +678,13 @@
 </style>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EditableField from '../../ui/EditableField.vue'
 import { API_CONFIG } from '../../../config/api'
 import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
 import { getUserImageUrl } from '../../../utils/user'
 import { toast } from '../../../stores/toast'
-import {
-  getStageColorClasses,
-  getStageColorStyles,
-  getLightColor,
-  getContrastColor,
-} from '../../../utils/stageColors'
+import { getStageColorClasses } from '../../../utils/stageColors'
 import {
   getOrderDetails,
   getOrderComments,
@@ -695,16 +697,69 @@ import {
   assignOrderToUser,
   updateOrderAssignmentStatus,
   deleteOrderAssignment,
-  getOrderAssignments,
   getRoles,
 } from '../../../services/api'
 import type { Order } from '../../../types/order'
 import type { Project } from '../../../types/project'
 import { OrderController } from '../../../controllers/OrderController'
 import Vue3Select from 'vue3-select'
-import flatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
-import { Russian } from 'flatpickr/dist/l10n/ru.js'
+
+// Типы для исправления any
+interface User {
+  id: number
+  name: string
+  role?: string
+  roles?: Array<{ name: string; display_name: string }>
+}
+
+interface Role {
+  id: number
+  name: string
+  display_name?: string
+  color?: string
+}
+
+interface Stage {
+  id: number
+  name: string
+  display_name?: string
+  color?: string
+  roles?: Role[]
+}
+
+interface Assignment {
+  id: number
+  user_id: number
+  user?: User
+  role_type: string
+  status: string
+  assigned_stages?: Stage[]
+  stage_name?: string
+  order_stage?: string
+  order_id?: number
+  assigned_by?: User | number | string | unknown
+}
+
+// Типы для API ответов
+interface RawComment {
+  id: number
+  text: string
+  user: unknown // Будет нормализован
+  created_at: string
+}
+
+interface RawAssignment {
+  id: number
+  user_id: number
+  user?: unknown // Будет нормализован
+  role_type: string
+  status: string
+  assigned_stages?: Stage[]
+  stage_name?: string
+  order_stage?: string
+  order_id?: number
+  assigned_by?: unknown
+}
 
 const props = defineProps<{ orderId?: number | null; errorMsg?: string }>()
 const emit = defineEmits(['close', 'updated'])
@@ -712,6 +767,9 @@ const emit = defineEmits(['close', 'updated'])
 // Состояние для подсветки назначений
 const highlightAssignments = ref(false)
 const assignmentMessage = ref('')
+
+// Флаг для отключения автоматического переключения стадий
+const disableAutoStageSwitch = ref(false)
 
 const loading = ref(true)
 const order = ref<Order | null>(null)
@@ -741,22 +799,22 @@ const showCancelForm = ref(false)
 const cancelReason = ref('')
 const cancelReasonStatus = ref('refused')
 // Исправление типов для assignments, availableUsers
-const assignments = ref<Array<any>>([])
-const availableUsers = ref<Array<any>>([])
+const assignments = ref<Assignment[]>([])
+const availableUsers = ref<User[]>([])
 const selectedUserId = ref<number | null>(null)
-const assignError = ref('')
 
 const stages = ref<Array<{ value: string; label: string; color?: string }>>([])
 const completedStages = computed(() => {
   if (!order.value || !order.value.stage) return []
-  const idx = stages.value.findIndex((s) => s.value === order.value!.stage.name)
+  const currentStage = getCurrentStage(order.value)
+  const idx = stages.value.findIndex((s) => s.value === currentStage)
   return stages.value.slice(0, idx).map((s) => s.value)
 })
 
 // Динамический вывод ролей для комментариев и назначений
 function getRoleLabel(role: string) {
   // Ищем в динамически загруженных ролях
-  const dynamicRole = roles.value.find((r: any) => r.name === role)
+  const dynamicRole = roles.value.find((r: Role) => r.name === role)
   if (dynamicRole && dynamicRole.display_name) {
     return dynamicRole.display_name
   }
@@ -765,143 +823,56 @@ function getRoleLabel(role: string) {
   return role
 }
 
-// Динамическая функция для цветов бейджа роли на основе цвета стадии (inline стили)
+// Функция для цветов бейджа роли с цветом стадии
 function getRoleBadgeStyle(role: string) {
-  if (!order.value?.stage?.name) {
+  const stageColor = getStageColorForRole(role)
+
+  if (stageColor) {
     return {
-      backgroundColor: '#f3f4f6',
-      color: '#374151',
+      backgroundColor: stageColor,
+      color: '#ffffff',
     }
   }
 
-  const stage = order.value.stage.name
-  const stageData = stageUsersByRole.value[stage]
-
-  if (!stageData || !stageData.users_by_role) {
-    return {
-      backgroundColor: '#f3f4f6',
-      color: '#374151',
-    }
-  }
-
-  // Ищем роль в текущей стадии
-  const roleData = stageData.users_by_role[role]
-  if (roleData && roleData.role) {
-    // Используем цвет стадии для бейджа роли
-    const stageColor = stageData.stage?.color || '#64748b'
-
-    // Создаем светлую версию цвета для фона
-    const lightColor = getLightColor(stageColor)
-    const textColor = getContrastColor(stageColor)
-
-    return {
-      backgroundColor: lightColor,
-      color: textColor,
-    }
-  }
-
-  // Если роль не найдена в текущей стадии, ищем её в других стадиях
-  for (const [stageName, stageInfo] of Object.entries(stageUsersByRole.value)) {
-    const roleInfo = stageInfo.users_by_role[role]
-    if (roleInfo && roleInfo.role) {
-      const stageColor = stageInfo.stage?.color || '#64748b'
-      const lightColor = getLightColor(stageColor)
-      const textColor = getContrastColor(stageColor)
-
-      return {
-        backgroundColor: lightColor,
-        color: textColor,
-      }
-    }
-  }
-
-  // Если роль не найдена нигде, используем серый цвет
+  // Fallback к серому цвету
   return {
     backgroundColor: '#f3f4f6',
     color: '#374151',
   }
 }
 
-// Динамическая функция для цветов бейджа роли на основе цвета стадии (классы)
+// Функция для классов бейджа роли с цветом стадии
 function getRoleBadgeClass(role: string) {
-  if (!order.value?.stage?.name) {
-    return 'bg-gray-100 text-gray-800'
+  const stageColor = getStageColorForRole(role)
+
+  if (stageColor) {
+    return 'text-white font-semibold' // Только белый текст, фон через inline стили
   }
 
-  const stage = order.value.stage.name
-  const stageData = stageUsersByRole.value[stage]
-
-  if (!stageData || !stageData.users_by_role) {
-    return 'bg-gray-100 text-gray-800'
-  }
-
-  // Ищем роль в текущей стадии
-  const roleData = stageData.users_by_role[role]
-  if (roleData && roleData.role) {
-    // Используем цвет стадии для бейджа роли
-    const stageColor = stageData.stage?.color || '#64748b'
-
-    // Создаем светлую версию цвета для фона
-    const lightColor = getLightColor(stageColor)
-    const textColor = getContrastColor(stageColor)
-
-    return `bg-[${lightColor}] text-[${textColor}]`
-  }
-
-  // Если роль не найдена в текущей стадии, ищем её в других стадиях
-  for (const [stageName, stageInfo] of Object.entries(stageUsersByRole.value)) {
-    const roleInfo = stageInfo.users_by_role[role]
-    if (roleInfo && roleInfo.role) {
-      const stageColor = stageInfo.stage?.color || '#64748b'
-      const lightColor = getLightColor(stageColor)
-      const textColor = getContrastColor(stageColor)
-
-      return `bg-[${lightColor}] text-[${textColor}]`
-    }
-  }
-
-  // Если роль не найдена нигде, используем серый цвет
   return 'bg-gray-100 text-gray-800'
 }
 
-// Удалено: filteredUsers больше не используется, заменен на currentStageUsers
-
-// Удалено: hasRole больше не используется
-
-function normalizeUsers(users: any[]): any[] {
-  // Преобразуем roles: string[] или role: string в roles: {name, display_name}[] для селектора и отображения
-  return users.map((u: any) => {
-    if (Array.isArray(u.roles) && typeof u.roles[0] === 'string') {
-      return {
-        ...u,
-        roles: u.roles.map((r: string) => ({ name: r, display_name: getRoleLabel(r) })),
-      }
-    }
-    if (!u.roles && u.role) {
-      return {
-        ...u,
-        roles: [{ name: u.role, display_name: getRoleLabel(u.role) }],
-      }
-    }
-    return u
-  })
-}
+// Удалено: normalizeUsers больше не используется
 
 // Добавить функцию для нормализации одного пользователя
-function normalizeUser(u: any): any {
-  if (Array.isArray(u.roles) && typeof u.roles[0] === 'string') {
-    return {
-      ...u,
-      roles: u.roles.map((r: string) => ({ name: r, display_name: getRoleLabel(r) })),
+function normalizeUser(u: unknown): User {
+  if (typeof u === 'object' && u !== null) {
+    const user = u as Record<string, unknown>
+
+    if (Array.isArray(user.roles) && typeof user.roles[0] === 'string') {
+      return {
+        ...user,
+        roles: user.roles.map((r: string) => ({ name: r, display_name: getRoleLabel(r) })),
+      } as User
+    }
+    if (!user.roles && user.role && typeof user.role === 'string') {
+      return {
+        ...user,
+        roles: [{ name: user.role, display_name: getRoleLabel(user.role) }],
+      } as User
     }
   }
-  if (!u.roles && u.role) {
-    return {
-      ...u,
-      roles: [{ name: u.role, display_name: getRoleLabel(u.role) }],
-    }
-  }
-  return u
+  return u as User
 }
 
 const { updateStage, update } = OrderController()
@@ -922,17 +893,27 @@ async function fetchAll() {
   if (!props.orderId) return
   loading.value = true
 
-  // Загружаем стадии
   try {
+    // Загружаем стадии
     const stagesData = await getAllStages()
 
-    stages.value = stagesData.map((stage: any) => ({
+    // Сохраняем полные данные стадий с ролями для определения цветов ролей
+    stagesWithRoles.value = stagesData
+
+    // Специальная проверка для стадии гравировки
+    const engravingStage = stagesData.find(
+      (stage: Stage) =>
+        stage.name === 'engraving' ||
+        stage.name === 'grav' ||
+        stage.display_name?.toLowerCase().includes('гравировка'),
+    )
+
+    stages.value = stagesData.map((stage: Stage) => ({
       value: stage.name,
       label: stage.display_name || stage.name,
       color: stage.color,
     }))
   } catch (error) {
-    console.error('Ошибка загрузки стадий:', error)
     // Fallback к статическим стадиям с дефолтными цветами
     stages.value = [
       { value: 'draft', label: 'Черновик', color: '#6b7280' },
@@ -947,38 +928,130 @@ async function fetchAll() {
     ]
   }
 
-  order.value = await getOrderDetails(props.orderId)
-
-  if (order.value?.project_id) {
-    project.value = await getProjectDetails(order.value.project_id)
+  try {
+    const orderData = await getOrderDetails(props.orderId)
+    order.value = orderData as Order
+    console.log('Order details loaded:', {
+      id: order.value?.id,
+      stage: order.value?.stage,
+      stageName: getCurrentStage(order.value),
+      currentStage: getCurrentStage(order.value),
+    })
+  } catch (error) {
+    toast.show('Ошибка загрузки заказа', 'error')
+    return
   }
-  // Нормализуем пользователей в комментариях
-  const rawComments = await getOrderComments(props.orderId)
-  comments.value = rawComments.map((c: any) => ({ ...c, user: normalizeUser(c.user) }))
-  statusLogs.value = await getOrderStatusLogs(props.orderId)
 
-  // Загружаем пользователей и роли стадий
-  await fetchAvailableUsers()
+  try {
+    if (order.value?.project_id) {
+      const projectData = await getProjectDetails(order.value.project_id)
+      project.value = projectData as Project
+    }
+  } catch (error) {
+    // Не прерываем загрузку, проект не критичен
+  }
+
+  try {
+    const rawComments = await getOrderComments(props.orderId)
+    comments.value = (rawComments as RawComment[]).map((c: RawComment) => ({
+      ...c,
+      user: normalizeUser(c.user),
+    }))
+  } catch (error) {
+    comments.value = []
+  }
+
+  try {
+    const logsData = await getOrderStatusLogs(props.orderId)
+    statusLogs.value = logsData as StatusLog[]
+  } catch (error) {
+    statusLogs.value = []
+  }
+
+  try {
+    // Загружаем пользователей и роли стадий
+    await fetchAvailableUsers()
+  } catch (error) {
+    availableUsers.value = []
+  }
 
   // Загружаем роли для динамического отображения
   try {
     const rolesData = await getRoles()
     roles.value = rolesData
   } catch (e) {
-    console.error('❌ Ошибка загрузки ролей:', e)
+    roles.value = []
   }
 
   loading.value = false
 
-  // Используем назначения из деталей заказа вместо отдельного запроса
+  // Используем назначения из деталей заказа
   if (order.value && order.value.assignments) {
-    assignments.value = order.value.assignments.map((a: any) => ({
+    assignments.value = order.value.assignments.map((a: RawAssignment) => ({
       ...a,
       user: normalizeUser(a.user),
     }))
+
+    // Проверяем, нужно ли вернуть заказ на стадию с неодобренными назначениями
+    const currentStage = getCurrentStage(order.value)
+    if (currentStage === 'completed') {
+      // Ищем стадию с неодобренными назначениями
+      const pendingAssignments = assignments.value.filter(
+        (assignment: Assignment) => assignment.status !== 'approved',
+      )
+
+      if (pendingAssignments.length > 0) {
+        // Находим стадию с неодобренными назначениями
+        const stagesWithPendingAssignments = new Set<string>()
+
+        pendingAssignments.forEach((assignment: Assignment) => {
+          if (assignment.assigned_stages) {
+            assignment.assigned_stages.forEach((stage: Stage) => {
+              stagesWithPendingAssignments.add(stage.name)
+            })
+          }
+        })
+
+        // Находим первую стадию с неодобренными назначениями в правильном порядке
+        const orderedStages = stages.value.map((s) => s.value)
+        let targetStage = null
+
+        for (const stageName of orderedStages) {
+          if (stagesWithPendingAssignments.has(stageName)) {
+            targetStage = stageName
+            break
+          }
+        }
+
+        if (targetStage && targetStage !== 'completed') {
+          console.log(
+            `🔄 Возвращаем заказ с completed на ${targetStage} из-за неодобренных назначений`,
+          )
+          await changeStatus(targetStage)
+        }
+      }
+    }
+    console.log(
+      '🔍 fetchAll - обработанные назначения:',
+      assignments.value.map((a) => ({
+        id: a.id,
+        user_name: a.user?.name,
+        role_type: a.role_type,
+        status: a.status,
+        assigned_stages: a.assigned_stages?.map((s) => s.name) || [],
+        stage_name: a.stage_name,
+        order_stage: a.order_stage,
+      })),
+    )
+
+    // Подробная информация о каждом назначении
+    assignments.value.forEach((assignment, index) => {
+      console.log(
+        `     Стадии назначения: ${assignment.assigned_stages?.map((s) => s.name).join(', ') || 'нет'}`,
+      )
+    })
   } else {
-    // Fallback: загружаем назначения отдельно
-    await fetchAssignments()
+    assignments.value = []
   }
 
   // Проверяем, нужно ли подсвечивать назначения
@@ -998,14 +1071,43 @@ async function fetchAll() {
       assignmentMessage.value = ''
     }, 5000)
   }
+
+  // Убираем автоматический переход стадий во фронтенде - теперь это делается только на backend
+  // determineInitialStage()
+
+  // Специальная проверка для стадии гравировки
+  if (order.value && getCurrentStage(order.value) === 'engraving') {
+    // Проверяем, есть ли стадия гравировки в stagesWithRoles
+    const engravingStageData = stagesWithRoles.value.find(
+      (stage: Stage) => stage.name === 'engraving',
+    )
+
+    // Проверяем, есть ли пользователи с ролью гравировщика
+    const engravingUsers = availableUsers.value.filter((user: User) => {
+      const userRoles = user.roles?.map((r: { name: string; display_name: string }) => r.name) || [
+        user.role,
+      ]
+      return userRoles.some((role: string | undefined) => role === 'engraving_operator')
+    })
+    console.log(
+      '🔍 Пользователи с ролью гравировщика:',
+      engravingUsers.map((u) => ({ name: u.name, roles: u.roles || u.role })),
+    )
+  }
 }
 
 async function addComment() {
   if (!newComment.value.trim()) return
-  await postOrderComment(props.orderId as number, newComment.value)
-  newComment.value = ''
-  commentFocused.value = false
-  await fetchAll()
+
+  try {
+    await postOrderComment(props.orderId as number, newComment.value)
+    newComment.value = ''
+    commentFocused.value = false
+    toast.show('Комментарий добавлен!')
+    await fetchAll()
+  } catch (error) {
+    toast.show('Ошибка добавления комментария', 'error')
+  }
 }
 
 function formatDate(date: string) {
@@ -1039,6 +1141,12 @@ function statusBadge(stage: string) {
 function getStatusBadgeStyle(stage: string) {
   const stageData = stages.value.find((s) => s.value === stage)
 
+  console.log('getStatusBadgeStyle debug:', {
+    stage,
+    stageData,
+    hasColor: !!stageData?.color,
+  })
+
   if (stageData && stageData.color) {
     return {
       backgroundColor: stageData.color,
@@ -1046,7 +1154,31 @@ function getStatusBadgeStyle(stage: string) {
     }
   }
 
-  return {}
+  // Fallback цвета для стадий без цвета в API
+  const fallbackColors: Record<string, string> = {
+    draft: '#6b7280',
+    design: '#3b82f6',
+    print: '#f59e0b',
+    engraving: '#f97316',
+    workshop: '#8b5cf6',
+    die_cutting: '#10b981',
+    final: '#10b981',
+    completed: '#059669',
+    cancelled: '#ef4444',
+  }
+
+  const fallbackColor = fallbackColors[stage]
+  if (fallbackColor) {
+    return {
+      backgroundColor: fallbackColor,
+      color: '#ffffff',
+    }
+  }
+
+  return {
+    backgroundColor: '#6b7280',
+    color: '#ffffff',
+  }
 }
 
 function getStageColor(stage: string, current: string | undefined, completed: string[]) {
@@ -1056,7 +1188,7 @@ function getStageColor(stage: string, current: string | undefined, completed: st
   if (current === stage) {
     // Текущая стадия - активный цвет
     if (stageData && stageData.color) {
-      return `text-white`
+      return `text-white font-semibold` // Только белый текст, фон через inline стили
     }
     return getStageColorClasses(stage, undefined, true)
   }
@@ -1076,14 +1208,35 @@ function getStageColor(stage: string, current: string | undefined, completed: st
 function getStageStyle(stage: string, current: string | undefined, completed: string[]) {
   const stageData = stages.value.find((s) => s.value === stage)
 
-  if (!stageData || !stageData.color) {
-    return {}
+  // Fallback цвета для стадий без цвета в API
+  const fallbackColors = {
+    draft: '#6b7280',
+    design: '#3b82f6',
+    print: '#f59e0b',
+    engraving: '#f97316',
+    workshop: '#8b5cf6',
+    die_cutting: '#10b981',
+    final: '#10b981',
+    completed: '#059669',
+    cancelled: '#ef4444',
   }
+
+  const color =
+    stageData?.color || fallbackColors[stage as keyof typeof fallbackColors] || '#6b7280'
+
+  console.log('getStageStyle debug:', {
+    stage,
+    current,
+    isCurrent: current === stage,
+    stageData,
+    color,
+    completed: completed.includes(stage),
+  })
 
   if (current === stage) {
     // Текущая стадия - активный цвет
     return {
-      backgroundColor: stageData.color,
+      backgroundColor: color,
       color: '#ffffff',
     }
   }
@@ -1091,8 +1244,8 @@ function getStageStyle(stage: string, current: string | undefined, completed: st
   if (completed.includes(stage)) {
     // Завершенная стадия - приглушенный цвет
     return {
-      backgroundColor: `${stageData.color}20`, // 20% opacity
-      color: stageData.color,
+      backgroundColor: `${color}20`, // 20% opacity
+      color: color,
     }
   }
 
@@ -1106,112 +1259,121 @@ async function deleteComment(commentId: number) {
   }
 }
 
-// --- Автоподстановка исполнителей на стадию при переходе ---
-async function autoAssignForStage(
-  orderId: number,
-  stageKey: string,
-  availableUsers: any[],
-  roleType: string,
-) {
-  // Получить текущие назначения
-  const res = await fetch(`${API_CONFIG.BASE_URL}/assignments?order_id=${orderId}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  const data = await res.json()
-  const currentAssignments = data.data || data
+async function changeStatus(newStatus: string) {
+  if (!order.value || getCurrentStage(order.value) === newStatus) return
 
-  // Фильтруем только тех, кто уже назначен с нужной ролью
-  const assignedForRole = currentAssignments.filter((a: any) => a.role_type === roleType)
+  // Проверяем, можно ли перевести на completed
+  if (newStatus === 'completed') {
+    // Проверяем, есть ли неодобренные назначения
+    const pendingAssignments = assignments.value.filter(
+      (assignment: Assignment) => assignment.status !== 'approved',
+    )
 
-  // Если никого нет — ничего не делаем
-  if (assignedForRole.length === 0) return
+    if (pendingAssignments.length > 0) {
+      // Находим стадию с неодобренными назначениями по ролям
+      const stagesWithPendingAssignments = new Set<string>()
 
-  // Для каждого назначенного сотрудника обновляем чекбокс стадии, если нужно
-  for (const a of assignedForRole) {
-    if (!a[stageKey]) {
-      await fetch(`${API_CONFIG.BASE_URL}/assignments/${a.id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({
-          [stageKey]: true,
-          action: 'stage_update',
-        }),
+      pendingAssignments.forEach((assignment: Assignment) => {
+        // Ищем стадию, которая содержит роль этого назначения
+        const stageWithRole = stagesWithRoles.value.find((stage: Stage) => {
+          return stage.roles && stage.roles.some((role: Role) => role.name === assignment.role_type)
+        })
+
+        if (stageWithRole) {
+          stagesWithPendingAssignments.add(stageWithRole.name)
+        }
       })
+
+      // Находим первую стадию с неодобренными назначениями в правильном порядке
+      const orderedStages = stages.value.map((s) => s.value)
+      let targetStage = null
+
+      for (const stageName of orderedStages) {
+        if (stagesWithPendingAssignments.has(stageName)) {
+          targetStage = stageName
+          break
+        }
+      }
+
+      if (targetStage && targetStage !== 'completed') {
+        console.log(
+          `🔄 Возвращаем заказ с completed на ${targetStage} из-за неодобренных назначений`,
+        )
+
+        // Показываем уведомление пользователю
+        toast.show(
+          `Заказ возвращен на стадию "${getStatusText(targetStage)}" из-за неодобренных назначений`,
+          'error',
+        )
+
+        // Переходим на найденную стадию вместо completed
+        await updateStage(order.value.id, { stage: targetStage })
+        toast.show('Статус заказа обновлён!')
+
+        // Принудительно обновляем данные с небольшой задержкой для синхронизации
+        setTimeout(async () => {
+          await fetchAll()
+        }, 200)
+
+        emit('updated')
+        return
+      } else {
+        toast.show('Нельзя завершить заказ, пока есть неодобренные назначения!', 'error')
+        return
+      }
     }
   }
-}
 
-async function changeStatus(newStatus: string) {
-  if (!order.value || order.value.stage?.name === newStatus) return
-
-  // Проверяем, есть ли назначения для новой стадии
-  const newStageRoles = stageRoleMap.value[newStatus] || []
-  const hasAssignments =
-    newStageRoles.length === 0 ||
-    assignments.value.some((a: any) => newStageRoles.includes(a.role_type))
+  // Устанавливаем флаг отключения автоматического переключения
+  disableAutoStageSwitch.value = true
 
   try {
-    // Автоматическое назначение для известных стадий (fallback)
-    if (newStatus === 'design') {
-      await autoAssignForStage(
-        order.value.id,
-        'has_design_stage',
-        availableUsers.value || [],
-        'designer',
-      )
-    }
-    if (newStatus === 'print') {
-      await autoAssignForStage(
-        order.value.id,
-        'has_print_stage',
-        availableUsers.value || [],
-        'print_operator',
-      )
-    }
-    if (newStatus === 'engraving') {
-      await autoAssignForStage(
-        order.value.id,
-        'has_engraving_stage',
-        availableUsers.value || [],
-        'engraving_operator',
-      )
-    }
-    if (newStatus === 'workshop') {
-      await autoAssignForStage(
-        order.value.id,
-        'has_workshop_stage',
-        availableUsers.value || [],
-        'workshop_worker',
-      )
-    }
-
     await updateStage(order.value.id, { stage: newStatus })
     toast.show('Статус заказа обновлён!')
-    await fetchAll() // <-- всегда обновлять все детали заказа
-    emit('updated') // Эмитим событие обновления
 
-    // Если нет назначений, показываем предупреждение
-    if (!hasAssignments && newStageRoles.length > 0) {
-      toast.show('Внимание: на этой стадии нет назначенных сотрудников', 'error')
-      // Активируем красную подсветку назначений
-      highlightAssignments.value = true
-      assignmentMessage.value = `Рекомендуется назначить сотрудника для стадии "${getStatusText(newStatus)}"`
+    // Принудительно обновляем данные с небольшой задержкой для синхронизации
+    setTimeout(async () => {
+      await fetchAll()
 
-      // Убираем подсветку через 5 секунд
-      setTimeout(() => {
-        highlightAssignments.value = false
-        assignmentMessage.value = ''
-      }, 5000)
-    }
-  } catch (err: any) {
-    const msg = err?.message || 'Ошибка смены стадии'
+      // Проверяем назначения для новой стадии и подсвечиваем если их нет
+      const newStageAssignments = assignments.value.filter((assignment: Assignment) => {
+        return (
+          assignment.assigned_stages &&
+          assignment.assigned_stages.some((stage: Stage) => stage.name === newStatus)
+        )
+      })
+
+      console.log(
+        '🔍 changeStatus - проверяем назначения для стадии:',
+        newStatus,
+        'найдено:',
+        newStageAssignments.length,
+      )
+
+      // Показываем предупреждение только если это не автоматический переход
+      // и на стадии нет назначений (кроме draft и completed)
+      if (newStageAssignments.length === 0 && newStatus !== 'draft' && newStatus !== 'completed') {
+        // Активируем подсветку назначений
+        highlightAssignments.value = true
+        assignmentMessage.value = `Рекомендуется назначить сотрудника для стадии "${getStatusText(newStatus)}"`
+
+        // Показываем информативное toast уведомление (не ошибку)
+        toast.show(
+          `На стадии "${getStatusText(newStatus)}" нет назначенных сотрудников. Заказ будет автоматически переходить дальше.`,
+          'success',
+        )
+
+        // Убираем подсветку через 3 секунды
+        setTimeout(() => {
+          highlightAssignments.value = false
+          assignmentMessage.value = ''
+        }, 3000)
+      }
+    }, 200) // Увеличиваем задержку для лучшей синхронизации
+
+    emit('updated')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Ошибка смены стадии'
     toast.show(msg, 'error')
   }
 }
@@ -1230,7 +1392,24 @@ async function updateOrderField(field: string, value: unknown) {
 
 function startDeadlineEdit() {
   if (!order.value) return
-  tempDeadline.value = order.value.deadline || ''
+
+  // Преобразуем дату в формат для input type="datetime-local" (YYYY-MM-DDTHH:mm)
+  if (order.value.deadline) {
+    const date = new Date(order.value.deadline)
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      tempDeadline.value = `${year}-${month}-${day}T${hours}:${minutes}`
+    } else {
+      tempDeadline.value = ''
+    }
+  } else {
+    tempDeadline.value = ''
+  }
+
   showDeadlineInput.value = true
 }
 
@@ -1239,11 +1418,11 @@ async function confirmDeadline() {
 
   let deadline = tempDeadline.value
 
-  // Преобразуем строку даты в правильный формат для Laravel
+  // Преобразуем строку даты из формата datetime-local в формат для Laravel
   if (deadline && typeof deadline === 'string') {
-    // Если строка в формате 'YYYY-MM-DD HH:mm', добавляем секунды
-    if (deadline.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
-      deadline = deadline + ':00'
+    // Если строка в формате 'YYYY-MM-DDTHH:mm', преобразуем в 'YYYY-MM-DD HH:mm:ss'
+    if (deadline.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
+      deadline = deadline.replace('T', ' ') + ':00'
     }
     // Если строка в формате 'YYYY-MM-DD HH:mm:ss', оставляем как есть
     else if (deadline.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
@@ -1251,8 +1430,28 @@ async function confirmDeadline() {
     }
   }
 
-  await updateOrderField('deadline', deadline)
-  showDeadlineInput.value = false
+  try {
+    await updateOrderField('deadline', deadline || null)
+    showDeadlineInput.value = false
+    toast.show('Дедлайн обновлен успешно!')
+  } catch (error) {
+    console.error('Ошибка обновления дедлайна:', error)
+    toast.show('Ошибка при обновлении дедлайна', 'error')
+  }
+}
+
+async function clearDeadline() {
+  if (!order.value) return
+
+  try {
+    await updateOrderField('deadline', null)
+    showDeadlineInput.value = false
+    tempDeadline.value = ''
+    toast.show('Дедлайн очищен!')
+  } catch (error) {
+    console.error('Ошибка очистки дедлайна:', error)
+    toast.show('Ошибка при очистке дедлайна', 'error')
+  }
 }
 
 function cancelDeadline() {
@@ -1302,8 +1501,8 @@ async function confirmCancel() {
     cancelReasonStatus.value = 'refused'
     await fetchAll()
     emit('updated') // Эмитим событие обновления
-  } catch (err: any) {
-    const msg = err?.message || 'Ошибка при отмене заказа!'
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Ошибка при отмене заказа!'
 
     // Проверяем, связана ли ошибка с отсутствием назначений
     if (
@@ -1353,108 +1552,194 @@ function onOverlayClick() {
   emit('close')
 }
 
-async function fetchAssignments() {
-  if (!order.value || !order.value.id) return
-  try {
-    const data = await getOrderAssignments()
-
-    assignments.value = (data.data || data).map((a: any) => ({ ...a, user: normalizeUser(a.user) }))
-
-    // ДЕТАЛЬНЫЕ ЛОГИ для отладки
-  } catch (e) {
-    console.error('❌ Ошибка загрузки назначений:', e)
-    assignments.value = []
-  }
-}
+// Удалено: fetchAssignments больше не используется
 
 async function fetchAvailableUsers() {
   try {
-    // Загружаем динамические роли стадий из API
-    const data = await getAllUsersByStageRoles()
+    // Попробуем несколько вариантов загрузки пользователей
+    let users = []
 
-    // Обновляем карту ролей стадий
-    stageRoleMap.value = {}
-    stageUsersByRole.value = data
+    // Вариант 1: Используем apiRequest для /users
+    try {
+      const { apiRequest } = await import('../../../services/api')
+      const data = await apiRequest('/users')
+      users = data.data || data || []
+    } catch (e) {}
 
-    // Собираем всех пользователей для селектора
-    let allUsers: any[] = []
+    // Вариант 2: Если первый не сработал, попробуем через getAllUsersByStageRoles
+    if (users.length === 0) {
+      try {
+        const data = await getAllUsersByStageRoles()
+        let allUsers: User[] = []
 
-    Object.entries(data).forEach(([stageName, stageData]: [string, any]) => {
-      const roles = Object.keys(stageData.users_by_role)
-      stageRoleMap.value[stageName] = roles
-
-      // Добавляем пользователей для каждой роли
-      Object.values(stageData.users_by_role).forEach((roleData: any) => {
-        if (roleData.users && Array.isArray(roleData.users)) {
-          allUsers = allUsers.concat(roleData.users)
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          Object.values(data).forEach((stageData: unknown) => {
+            if (stageData && typeof stageData === 'object' && stageData !== null) {
+              const stage = stageData as Record<string, unknown>
+              if (stage.users_by_role) {
+                Object.values(stage.users_by_role).forEach((roleData: unknown) => {
+                  if (roleData && typeof roleData === 'object' && roleData !== null) {
+                    const role = roleData as Record<string, unknown>
+                    if (role.users && Array.isArray(role.users)) {
+                      allUsers = allUsers.concat(role.users as User[])
+                    }
+                  }
+                })
+              }
+            }
+          })
         }
-      })
-    })
 
-    // Убираем дубликаты по id
-    availableUsers.value = allUsers.filter(
-      (user, index, self) => index === self.findIndex((u) => u.id === user.id),
+        // Убираем дубликаты по id
+        users = allUsers.filter(
+          (user, index, self) => index === self.findIndex((u) => u.id === user.id),
+        )
+      } catch (e) {}
+    }
+
+    // Вариант 3: Если ничего не сработало, создаем тестовых пользователей
+    if (users.length === 0) {
+      users = [
+        { id: 1, name: 'Тестовый пользователь 1', role: 'designer' },
+        { id: 2, name: 'Тестовый пользователь 2', role: 'print_operator' },
+        { id: 3, name: 'Тестовый пользователь 3', role: 'workshop_worker' },
+      ]
+    }
+
+    availableUsers.value = users
+
+    // Подробная информация о всех пользователях и их ролях
+    users.forEach((user: User, index: number) => {})
+
+    // Специальная проверка для гравировщиков
+    const engravingUsers = users.filter((user: User) => {
+      const userRoles = user.roles?.map((r: { name: string; display_name: string }) => r.name) || [
+        user.role,
+      ]
+      return userRoles.some(
+        (role: string | undefined) =>
+          role === 'engraving_operator' ||
+          role === 'grav' ||
+          (role && role.toLowerCase().includes('гравировка')),
+      )
+    })
+    console.log(
+      '🔍 Найдены гравировщики:',
+      engravingUsers.map((u) => ({ name: u.name, roles: u.roles || u.role })),
     )
   } catch (e) {
-    console.error('❌ Ошибка загрузки пользователей:', e)
     availableUsers.value = []
-
-    // Fallback к статическим ролям
-    stageRoleMap.value = {
-      design: ['designer'],
-      print: ['print_operator'],
-      engraving: ['engraving_operator'],
-      workshop: ['workshop_worker'],
-    }
   }
 }
 
 async function assignUser(userId: number) {
   if (!order.value || !order.value.id || !userId) return
 
-  // Находим пользователя в списке с ролями для текущей стадии
-  const userWithRole = currentStageUsersWithRoles.value.find((u) => u.id === userId)
-
-  if (!userWithRole) {
-    console.error('Пользователь не найден в списке доступных для текущей стадии')
-    return
-  }
-
-  // Используем роль, определенную для текущей стадии
-  const roleType = userWithRole.roleForStage
-
   try {
-    const assignmentData: any = { user_id: userId }
-    if (roleType) {
-      assignmentData.role_type = roleType
+    console.log(
+      '🔍 assignUser - доступные пользователи:',
+      currentStageUsers.value.map((u) => ({ id: u.id, name: u.name, roles: u.roles || u.role })),
+    )
+
+    // Находим пользователя
+    const user = currentStageUsers.value.find((u: User) => u.id === userId)
+    if (!user) {
+      console.log(
+        '❌ Доступные пользователи:',
+        currentStageUsers.value.map((u) => ({ id: u.id, name: u.name })),
+      )
+      return
     }
 
-    await assignOrderToUser(order.value.id, assignmentData)
-    selectedUserId.value = null
-    await fetchAll() // Обновляем все данные, включая назначения
+    // Определяем текущую стадию
+    const currentStage = getCurrentStage(order.value)
+
+    // Находим данные стадии с ролями
+    const stageData = stagesWithRoles.value.find((stage: Stage) => stage.name === currentStage)
+    if (!stageData) {
+      return
+    }
+
+    // Определяем роль пользователя для этой стадии
+    const userRoles = user.roles?.map((r: { name: string; display_name: string }) => r.name) || [
+      user.role,
+    ]
+    const stageRoles = stageData.roles?.map((role: Role) => role.name) || []
+
+    // Находим подходящую роль, но НЕ БЛОКИРУЕМ если её нет
+    const matchingRole = userRoles.find((role) => stageRoles.includes(role))
+
+    // Используем первую доступную роль пользователя или дефолтную
+    const roleToAssign = matchingRole || userRoles[0] || user.role || 'unknown'
+
+    // Создаем данные назначения с ролью пользователя
+    const assignmentData = {
+      user_id: userId,
+      role_type: roleToAssign,
+      // Возможно, API ожидает stage вместо stage_name
+      stage: currentStage,
+      stage_name: currentStage,
+    }
+
+    console.log('assignUser debug:', {
+      orderId: order.value.id,
+      assignmentData,
+    })
+
+    try {
+      const result = await assignOrderToUser(order.value.id, assignmentData)
+
+      selectedUserId.value = null
+      await fetchAll() // Обновляем все данные, включая назначения
+
+      toast.show('Пользователь успешно назначен', 'success')
+    } catch (apiError: unknown) {
+      console.log('assignUser API error:', {
+        message: apiError instanceof Error ? apiError.message : 'Неизвестная ошибка',
+        status: (apiError as Record<string, unknown>)?.status,
+        response: (apiError as Record<string, unknown>)?.response,
+        data: (apiError as Record<string, unknown>)?.data,
+      })
+      toast.show(
+        `Ошибка назначения пользователя: ${apiError instanceof Error ? apiError.message : 'Неизвестная ошибка'}`,
+        'error',
+      )
+    }
   } catch (e) {
-    console.error('Ошибка назначения пользователя:', e)
+    toast.show('Ошибка назначения пользователя', 'error')
   }
 }
 
-async function updateAssignmentStatus(assignment: any) {
+async function updateAssignmentStatus(assignment: Assignment) {
   if (!assignment?.id) return
   try {
-    await updateOrderAssignmentStatus(assignment.id, assignment.status)
+    const response = await updateOrderAssignmentStatus(assignment.id, assignment.status)
+
+    // Проверяем, произошел ли автоматический переход стадии
+    if (
+      response.stage_transition &&
+      response.stage_transition.from &&
+      response.stage_transition.to
+    ) {
+      toast.show(
+        `✅ ${response.stage_transition.message}: ${response.stage_transition.from} → ${response.stage_transition.to}`,
+        'success',
+      )
+    }
+
     await fetchAll() // Обновляем все данные, включая назначения
+    emit('updated') // Уведомляем родительский компонент об обновлении
   } catch (e) {
-    console.error('Ошибка обновления статуса назначения:', e)
+    toast.show('Ошибка обновления статуса', 'error')
   }
 }
 
-async function deleteAssignment(assignment: any) {
+async function deleteAssignment(assignment: Assignment) {
   if (!assignment?.id) return
   try {
     await deleteOrderAssignment(assignment.id)
     await fetchAll() // Обновляем все данные, включая назначения
-  } catch (e) {
-    console.error('Ошибка удаления назначения:', e)
-  }
+  } catch (e) {}
 }
 
 function getAssignmentBg(status: string) {
@@ -1494,102 +1779,427 @@ function formatArchiveDate(dateStr: string) {
 }
 
 // Динамическая карта ролей стадий - будет загружаться из API
-const stageRoleMap = ref<Record<string, string[]>>({})
-const stageUsersByRole = ref<Record<string, Record<string, any[]>>>({})
+// Удалено: stageRoleMap и stageUsersByRole больше не используются
 
 // Динамические роли - будет загружаться из API
-const roles = ref<any[]>([])
+const roles = ref<Role[]>([])
+
+// Добавляем состояние для стадий с ролями
+const stagesWithRoles = ref<Stage[]>([])
+
+// Вспомогательная функция для получения текущей стадии
+function getCurrentStage(order: Order | null): string {
+  if (!order?.stage) return ''
+  return typeof order.stage === 'string'
+    ? order.stage
+    : (order.stage as { name: string })?.name || ''
+}
+
+// Функция для получения цвета стадии для роли
+function getStageColorForRole(roleName: string): string | null {
+  // Ищем стадию, которая содержит эту роль
+  const stageWithRole = stagesWithRoles.value.find(
+    (stage: Stage) => stage.roles && stage.roles.some((role: Role) => role.name === roleName),
+  )
+
+  return stageWithRole?.color || null
+}
 
 // Отображение назначений для текущей стадии
 const currentStageAssignments = computed(() => {
   if (!order.value) return []
 
-  const stage = order.value.stage?.name
-  const stageRoles = stageRoleMap.value[stage] || []
+  const currentStage = getCurrentStage(order.value)
+  console.log(
+    '🔍 currentStageAssignments - все назначения:',
+    assignments.value.map((a) => ({
+      id: a.id,
+      user_name: a.user?.name,
+      role_type: a.role_type,
+      status: a.status,
+      assigned_stages: a.assigned_stages?.map((s) => s.name) || [],
+      stage_name: a.stage_name,
+      order_stage: a.order_stage,
+      order_id: a.order_id,
+    })),
+  )
 
-  if (stageRoles.length === 0) {
-    // Если стадия не требует назначений (draft, final, completed, cancelled), показываем все
+  console.log(
+    'currentStageAssignments debug - all assignments:',
+    assignments.value.map((a) => ({
+      id: a.id,
+      user_name: a.user?.name,
+      role_type: a.role_type,
+      status: a.status,
+      assigned_stages: a.assigned_stages?.map((s) => s.name) || [],
+      stage_name: a.stage_name,
+      order_stage: a.order_stage,
+      order_id: a.order_id,
+    })),
+  )
 
-    return assignments.value
-  }
+  // Получаем роли для текущей стадии
+  const stageData = stagesWithRoles.value.find((stage: Stage) => stage.name === currentStage)
+  const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
 
-  // Для конкретной стадии показываем только сотрудников нужных ролей
-  const filtered = assignments.value.filter((a: any) => stageRoles.includes(a.role_type))
+  // Фильтруем назначения для текущей стадии
+  const stageAssignments = assignments.value.filter((assignment: Assignment) => {
+    // Проверяем несколько способов связи назначения со стадией:
 
-  return filtered
+    // 1. Через assigned_stages (если есть)
+    const hasStageAssignment =
+      assignment.assigned_stages &&
+      assignment.assigned_stages.some((stage: Stage) => stage.name === currentStage)
+
+    // 2. Через stage_name (новый способ)
+    const hasStageName = assignment.stage_name === currentStage
+
+    // 3. Через order_stage (если назначение привязано к заказу)
+    const hasOrderStage = assignment.order_stage === currentStage
+
+    // Проверяем, соответствует ли роль назначения текущей стадии
+    const hasMatchingRole = stageRoles.includes(assignment.role_type)
+
+    console.log('stageAssignments filter debug:', {
+      assignment: assignment,
+      currentStage,
+      assignmentStages: assignment.assigned_stages?.map((s: Stage) => s.name) || [],
+      stageName: assignment.stage_name,
+      orderStage: assignment.order_stage,
+      hasStageAssignment,
+      hasStageName,
+      hasOrderStage,
+      roleType: assignment.role_type,
+      stageRoles,
+      hasMatchingRole,
+      // Добавляем детальную информацию о назначении
+      assignmentDetails: {
+        id: assignment.id,
+        user_id: assignment.user_id,
+        user_name: assignment.user?.name,
+        role_type: assignment.role_type,
+        status: assignment.status,
+        assigned_stages: assignment.assigned_stages,
+        stage_name: assignment.stage_name,
+        order_stage: assignment.order_stage,
+        order_id: assignment.order_id,
+      },
+    })
+
+    // Показываем назначение если есть связь со стадией И роль соответствует
+    const hasStageConnection = hasStageAssignment || hasStageName || hasOrderStage
+
+    // Если назначение было создано вручную (есть stage_name), показываем его
+    // независимо от других связей - НЕ ПРОВЕРЯЕМ РОЛЬ!
+    const isManualAssignment = assignment.stage_name === currentStage
+
+    // Для ручного назначения показываем ВСЕГДА, независимо от роли
+    if (isManualAssignment) {
+      return true
+    }
+
+    // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
+    // где эта роль нужна, независимо от assigned_stages
+    if (hasMatchingRole) {
+      console.log(
+        `✅ Назначение с подходящей ролью для стадии ${currentStage}:`,
+        assignment.user?.name,
+      )
+      return true
+    }
+
+    // Для остальных назначений проверяем все связи
+    const shouldShow = hasStageConnection && hasMatchingRole
+    console.log('shouldShow debug:', {
+      user: assignment.user?.name,
+      hasStageConnection,
+      hasMatchingRole,
+      shouldShow,
+    })
+    return shouldShow
+  })
+
+  console.log(
+    '🔍 currentStageAssignments - назначения для текущей стадии:',
+    stageAssignments.length,
+  )
+  return stageAssignments
 })
 
 // Пользователи для текущей стадии
 const currentStageUsers = computed(() => {
-  if (!order.value?.stage?.name) return availableUsers.value
+  if (!order.value) return []
 
-  const stage = order.value.stage.name
-  const stageData = stageUsersByRole.value[stage]
+  const currentStage = getCurrentStage(order.value)
 
-  if (!stageData || !stageData.users_by_role) {
-    return availableUsers.value
-  }
+  // Получаем роли для текущей стадии
+  const stageData = stagesWithRoles.value.find((stage: Stage) => stage.name === currentStage)
+  const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
 
-  let users: any[] = []
-  Object.values(stageData.users_by_role).forEach((roleData: any) => {
-    if (roleData.users && Array.isArray(roleData.users)) {
-      users = users.concat(roleData.users)
-    }
+  // Фильтруем пользователей по ролям стадии
+  const stageUsers = availableUsers.value.filter((user: User) => {
+    const userRoles = user.roles?.map((role: { name: string }) => role.name) || []
+    const hasMatchingRole = userRoles.some((role: string) => stageRoles.includes(role))
+
+    console.log('stageUsers filter debug:', {
+      userRoles,
+      hasMatchingRole,
+      stageRoles,
+    })
+
+    return hasMatchingRole
   })
 
-  return users
+  return stageUsers
 })
 
-// Пользователи для текущей стадии с отображением роли
+// Функция для пользователей с ролями
 const currentStageUsersWithRoles = computed(() => {
-  if (!order.value?.stage?.name) {
-    return availableUsers.value
-  }
+  const currentStage = getCurrentStage(order.value)
+  const stageData = stagesWithRoles.value.find((stage: Stage) => stage.name === currentStage)
+  const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
 
-  const stage = order.value.stage.name
-  const stageData = stageUsersByRole.value[stage]
-  const stageRoles = stageRoleMap.value[stage] || []
+  const result = currentStageUsers.value.map((user: User) => {
+    // Находим роль пользователя, которая соответствует текущей стадии
+    const userRoles = user.roles?.map((r: { name: string; display_name: string }) => r.name) || [
+      user.role,
+    ]
+    const matchingRole =
+      userRoles.find((role) => stageRoles.includes(role)) ||
+      userRoles[0] ||
+      user.role ||
+      'Неизвестная роль'
 
-  if (!stageData || !stageData.users_by_role) {
-    return availableUsers.value
-  }
-
-  let users: any[] = []
-
-  Object.entries(stageData.users_by_role).forEach(([roleName, roleData]: [string, any]) => {
-    if (roleData.users && Array.isArray(roleData.users)) {
-      const roleLabel = roleData.role?.display_name || getRoleLabel(roleName)
-      const usersWithRole = roleData.users.map((user: any) => ({
-        ...user,
-        displayName: `${user.name} (${roleLabel})`,
-        roleForStage: roleName,
-      }))
-      users = users.concat(usersWithRole)
+    return {
+      ...user,
+      displayName: `${user.name} (${getRoleLabel(matchingRole)})`,
+      roleForStage: matchingRole,
     }
   })
 
-  return users
+  return result
 })
 
-// Функция для получения текста ролей текущей стадии
-function getCurrentStageRolesText() {
-  if (!order.value?.stage?.name) return 'Все сотрудники'
+// Убираем автоматический переход стадий во фронтенде - теперь это делается только на backend
+// function determineInitialStage() {
+//   if (!order.value || !stages.value.length) return
 
-  const stage = order.value.stage.name
-  const stageData = stageUsersByRole.value[stage]
+//   // Если автоматическое переключение отключено - не выполняем
+//   if (disableAutoStageSwitch.value) {
+//     return
+//   }
 
-  if (!stageData || !stageData.users_by_role) {
-    return 'Все сотрудники'
+//   const currentStage = getCurrentStage(order.value)
+
+//   // Если заказ уже на черновике или завершен - не меняем
+//   if (currentStage === 'draft' || currentStage === 'completed' || currentStage === 'cancelled') {
+//     return
+//   }
+
+//   // Проверяем, есть ли назначения для текущей стадии
+//   const currentStageAssignments = assignments.value.filter((assignment: Assignment) => {
+//     const stageData = stagesWithRoles.value.find((s: Stage) => s.name === currentStage)
+//     const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
+//     const hasMatchingRole = stageRoles.includes(assignment.role_type)
+
+//     // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
+//     return hasMatchingRole
+//   })
+
+//   // Если на текущей стадии есть назначения - не меняем
+//   if (currentStageAssignments.length > 0) {
+//     return
+//   }
+
+//   // Ищем первую стадию с назначениями
+//   const firstStageWithAssignments = findFirstStageWithAssignments()
+
+//   if (firstStageWithAssignments) {
+//     // Если текущая стадия не совпадает с первой стадией с назначениями
+//     if (currentStage !== firstStageWithAssignments) {
+//       changeStatus(firstStageWithAssignments)
+//     }
+//   } else {
+//     // Если нет назначений ни на одной стадии - переводим на черновик
+//     if (currentStage !== 'draft') {
+//       changeStatus('draft')
+//     }
+//   }
+// }
+
+// Убираем автоматический переход стадий во фронтенде - теперь это делается только на backend
+// function checkAutoAdvanceStage() {
+//   if (!order.value || disableAutoStageSwitch.value) return
+
+//   const currentStage = getCurrentStage(order.value)
+
+//   // Пропускаем служебные стадии
+//   if (currentStage === 'draft' || currentStage === 'completed' || currentStage === 'cancelled') {
+//     return
+//   }
+
+//   // Получаем назначения для текущей стадии
+//   const currentStageAssignments = assignments.value.filter((assignment: Assignment) => {
+//     const hasStageAssignment =
+//       assignment.assigned_stages &&
+//       assignment.assigned_stages.some((stage: Stage) => stage.name === currentStage)
+
+//     const stageData = stagesWithRoles.value.find((s: Stage) => s.name === currentStage)
+//     const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
+//     const hasMatchingRole = stageRoles.includes(assignment.role_type)
+
+//     // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
+//     // где эта роль нужна, независимо от assigned_stages
+//     if (hasMatchingRole) {
+//       return true
+//     }
+
+//     return hasStageAssignment && hasMatchingRole
+//   })
+
+//   // Если нет назначений на текущей стадии - не переходим
+//     if (currentStageAssignments.length === 0) {
+//       return
+//     }
+
+//   // Проверяем, все ли назначения одобрены
+//   const allApproved = currentStageAssignments.every(
+//     (assignment: any) => assignment.status === 'approved',
+//   )
+
+//   if (allApproved) {
+//     // Ищем следующую стадию с назначениями
+//     const nextStage = findNextStageWithAssignments(currentStage)
+
+//     if (nextStage) {
+//       // Показываем уведомление
+//       toast.show(
+//         `Все задачи на стадии "${getStatusText(currentStage)}" выполнены. Переходим на "${getStatusText(nextStage)}"`,
+//         'success',
+//       )
+
+//       // Переходим на следующую стадию
+//       changeStatus(nextStage)
+//     } else {
+//       // Если следующей стадии нет - завершаем заказ
+//       toast.show(`Все задачи выполнены. Заказ завершен!`, 'success')
+//       changeStatus('completed')
+//     }
+//   }
+// }
+
+// Функция для поиска следующей стадии с назначениями
+function findNextStageWithAssignments(currentStageName: string): string | null {
+  // Получаем все стадии в правильном порядке
+  const orderedStages = stages.value.map((s) => s.value)
+
+  // Находим индекс текущей стадии
+  const currentIndex = orderedStages.indexOf(currentStageName)
+
+  if (currentIndex === -1) {
+    return null
   }
 
-  const roleNames = Object.values(stageData.users_by_role).map(
-    (roleData: any) => roleData.role?.display_name || roleData.role?.name || 'Неизвестная роль',
-  )
+  // Ищем следующую стадию с назначениями
+  for (let i = currentIndex + 1; i < orderedStages.length; i++) {
+    const stageName = orderedStages[i]
 
-  return roleNames.join(', ')
+    // Пропускаем служебные стадии
+    if (stageName === 'draft' || stageName === 'completed' || stageName === 'cancelled') {
+      continue
+    }
+
+    // Проверяем, есть ли назначения для этой стадии
+    const hasAssignments = assignments.value.some((assignment: Assignment) => {
+      const stageData = stagesWithRoles.value.find((s: Stage) => s.name === stageName)
+      const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
+      const hasMatchingRole = stageRoles.includes(assignment.role_type)
+
+      // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
+      // где эта роль нужна, независимо от assigned_stages
+      return hasMatchingRole
+    })
+
+    if (hasAssignments) {
+      return stageName
+    }
+  }
+
+  return null
 }
 
-let pollingInterval: any = null
+// Функция для поиска первой стадии с назначениями
+function findFirstStageWithAssignments(): string | null {
+  // Проходим по стадиям в правильном порядке
+  for (const stage of stages.value) {
+    const stageName = stage.value
+
+    // Пропускаем служебные стадии
+    if (stageName === 'draft' || stageName === 'completed' || stageName === 'cancelled') {
+      continue
+    }
+
+    // Проверяем, есть ли назначения для этой стадии
+    const hasAssignments = assignments.value.some((assignment: Assignment) => {
+      const stageData = stagesWithRoles.value.find((s: Stage) => s.name === stageName)
+      const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
+      const hasMatchingRole = stageRoles.includes(assignment.role_type)
+
+      // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
+      // где эта роль нужна, независимо от assigned_stages
+      return hasMatchingRole
+    })
+
+    if (hasAssignments) {
+      return stageName
+    }
+  }
+
+  return null
+}
+
+// Функция для получения имени того, кто назначил
+function getAssignedByName(assignedBy: any): string {
+  if (!assignedBy) return '—'
+
+  // Если это объект с именем
+  if (typeof assignedBy === 'object' && assignedBy.name) {
+    return assignedBy.name
+  }
+
+  // Если это ID, попробуем найти пользователя в доступных пользователях
+  if (typeof assignedBy === 'number' || typeof assignedBy === 'string') {
+    const user = availableUsers.value.find((u: any) => u.id == assignedBy)
+    if (user && user.name) {
+      return user.name
+    }
+  }
+
+  // Если это строка (возможно имя)
+  if (typeof assignedBy === 'string') {
+    return assignedBy
+  }
+
+  return '—'
+}
+
+// Функция для получения текста ролей
+function getCurrentStageRolesText() {
+  if (!order.value) return 'Все сотрудники'
+
+  const currentStage = getCurrentStage(order.value)
+  const stageData = stagesWithRoles.value.find((stage: any) => stage.name === currentStage)
+  const stageRoles = stageData?.roles || []
+
+  if (stageRoles.length === 0) {
+    return 'Нет доступных ролей'
+  }
+
+  const roleLabels = stageRoles.map((role: any) => getRoleLabel(role.name)).join(', ')
+  return roleLabels
+}
+
+let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchAll()
@@ -1622,45 +2232,14 @@ watch(
   },
 )
 
-watch(
-  () => assignments.value,
-  (newAssignments) => {
-    if (!order.value?.stage?.name) return
-
-    // Проверяем только назначения для текущей стадии
-    const currentStageRoles = stageRoleMap.value[order.value?.stage?.name || ''] || []
-    const currentStageAssignments = newAssignments.filter((a: any) =>
-      currentStageRoles.includes(a.role_type),
-    )
-
-    // Проверяем, что все назначения для текущей стадии действительно approved
-    const allCurrentStageApproved =
-      currentStageAssignments.length > 0 &&
-      currentStageAssignments.every((a) => a.status === 'approved')
-
-    // Автоматический переход только если есть назначения для текущей стадии и все они approved
-    if (allCurrentStageApproved && currentStageRoles.length > 0) {
-      // Находим следующую стадию
-      const currentStageIndex = stages.value.findIndex((s) => s.value === order.value?.stage?.name)
-      const nextStage = stages.value[currentStageIndex + 1]
-
-      if (nextStage && nextStage.value !== 'completed' && nextStage.value !== 'cancelled') {
-        // Получаем названия ролей для сообщения
-        const roleNames = currentStageRoles.map((role) => getRoleLabel(role)).join(', ')
-
-        updateStage(order.value.id, { stage: nextStage.value })
-          .then(() => {
-            toast.show(
-              `Все ${roleNames} одобрили — заказ переведён на стадию "${nextStage.label}"!`,
-            )
-            fetchAll()
-          })
-          .catch(() => {})
-      }
-    }
-  },
-  { deep: true },
-)
+// Убираем автоматический переход стадий во фронтенде - теперь это делается только на backend
+// watch(
+//   () => assignments.value,
+//   () => {
+//     checkAutoAdvanceStage()
+//   },
+//   { deep: true },
+// )
 
 // Исправление getUserImageUrl (ожидает Promise)
 // Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки

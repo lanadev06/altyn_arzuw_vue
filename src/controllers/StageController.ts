@@ -12,7 +12,6 @@ class StageController {
       const response = await stageApi.getAll()
       return response
     } catch (error) {
-      console.error('Error fetching stages:', error)
       throw error
     }
   }
@@ -22,7 +21,6 @@ class StageController {
       const response = await stageApi.getById(id)
       return response
     } catch (error) {
-      console.error('Error fetching stage:', error)
       throw error
     }
   }
@@ -32,7 +30,6 @@ class StageController {
       const response = await stageApi.create(data)
       return response
     } catch (error) {
-      console.error('Error creating stage:', error)
       throw error
     }
   }
@@ -42,7 +39,6 @@ class StageController {
       const response = await stageApi.update(id, data)
       return response
     } catch (error) {
-      console.error('Error updating stage:', error)
       throw error
     }
   }
@@ -51,7 +47,6 @@ class StageController {
     try {
       await stageApi.delete(id)
     } catch (error) {
-      console.error('❌ Error deleting stage:', id, error)
       throw error
     }
   }
@@ -60,7 +55,6 @@ class StageController {
     try {
       await stageApi.reorder(data)
     } catch (error) {
-      console.error('Error reordering stages:', error)
       throw error
     }
   }
@@ -70,7 +64,6 @@ class StageController {
       const response = await stageApi.getAvailableRoles()
       return response
     } catch (error) {
-      console.error('Error fetching available roles:', error)
       throw error
     }
   }

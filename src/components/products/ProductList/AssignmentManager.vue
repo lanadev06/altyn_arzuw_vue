@@ -132,21 +132,7 @@ watch(
   () => props.assignments,
   (assignments) => {
     if (assignments.length > 0) {
-      console.log(
-        `✅ AssignmentManager [${props.roleType}] received:`,
-        assignments.length,
-        'assignments',
-      )
-      console.log(`👤 First assignment:`, {
-        id: assignments[0].id,
-        user_id: assignments[0].user_id,
-        user_name: assignments[0].user?.name,
-        is_active: assignments[0].is_active,
-        role_type: assignments[0].role_type,
-      })
-    } else {
-      console.log(`❌ AssignmentManager [${props.roleType}] received: 0 assignments`)
-    }
+    } 
   },
   { immediate: true },
 )

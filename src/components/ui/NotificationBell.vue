@@ -78,6 +78,48 @@
                 />
               </svg>
               <svg
+                v-else-if="notif.data?.icon === 'stage_assignment'"
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              <svg
+                v-else-if="notif.data?.icon === 'stage_removal'"
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              <svg
+                v-else-if="notif.data?.icon === 'stage_transition'"
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+              <svg
                 v-else-if="notif.data?.icon === 'status'"
                 class="w-5 h-5"
                 fill="none"
@@ -160,15 +202,27 @@ function toggleDropdown() {
 async function fetchNotifications() {
   loading.value = true
   try {
+    console.log('🔔 Fetching notifications...')
     const res = await fetch(`${API_CONFIG.BASE_URL}/notifications`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
       },
     })
+
+    if (!res.ok) {
+      console.error('❌ Notifications API error:', res.status, res.statusText)
+      const errorText = await res.text()
+      console.error('❌ Error response:', errorText)
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    }
+
     const data = await res.json()
+    console.log('🔔 Notifications response:', data)
     notifications.value = Array.isArray(data) ? data : data.data || []
     const newUnreadCount = notifications.value.filter((n) => !n.read_at).length
+    console.log('🔔 Unread count:', newUnreadCount)
+
     // Открываем dropdown при любом увеличении количества непрочитанных уведомлений
     if (newUnreadCount > previousUnreadCount) {
       if (notificationAudio) {
@@ -184,6 +238,7 @@ async function fetchNotifications() {
     unreadCount.value = newUnreadCount
     previousUnreadCount = newUnreadCount
   } catch (e) {
+    console.error('❌ Error fetching notifications:', e)
     notifications.value = []
     unreadCount.value = 0
     previousUnreadCount = 0

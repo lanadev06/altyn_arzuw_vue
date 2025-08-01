@@ -58,7 +58,6 @@ export function ClientController() {
       }
     } catch (e: any) {
       error.value = e.message || 'Ошибка загрузки клиентов'
-      console.error('❌ fetchClients error:', e)
     } finally {
       loading.value = false
     }

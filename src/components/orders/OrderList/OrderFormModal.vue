@@ -1,5 +1,5 @@
 <template>
-  <Modal @close="$emit('close')">
+  <Modal @close="$emit('close')" :class="`orderMode-${orderMode}`">
     <template #header>
       <div class="flex items-center gap-3">
         <div
@@ -175,6 +175,7 @@
               :searchable="true"
               :error="errors.project_id"
               class="flex-1"
+              @update:model-value="onProjectSelect"
             />
             <UIButton
               type="button"
@@ -199,6 +200,7 @@
               v-model="bulkProjectTitle"
               placeholder="Название проекта для массового заказа"
               :error="errors.bulk_project_title"
+              @input="onProjectTitleInput"
             />
           </div>
           <div v-if="errors.project_id" class="text-red-600 text-sm mt-1">
@@ -352,27 +354,27 @@
               </div>
 
               <!-- Назначения для этого заказа -->
-              <div v-if="order.selected_stages.length > 0" class="mt-4 space-y-3">
+              <div v-if="order.selected_stages.length > 0" class="mt-4 space-y-4">
                 <div
                   v-for="stage in getSelectedStageObjectsForBulkOrder(index)"
                   :key="stage.id"
-                  class="border border-gray-200 rounded p-3 bg-white"
+                  class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm"
                 >
-                  <div class="flex items-center mb-2">
+                  <div class="flex items-center mb-3">
                     <div
-                      class="w-3 h-3 rounded-full mr-2"
+                      class="w-4 h-4 rounded-full mr-3"
                       :style="{ backgroundColor: stage.color }"
                     ></div>
-                    <h5 class="text-sm font-medium text-gray-900">{{ stage.display_name }}</h5>
+                    <h5 class="text-sm font-semibold text-gray-900">{{ stage.display_name }}</h5>
                   </div>
 
                   <!-- Роли для этой стадии -->
-                  <div v-if="stage.roles && stage.roles.length > 0" class="space-y-2">
-                    <div v-for="role in stage.roles" :key="role.id" class="space-y-2">
+                  <div v-if="stage.roles && stage.roles.length > 0" class="space-y-4">
+                    <div v-for="role in stage.roles" :key="role.id" class="space-y-3">
                       <div class="flex items-center justify-between">
-                        <label class="block text-xs font-medium text-gray-700">
-                          {{ getRoleDisplayName(role.name) }}
-                          <span class="text-xs text-gray-500">({{ role.name }})</span>
+                        <label class="block text-sm font-medium text-gray-700">
+                          {{ role.display_name || getRoleDisplayName(role.name) }}
+                          <span class="text-xs text-gray-500 ml-1">({{ role.name }})</span>
                         </label>
                         <UIButton
                           type="button"
@@ -389,20 +391,20 @@
                           getBulkOrderAssignmentsForStageRole(index, stage.id, role.name).length ===
                           0
                         "
-                        class="text-xs text-gray-500 italic py-1"
+                        class="text-sm text-gray-500 italic py-2 px-3 bg-gray-50 rounded border border-gray-100"
                       >
                         Назначения не добавлены
                       </div>
 
-                      <div v-else class="space-y-1">
+                      <div v-else class="space-y-2">
                         <div
                           v-for="(
                             assignment, assignmentIndex
                           ) in getBulkOrderAssignmentsForStageRole(index, stage.id, role.name)"
                           :key="assignment.id || assignmentIndex"
-                          class="flex items-center gap-2 p-2 border border-gray-200 rounded bg-gray-50"
+                          class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                         >
-                          <div class="flex-1">
+                          <div class="flex-1 min-w-0">
                             <Vue3Select
                               v-model="assignment.user"
                               :options="getUsersForRole(role.name)"
@@ -410,6 +412,7 @@
                               placeholder="Выберите пользователя"
                               :clearable="true"
                               :searchable="true"
+                              class="text-sm"
                               @update:model-value="
                                 (val) =>
                                   handleBulkOrderUserSelect(
@@ -439,7 +442,12 @@
                     </div>
                   </div>
 
-                  <div v-else class="text-xs text-gray-500">Для этой стадии не настроены роли</div>
+                  <div
+                    v-else
+                    class="text-sm text-gray-500 py-2 px-3 bg-gray-50 rounded border border-gray-100"
+                  >
+                    Для этой стадии не настроены роли
+                  </div>
                 </div>
               </div>
             </div>
@@ -630,7 +638,7 @@
             <div v-if="stage.roles && stage.roles.length > 0" class="space-y-3">
               <div v-for="role in stage.roles" :key="role.id" class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700">
-                  {{ getRoleDisplayName(role.name) }}
+                  {{ role.display_name || getRoleDisplayName(role.name) }}
                   <span class="text-xs text-gray-500">({{ role.name }})</span>
                 </label>
                 <!-- Простой компонент назначений -->
@@ -710,18 +718,18 @@
     </form>
 
     <!-- Модальное окно для создания клиента -->
-    <!-- <ClientFormModal
+    <ClientFormModal
       v-if="showClientModal"
       @close="showClientModal = false"
       @submit="onClientCreated"
-    /> -->
+    />
 
     <!-- Модальное окно для создания проекта -->
-    <!-- <ProjectFormModal
+    <ProjectFormModal
       v-if="showProjectModal"
       @close="showProjectModal = false"
       @submit="onProjectCreated"
-    /> -->
+    />
   </Modal>
 </template>
 
@@ -743,13 +751,16 @@ import {
   getAllStages,
   getAllUsersByStageRoles,
   getProductAssignments,
+  createProject,
+  getUsersByRole,
+  getByRole,
 } from '../../../services/api'
 import type { ProductAssignment } from '../../../types/product'
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
-// import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
-// import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
+import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
+import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
 
 const props = defineProps<{ order?: Order | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -787,11 +798,11 @@ const bulkOrders = ref<
 
 const form = reactive<OrderForm>({
   client_id: 0,
-  project_id: null,
-  product_id: null,
+  project_id: undefined,
+  product_id: undefined,
   quantity: 1,
   price: null,
-  deadline: null,
+  deadline: getTodayDateTime(),
 })
 
 const errors = reactive({
@@ -816,7 +827,9 @@ const stageAssignments = reactive<Record<number, Record<string, ProductAssignmen
 const isFormValid = computed(() => {
   if (orderMode.value === 'bulk') {
     // Для массового заказа нужны клиент, (проект ИЛИ название проекта) и хотя бы один продукт
-    const hasProject = form.project_id !== null || bulkProjectTitle.value.trim() !== ''
+    const hasExistingProject = form.project_id && form.project_id > 0
+    const hasProjectTitle = bulkProjectTitle.value.trim() !== ''
+    const hasProject = hasExistingProject || hasProjectTitle
     const hasProducts =
       bulkOrders.value.length > 0 &&
       bulkOrders.value.every((order) => order.product_id !== null && order.quantity > 0)
@@ -900,7 +913,10 @@ function updateAssignmentsForStageRole(
 }
 
 function getUsersForRole(roleName: string): User[] {
-  return allUsers[roleName] || []
+  const users = allUsers[roleName] || []
+  console.log(`👥 getUsersForRole(${roleName}):`, users.length, 'users')
+  console.log(`👥 Available roles:`, Object.keys(allUsers))
+  return users
 }
 
 function getErrorsForStageRole(stageId: number, roleName: string): string[] {
@@ -956,31 +972,14 @@ function handleUserSelect(
 }
 
 function getRoleDisplayName(roleName: string): string {
-  // Специальные названия для известных ролей
-  const names: Record<string, string> = {
-    designer: 'Дизайнеры',
-    print_operator: 'Печатники',
-    engraving_operator: 'Гравировщики',
-    workshop_worker: 'Работники цеха',
-    die_cutting_operator: 'Операторы высечки',
-    lamination_operator: 'Операторы ламинирования',
-    cutting_operator: 'Операторы резки',
-    packaging_worker: 'Упаковщики',
-    quality_controller: 'Контролеры качества',
-    shipping_operator: 'Операторы доставки',
-  }
-
-  // Если роль не найдена, автоматически создаем красивое название
-  if (!names[roleName]) {
-    return (
-      roleName
-        .split('_')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ') + 'ы'
-    )
-  }
-
-  return names[roleName]
+  // Автоматически создаем красивое название из имени роли
+  console.log(`🆕 Auto-generating display name for role: ${roleName}`)
+  return (
+    roleName
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') + 'ы'
+  )
 }
 
 function toggleOrderStage(stageId: number) {
@@ -1055,7 +1054,7 @@ function clearAllStages() {
 
 async function onProductChange(productId: number | null) {
   try {
-    form.product_id = productId
+    form.product_id = productId || undefined
     selectedOrderStages.value = [] // Сбрасываем выбранные стадии
 
     // Очищаем назначения
@@ -1201,36 +1200,93 @@ onMounted(async () => {
   try {
     console.log('🚀 OrderFormModal mounted, loading data...')
 
-    // Загружаем все необходимые данные
-    const [clientsData, productsData, projectsData, stagesData, usersByStageRoles] =
-      await Promise.all([
-        getAllClients().catch((error) => {
-          console.error('❌ Error loading clients:', error)
-          return []
-        }),
-        getAllProducts().catch((error) => {
-          console.error('❌ Error loading products:', error)
-          return []
-        }),
-        getAllProjects().catch((error) => {
-          console.error('❌ Error loading projects:', error)
-          return []
-        }),
-        getAllStages().catch((error) => {
-          console.error('❌ Error loading stages:', error)
-          return { data: [] }
-        }),
-        getAllUsersByStageRoles().catch((error) => {
-          console.error('❌ Error loading users by stage roles:', error)
-          return {}
-        }),
+    // Загружаем стадии и собираем все роли
+    const stagesResult = await getAllStages().catch((error) => {
+      console.error('❌ Error loading stages:', error)
+      return { data: [] }
+    })
+
+    // Обрабатываем данные стадий
+    if (Array.isArray(stagesResult)) {
+      availableStages.value = stagesResult
+    } else if (
+      stagesResult &&
+      typeof stagesResult === 'object' &&
+      'data' in stagesResult &&
+      Array.isArray((stagesResult as any).data)
+    ) {
+      availableStages.value = (stagesResult as any).data
+    } else {
+      console.warn('⚠️ Invalid stages data format:', stagesResult)
+      availableStages.value = []
+    }
+
+    // Собираем все роли из стадий
+    const allRoles = new Set<string>()
+    availableStages.value.forEach((stage) => {
+      if (stage.roles) {
+        stage.roles.forEach((role) => {
+          allRoles.add(role.name)
+        })
+      }
+    })
+
+    console.log('🔍 Found roles from stages:', Array.from(allRoles))
+
+    // Загружаем пользователей по ролям стадий и альтернативные источники
+    let usersByStageRoles, roleUsersData
+    try {
+      ;[usersByStageRoles, ...roleUsersData] = await Promise.all([
+        getAllUsersByStageRoles(),
+        // Динамическая загрузка пользователей по всем ролям
+        ...Array.from(allRoles).map((roleName) =>
+          getUsersByRole(roleName)
+            .then((result) => {
+              console.log(`✅ Successfully loaded ${roleName} users via getUsersByRole:`, result)
+              return result
+            })
+            .catch((error) => {
+              console.error(`❌ Error loading ${roleName} users via getUsersByRole:`, error)
+              // Пробуем альтернативный метод
+              return getByRole(roleName)
+                .then((result) => {
+                  console.log(`✅ Successfully loaded ${roleName} users via getByRole:`, result)
+                  return result
+                })
+                .catch((error2) => {
+                  console.error(`❌ Error loading ${roleName} users via getByRole:`, error2)
+                  return { data: [], roleName }
+                })
+            }),
+        ),
       ])
+    } catch (error) {
+      console.error('❌ Failed to load users data:', error)
+      usersByStageRoles = {}
+      roleUsersData = []
+    }
+
+    // Загружаем остальные данные
+    const [clientsData, productsData, projectsData] = await Promise.all([
+      getAllClients().catch((error) => {
+        console.error('❌ Error loading clients:', error)
+        return []
+      }),
+      getAllProducts().catch((error) => {
+        console.error('❌ Error loading products:', error)
+        return []
+      }),
+      getAllProjects().catch((error) => {
+        console.error('❌ Error loading projects:', error)
+        return []
+      }),
+    ])
 
     console.log('📋 Raw data loaded:', {
       clients: clientsData,
       products: productsData,
       projects: projectsData,
-      stages: stagesData,
+      stages: availableStages.value,
       usersByStageRoles: usersByStageRoles,
     })
 
@@ -1277,21 +1333,6 @@ onMounted(async () => {
     } else {
       console.warn('⚠️ Invalid projects data format:', projectsData)
       projects.value = []
-    }
-
-    // Обрабатываем данные стадий
-    if (Array.isArray(stagesData)) {
-      availableStages.value = stagesData
-    } else if (
-      stagesData &&
-      typeof stagesData === 'object' &&
-      'data' in stagesData &&
-      Array.isArray((stagesData as any).data)
-    ) {
-      availableStages.value = (stagesData as any).data
-    } else {
-      console.warn('⚠️ Invalid stages data format:', stagesData)
-      availableStages.value = []
     }
 
     console.log('✅ Processed data:', {
@@ -1368,7 +1409,7 @@ onMounted(async () => {
       projects.value = [
         { id: 1, title: 'Тестовый проект 1' },
         { id: 2, title: 'Тестовый проект 2' },
-      ]
+      ] as any
     }
 
     // Если стадии не загрузились, создаем fallback стадии
@@ -1381,7 +1422,6 @@ onMounted(async () => {
           display_name: 'Дизайн',
           color: '#3B82F6',
           order: 2,
-          is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [{ id: 1, name: 'designer', display_name: 'Дизайнер' }],
@@ -1392,7 +1432,6 @@ onMounted(async () => {
           display_name: 'Печать',
           color: '#10B981',
           order: 3,
-          is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [{ id: 2, name: 'print_operator', display_name: 'Печатник' }],
@@ -1403,7 +1442,6 @@ onMounted(async () => {
           display_name: 'Гравировка',
           color: '#8B5CF6',
           order: 4,
-          is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [{ id: 3, name: 'engraving_operator', display_name: 'Гравировщик' }],
@@ -1414,7 +1452,6 @@ onMounted(async () => {
           display_name: 'Цех',
           color: '#F59E0B',
           order: 5,
-          is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [{ id: 4, name: 'workshop_worker', display_name: 'Работник цеха' }],
@@ -1439,36 +1476,132 @@ onMounted(async () => {
 
     // Обрабатываем данные по стадиям и ролям
     if (usersByStageRoles && typeof usersByStageRoles === 'object') {
-      Object.keys(usersByStageRoles).forEach((stageName) => {
-        const stageData = usersByStageRoles[stageName]
-        const stageRoles = stageData?.users_by_role || {}
+      // Проверяем разные возможные форматы данных
+      if (Array.isArray(usersByStageRoles)) {
+        // Если API возвращает массив пользователей
+        console.log('📋 API returned array of users, processing by roles from stages')
 
-        console.log(`📋 Processing stage: ${stageName}`, stageRoles)
+        // Распределяем пользователей по ролям
+        usersByStageRoles.forEach((user: any) => {
+          if (user.roles && Array.isArray(user.roles)) {
+            user.roles.forEach((role: any) => {
+              const roleName = role.name || role
+              if (allRoles.has(roleName)) {
+                if (!dynamicUsers[roleName]) {
+                  dynamicUsers[roleName] = []
+                }
+                const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                if (!existingUser) {
+                  dynamicUsers[roleName].push(user)
+                }
+              }
+            })
+          }
+        })
+      } else {
+        // Если API возвращает объект с пользователями по стадиям
+        Object.keys(usersByStageRoles).forEach((stageName) => {
+          const stageData = usersByStageRoles[stageName]
 
-        // Для каждой роли в стадии добавляем пользователей
-        Object.keys(stageRoles).forEach((roleName) => {
-          const roleData = stageRoles[roleName]
-          const users = roleData.users || []
+          if (Array.isArray(stageData)) {
+            // Если стадия содержит массив пользователей
+            console.log(`📋 Processing stage: ${stageName} with ${stageData.length} users`)
 
-          console.log(`  👥 Role ${roleName}: ${users.length} users`)
-          console.log(`  📋 Role data:`, roleData)
+            stageData.forEach((user: any) => {
+              if (user.roles && Array.isArray(user.roles)) {
+                user.roles.forEach((role: any) => {
+                  const roleName = role.name || role
+                  if (!dynamicUsers[roleName]) {
+                    dynamicUsers[roleName] = []
+                  }
+                  const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                  if (!existingUser) {
+                    dynamicUsers[roleName].push(user)
+                  }
+                })
+              }
+            })
+          } else if (stageData && typeof stageData === 'object') {
+            // Если стадия содержит объект с ролями
+            const stageRoles = stageData.users_by_role || stageData.roles || {}
 
-          // Инициализируем массив для роли, если его нет
+            console.log(`📋 Processing stage: ${stageName}`, stageRoles)
+
+            Object.keys(stageRoles).forEach((roleName) => {
+              const roleData = stageRoles[roleName]
+              const users = roleData.users || roleData || []
+
+              console.log(`  👥 Role ${roleName}: ${users.length} users`)
+
+              if (!dynamicUsers[roleName]) {
+                dynamicUsers[roleName] = []
+              }
+
+              if (Array.isArray(users)) {
+                users.forEach((user: any) => {
+                  const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                  if (!existingUser) {
+                    dynamicUsers[roleName].push(user)
+                  }
+                })
+              }
+            })
+          }
+        })
+      }
+    } else {
+      console.warn('⚠️ usersByStageRoles is not defined or not an object:', usersByStageRoles)
+    }
+
+    // Обрабатываем данные пользователей по ролям из альтернативных источников
+    if (roleUsersData && Array.isArray(roleUsersData)) {
+      roleUsersData.forEach((roleData: any) => {
+        console.log('📋 Processing roleData:', roleData)
+
+        if (roleData && roleData.roleName && roleData.data) {
+          const roleName = roleData.roleName
+          const users = Array.isArray(roleData.data) ? roleData.data : []
+
+          console.log(`📋 Processing alternative users for role ${roleName}:`, users.length)
+
           if (!dynamicUsers[roleName]) {
             dynamicUsers[roleName] = []
           }
 
-          // Добавляем пользователей в динамический массив (избегаем дублирования)
-          users.forEach((user) => {
-            const existingUser = dynamicUsers[roleName].find((u) => u.id === user.id)
+          users.forEach((user: any) => {
+            const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
             if (!existingUser) {
               dynamicUsers[roleName].push(user)
             }
           })
-        })
+        } else if (roleData && roleData.data) {
+          // Обрабатываем случай, когда roleName не указан, но есть data
+          console.log('📋 Processing roleData without roleName:', roleData)
+
+          // Пытаемся определить роль из данных или использовать общую роль
+          const users = Array.isArray(roleData.data) ? roleData.data : []
+
+          if (users.length > 0 && users[0].roles) {
+            // Если у пользователей есть роли, распределяем их по ролям
+            users.forEach((user: any) => {
+              if (user.roles && Array.isArray(user.roles)) {
+                user.roles.forEach((role: any) => {
+                  const roleName = role.name || role
+                  if (allRoles.has(roleName)) {
+                    if (!dynamicUsers[roleName]) {
+                      dynamicUsers[roleName] = []
+                    }
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    if (!existingUser) {
+                      dynamicUsers[roleName].push(user)
+                    }
+                  }
+                })
+              }
+            })
+          }
+        }
       })
-    } else {
-      console.warn('⚠️ usersByStageRoles is not defined or not an object:', usersByStageRoles)
     }
 
     // Удаляем дубликаты пользователей для каждой роли
@@ -1498,11 +1631,16 @@ onMounted(async () => {
         : {},
     )
 
+    console.log('👥 Final allUsers object:', allUsers)
+    console.log('👥 Dynamic users object:', dynamicUsers)
+
     // Если пользователи не загрузились, создаем fallback пользователей
     const totalUsers =
       allUsers && typeof allUsers === 'object'
         ? Object.keys(allUsers).reduce((sum, role) => sum + (allUsers[role]?.length || 0), 0)
         : 0
+
+    console.log('👥 Total users loaded:', totalUsers)
 
     if (totalUsers === 0) {
       console.log('⚠️ No users from API, creating fallback users')
@@ -1543,6 +1681,8 @@ onMounted(async () => {
             )
           : {},
       )
+    } else {
+      console.log('✅ Real users loaded successfully!')
     }
 
     // Если редактируем заказ
@@ -1553,7 +1693,9 @@ onMounted(async () => {
         product_id: props.order.product_id || null,
         quantity: props.order.quantity || 1,
         price: props.order.price || null,
-        deadline: props.order.deadline ? formatDateForInput(props.order.deadline) : null,
+        deadline: props.order.deadline
+          ? formatDateForInput(props.order.deadline)
+          : getTodayDateTime(),
       })
 
       // Загружаем стадии заказа
@@ -1613,11 +1755,22 @@ watch(
   (newProductId, oldProductId) => {
     console.log('👀 form.product_id changed:', { old: oldProductId, new: newProductId })
     if (newProductId !== oldProductId) {
-      onProductChange(newProductId)
+      onProductChange(newProductId || null)
     }
   },
   { immediate: false },
 )
+
+function getTodayDateTime(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 
 function formatDateForInput(dateString: string): string {
   const date = new Date(dateString)
@@ -1645,7 +1798,7 @@ function validateForm(): boolean {
 
   // Очищаем ошибки
   Object.keys(errors).forEach((key) => {
-    errors[key] = ''
+    ;(errors as any)[key] = ''
   })
 
   let valid = true
@@ -1658,7 +1811,10 @@ function validateForm(): boolean {
 
   // Проект обязателен только для массового заказа
   if (orderMode.value === 'bulk') {
-    if ((!form.project_id || form.project_id <= 0) && bulkProjectTitle.value.trim() === '') {
+    const hasExistingProject = form.project_id && form.project_id > 0
+    const hasProjectTitle = bulkProjectTitle.value.trim() !== ''
+
+    if (!hasExistingProject && !hasProjectTitle) {
       errors.project_id = 'Выберите проект или введите название проекта'
       errors.bulk_project_title = 'Выберите проект или введите название проекта'
       valid = false
@@ -1726,6 +1882,26 @@ async function handleSubmit() {
     if (orderMode.value === 'bulk') {
       console.log('📦 Creating bulk orders with stages and assignments...')
 
+      // Если указано название проекта, создаем один проект для всех заказов
+      let projectId = form.project_id
+      if (bulkProjectTitle.value.trim() && !form.project_id) {
+        try {
+          console.log('📦 Creating project for bulk orders:', bulkProjectTitle.value.trim())
+          const projectData = {
+            title: bulkProjectTitle.value.trim(),
+            description: `Массовый заказ - ${bulkProjectTitle.value.trim()}`,
+            client_id: form.client_id,
+          }
+          const createdProject = await createProject(projectData)
+          projectId = createdProject.id
+          console.log('✅ Project created for bulk orders:', projectId)
+        } catch (error) {
+          console.error('❌ Error creating project for bulk orders:', error)
+          toast.show('Ошибка при создании проекта', 'error')
+          return
+        }
+      }
+
       // Создаем все заказы
       const createdOrders = []
       for (let i = 0; i < bulkOrders.value.length; i++) {
@@ -1733,14 +1909,13 @@ async function handleSubmit() {
 
         // Подготавливаем данные заказа
         const orderData = {
-        client_id: form.client_id,
-        project_id: form.project_id,
-        product_id: order.product_id,
-        quantity: order.quantity,
-        price: order.price,
-        deadline: order.deadline || null,
-        is_bulk: true, // Флаг для массового заказа
-        project_title: bulkProjectTitle.value.trim() || undefined,
+          client_id: form.client_id,
+          project_id: projectId, // Используем один project_id для всех заказов
+          product_id: order.product_id || undefined,
+          quantity: order.quantity,
+          price: order.price,
+          deadline: order.deadline || null,
+          is_bulk: true, // Флаг для массового заказа
           stages: order.selected_stages || [],
           assignments: getBulkOrderAssignments(i),
         }
@@ -1775,9 +1950,7 @@ async function handleSubmit() {
     } else {
       // Создаем новый заказ
       await create(orderData)
-      toast.show(
-        orderMode.value === 'bulk' ? 'Массовый заказ создан успешно!' : 'Заказ создан успешно!',
-      )
+      toast.show('Заказ создан успешно!')
     }
 
     emit('submit')
@@ -1842,7 +2015,7 @@ function addBulkOrder() {
     product_id: null,
     quantity: 1,
     price: null,
-    deadline: null,
+    deadline: getTodayDateTime(),
     selected_stages: [],
     assignments: {},
   })
@@ -2022,6 +2195,19 @@ function addBulkOrderAssignment(orderIndex: number, stageId: number, roleName: s
     order.assignments[stageId][roleName] = []
   }
 
+  // Проверяем, есть ли уже пустые назначения (без пользователя)
+  const existingEmptyAssignments = order.assignments[stageId][roleName].filter(
+    (assignment) => !assignment.user_id || assignment.user_id === 0,
+  )
+
+  // Если есть пустые назначения, не добавляем новые
+  if (existingEmptyAssignments.length > 0) {
+    console.log(
+      `⚠️ Skipping assignment addition - there are ${existingEmptyAssignments.length} empty assignments for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`,
+    )
+    return
+  }
+
   order.assignments[stageId][roleName].push({
     id: Date.now() + Math.random(), // Временный ID
     user: null,
@@ -2069,6 +2255,9 @@ function handleBulkOrderUserSelect(
   roleName: string,
   assignmentIndex: number,
 ) {
+  const order = bulkOrders.value[orderIndex]
+  if (!order || !order.assignments[stageId] || !order.assignments[stageId][roleName]) return
+
   if (user) {
     assignment.user_id = user.id
     assignment.user = user
@@ -2076,9 +2265,22 @@ function handleBulkOrderUserSelect(
       `👤 User selected for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}:`,
       user.name,
     )
+
+    // Удаляем все пустые назначения для этой роли
+    const assignments = order.assignments[stageId][roleName]
+    const emptyAssignments = assignments.filter(
+      (a, index) => index !== assignmentIndex && (!a.user_id || a.user_id === 0),
+    )
+
+    if (emptyAssignments.length > 0) {
+      console.log(`🗑️ Removing ${emptyAssignments.length} empty assignments`)
+      order.assignments[stageId][roleName] = assignments.filter(
+        (a, index) => index === assignmentIndex || (a.user_id && a.user_id > 0),
+      )
+    }
   } else {
-    assignment.user_id = null
-    assignment.user = null
+    assignment.user_id = 0
+    assignment.user = undefined
     console.log(`❌ User cleared for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`)
   }
 }
@@ -2137,6 +2339,22 @@ function getBulkOrderAssignments(orderIndex: number): OrderAssignmentCreate[] {
   return allAssignments
 }
 
+// Функция для обработки выбора проекта
+function onProjectSelect(projectId: number | null) {
+  if (projectId) {
+    // Если выбран существующий проект, очищаем поле названия проекта
+    bulkProjectTitle.value = ''
+  }
+}
+
+// Функция для обработки ввода названия проекта
+function onProjectTitleInput() {
+  if (bulkProjectTitle.value.trim()) {
+    // Если вводится название проекта, очищаем выбранный проект
+    form.project_id = undefined
+  }
+}
+
 async function handleDelete() {
   if (!props.order) return
 
@@ -2153,19 +2371,19 @@ async function handleDelete() {
   }
 }
 
-// function onClientCreated(client: any) {
-//   clients.value.push(client)
-//   form.client_id = client.id
-//   showClientModal.value = false
-//   toast.show('Клиент создан!')
-// }
+function onClientCreated(client: any) {
+  clients.value.push(client)
+  form.client_id = client.id
+  showClientModal.value = false
+  toast.show('Клиент создан!')
+}
 
-// function onProjectCreated(project: any) {
-//   projects.value.push(project)
-//   form.project_id = project.id
-//   showProjectModal.value = false
-//   toast.show('Проект создан!')
-// }
+function onProjectCreated(project: any) {
+  projects.value.push(project)
+  form.project_id = project.id
+  showProjectModal.value = false
+  toast.show('Проект создан!')
+}
 </script>
 
 <style scoped>
@@ -2178,13 +2396,13 @@ async function handleDelete() {
   width: 90vw;
 }
 
-/* Анимации для секций */
+/* Анимации для секций - убираем transform чтобы не мешать dropdown */
 .bg-gray-50 {
   transition: all 0.3s ease;
 }
 
 .bg-gray-50:hover {
-  transform: translateY(-2px);
+  transform: none;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
@@ -2201,19 +2419,67 @@ h3:hover svg {
 <style>
 @import 'vue3-select/dist/vue3-select.css';
 
+/* Исправляем проблему с dropdown под другими элементами */
 .vs__dropdown-menu {
-  max-height: 110px !important;
+  max-height: 120px !important;
   overflow-y: auto !important;
   padding: 0 !important;
+  z-index: 9999 !important;
+  position: absolute !important;
+  min-width: 250px !important;
 }
 
 .vs__dropdown-menu .vs__dropdown-option,
 .vs__dropdown-menu .vs__dropdown-option--selected {
-  min-height: 24px !important;
-  padding: 2px 10px !important;
-  font-size: 15px !important;
-  line-height: 1.2 !important;
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
   color: #374151 !important;
   background: #fff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Специальные стили для массового режима */
+.orderMode-bulk .vs__dropdown-menu {
+  max-height: 150px !important;
+  min-width: 300px !important;
+}
+
+.orderMode-bulk .vs__dropdown-menu .vs__dropdown-option,
+.orderMode-bulk .vs__dropdown-menu .vs__dropdown-option--selected {
+  min-height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+}
+
+/* Увеличиваем z-index для контейнера селектора */
+.vue3-select {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Убираем transition для элементов, которые могут мешать dropdown */
+.bg-gray-50 {
+  transition: all 0.3s ease;
+  transform: none !important;
+}
+
+.bg-gray-50:hover {
+  transform: none !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Убираем transition для карточек с назначениями */
+.border.border-gray-200.rounded-lg {
+  transition: none !important;
+  transform: none !important;
+}
+
+.border.border-gray-200.rounded-lg:hover {
+  transform: none !important;
 }
 </style>

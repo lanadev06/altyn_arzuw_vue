@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ClientsView from '@/views/ClientsView.vue'
-import { isAuthenticated } from '@/utils/auth'
+import { isAuthenticated, validateAuth } from '@/utils/auth'
 import { canViewAllUsers, canViewAllClients, canViewAuditLogs } from '@/utils/permissions'
 
 const router = createRouter({
@@ -72,13 +72,20 @@ const router = createRouter({
 // Authentication and authorization guard
 router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated()
+  const validSession = validateAuth()
 
   // If route requires authentication and user is not authenticated
   if (to.meta.requiresAuth && !authenticated) {
     next({ name: 'login' })
   }
+  // If user has token but invalid session data
+  else if (to.meta.requiresAuth && authenticated && !validSession) {
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('user')
+    next({ name: 'login' })
+  }
   // If user is authenticated and trying to access login page
-  else if (to.name === 'login' && authenticated) {
+  else if (to.name === 'login' && authenticated && validSession) {
     next({ name: 'dashboard' })
   }
   // Check role-based access

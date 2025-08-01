@@ -296,7 +296,6 @@ const fetchStages = async () => {
     stages.value = data
   } catch (err: unknown) {
     error.value = (err as Error)?.message || 'Ошибка загрузки стадий'
-    console.error('Error fetching stages:', err)
   } finally {
     loading.value = false
   }
@@ -315,7 +314,6 @@ const handleCreateStage = async (stageData: {
     emit('close-create-modal')
     await fetchStages()
   } catch (err: unknown) {
-    console.error('Ошибка создания:', err)
   }
 }
 
@@ -334,20 +332,17 @@ const handleUpdateStage = async (stageData: {
     editingStage.value = null
     await fetchStages()
   } catch (err: unknown) {
-    console.error('Ошибка обновления:', err)
   }
 }
 
 const handleDeleteStage = async (stageId: number) => {
   try {
-    console.log('🔄 Начинаем удаление стадии:', stageId)
 
     // Проверяем права доступа
     if (!canDelete()) {
       alert('У вас нет прав для удаления стадий')
       return
     }
-    console.log('✅ Права доступа проверены')
 
     // Проверяем токен авторизации
     const token = localStorage.getItem('auth_token')
@@ -355,15 +350,12 @@ const handleDeleteStage = async (stageId: number) => {
       alert('Необходима авторизация для удаления стадии')
       return
     }
-    console.log('✅ Токен авторизации найден')
 
     await StageController.delete(stageId)
-    console.log('✅ Стадия успешно удалена:', stageId)
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
   } catch (err: unknown) {
-    console.error('❌ Ошибка удаления стадии:', stageId, err)
     // Показываем ошибку пользователю
     if (err instanceof Error) {
       toast.show(`Ошибка удаления стадии: ${err.message}`, 'error')

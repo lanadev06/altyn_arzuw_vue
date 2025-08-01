@@ -126,15 +126,12 @@ const form = reactive({
 
 // Инициализация формы при редактировании
 const initializeForm = () => {
-  console.log('🔄 initializeForm вызвана с role:', props.role)
   if (props.role) {
     form.name = props.role.name || ''
     form.display_name = props.role.display_name || ''
     form.description = props.role.description || ''
 
     // Отладочная информация о стадиях
-    console.log('📋 Роль имеет стадии:', props.role.stages)
-    console.log('📋 Количество стадий:', props.role.stages?.length || 0)
   } else {
     form.name = ''
     form.display_name = ''
@@ -178,10 +175,8 @@ const handleSubmit = async () => {
       description: form.description.trim() || null,
     }
 
-    console.log('🔄 Отправка формы с данными:', data)
     emit('submit', data)
   } catch (error) {
-    console.error('❌ Error submitting form:', error)
   } finally {
     loading.value = false
   }
@@ -195,7 +190,6 @@ const handleDelete = async () => {
 
   deleting.value = true
   try {
-    console.log('🔄 Удаляем роль:', props.role.id)
     emit('delete', props.role.id)
   } finally {
     deleting.value = false

@@ -50,8 +50,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { canViewPrices } from '../../../utils/permissions'
+import { getAllStages } from '../../../services/api'
+
+const stages = ref<any[]>([])
+
+onMounted(async () => {
+  try {
+    const stagesData = await getAllStages()
+
+    if (Array.isArray(stagesData)) {
+      stages.value = stagesData.map((stage: any) => ({
+        value: stage.name,
+        label: stage.display_name || stage.name,
+        color: stage.color,
+      }))
+    } else if (stagesData && stagesData.data && Array.isArray(stagesData.data)) {
+      stages.value = stagesData.data.map((stage: any) => ({
+        value: stage.name,
+        label: stage.display_name || stage.name,
+        color: stage.color,
+      }))
+    } else {
+    }
+  } catch (error) {
+  }
+})
 
 const props = defineProps<{ order: any; compact?: boolean; dragging?: boolean }>()
 const emit = defineEmits<{
@@ -71,6 +96,11 @@ function formatDeadline(deadline: string) {
 }
 
 function getStageLabel(stage: string) {
+  const stageData = stages.value.find((s) => s.value === stage)
+  if (stageData && stageData.label) {
+    return stageData.label
+  }
+
   switch (stage) {
     case 'draft':
       return 'Черновик'
@@ -346,11 +376,11 @@ export default { name: 'OrderCard' }
 .menu-dots:hover {
   color: #6366f1;
 }
-/* Цвет фона карточки в зависимости от дедлайна */
+
 .kanban-deadline-overdue.order-card.bitrix-order-card {
-  background: #fee2e2 !important; /* красный (light) */
+  background: #fee2e2 !important;
 }
 .kanban-deadline-soon.order-card.bitrix-order-card {
-  background: #fef9c3 !important; /* жёлтый (light) */
+  background: #fef9c3 !important;
 }
 </style>

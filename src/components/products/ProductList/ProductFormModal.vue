@@ -185,6 +185,8 @@ import {
   getProductAssignments,
   getProductStages,
   updateProductStages,
+  getUsersByRole,
+  getByRole,
 } from '@/services/api'
 import productController from '@/controllers/productControllerInstance'
 import { toast } from '@/stores/toast'
@@ -252,12 +254,7 @@ function updateAssignmentsForStageRole(
   }
   stageAssignments[stageId][roleName] = assignments
 
-  // Проверяем, что назначения действительно сохранились
-  console.log(
-    `🔍 Verification - stageAssignments[${stageId}][${roleName}]:`,
-    stageAssignments[stageId][roleName]?.length || 0,
-    'assignments',
-  )
+
 }
 
 function getUsersForRole(roleName: string): User[] {
@@ -286,7 +283,6 @@ function getRoleDisplayName(roleName: string): string {
 
   // Если роль не найдена, автоматически создаем красивое название
   if (!names[roleName]) {
-    console.log(`🆕 Auto-generating display name for role: ${roleName}`)
     return (
       roleName
         .split('_')
@@ -323,13 +319,11 @@ function toggleStage(stageId: number) {
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
   } catch (error) {
-    console.error('❌ Error toggling stage:', error)
   }
 }
 
 function selectAllStages() {
   try {
-    console.log('✅ Selecting all stages')
     selectedStages.value = workingStages.value.map((stage) => stage.id)
 
     // Инициализируем назначения для всех стадий
@@ -339,68 +333,90 @@ function selectAllStages() {
       }
     })
 
-    console.log('📋 All stages selected:', selectedStages.value)
 
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-    console.log('🔄 Force updated selectedStages after select all:', selectedStages.value)
   } catch (error) {
-    console.error('❌ Error selecting all stages:', error)
   }
 }
 
 function clearAllStages() {
   try {
-    console.log('❌ Clearing all stages')
     selectedStages.value = []
 
     // НЕ удаляем назначения - они должны сохраняться
-    console.log('💾 Keeping all assignments while clearing stages')
 
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-    console.log('🔄 Force updated selectedStages after clear all:', selectedStages.value)
   } catch (error) {
-    console.error('❌ Error clearing all stages:', error)
   }
 }
 
 onMounted(async () => {
   try {
     stagesLoading.value = true
-    // Загружаем стадии и пользователей по ролям стадий
-    let stagesResult, usersByStageRoles
 
+    // Сначала загружаем стадии, чтобы получить список ролей
+    let stagesResult
     try {
-      ;[stagesResult, usersByStageRoles] = await Promise.all([
-        getAllStages(),
+      stagesResult = await getAllStages()
+    } catch (error) {
+      stagesResult = { data: [] }
+    }
+
+    // Получаем все роли из стадий
+    const allRoles = new Set<string>()
+    if (stagesResult && Array.isArray(stagesResult)) {
+      stagesResult.forEach((stage) => {
+        if (stage.roles) {
+          stage.roles.forEach((role) => {
+            allRoles.add(role.name)
+          })
+        }
+      })
+    } else if (stagesResult && stagesResult.data && Array.isArray(stagesResult.data)) {
+      stagesResult.data.forEach((stage) => {
+        if (stage.roles) {
+          stage.roles.forEach((role) => {
+            allRoles.add(role.name)
+          })
+        }
+      })
+    }
+
+
+    // Загружаем пользователей по ролям стадий и альтернативные источники
+    let usersByStageRoles, roleUsersData
+    try {
+      ;[usersByStageRoles, ...roleUsersData] = await Promise.all([
         getAllUsersByStageRoles(),
+        // Динамическая загрузка пользователей по всем ролям
+        ...Array.from(allRoles).map((roleName) =>
+          getUsersByRole(roleName)
+            .then((result) => {
+              return result
+            })
+            .catch((error) => {
+              // Пробуем альтернативный метод
+              return getByRole(roleName)
+                .then((result) => {
+                  return result
+                })
+                .catch((error2) => {
+                  return { data: [], roleName }
+                })
+            }),
+        ),
       ])
     } catch (error) {
-      console.error('❌ Failed to load initial data:', error)
-
-      // Пытаемся загрузить данные по отдельности
-      try {
-        stagesResult = await getAllStages()
-      } catch (stagesError) {
-        console.error('❌ Failed to load stages:', stagesError)
-        stagesResult = { data: [] }
-      }
-
-      try {
-        usersByStageRoles = await getAllUsersByStageRoles()
-      } catch (usersError) {
-        console.error('❌ Failed to load users:', usersError)
-        usersByStageRoles = {}
-      }
+      usersByStageRoles = {}
+      roleUsersData = []
     }
 
     availableStages.value = stagesResult.data || stagesResult || []
-    console.log('📋 Loaded availableStages:', availableStages.value.length, 'stages')
 
     // Если стадии не загрузились, создаем fallback стадии
     if (availableStages.value.length === 0) {
-      console.log('⚠️ No stages from API, creating fallback stages')
       availableStages.value = [
         {
           id: 2,
@@ -453,7 +469,6 @@ onMounted(async () => {
     }
 
     // Загружаем пользователей по ролям из новой динамической системы
-    console.log('👥 Loading users by stage roles:', usersByStageRoles)
 
     // Инициализируем все роли пустыми массивами (динамически)
     // Очищаем предыдущие данные
@@ -462,38 +477,92 @@ onMounted(async () => {
     }
 
     // Динамически заполняем пользователей по ролям из стадий
-    console.log('🔍 Processing users by stage roles:', usersByStageRoles)
 
     // Создаем динамический объект для пользователей по ролям
     const dynamicUsers: Record<string, any[]> = {}
 
     // Обрабатываем данные по стадиям и ролям
     if (usersByStageRoles && typeof usersByStageRoles === 'object') {
-      Object.keys(usersByStageRoles).forEach((stageName) => {
-        const stageData = usersByStageRoles[stageName]
-        const stageRoles = stageData?.users_by_role || {}
+      // Проверяем разные возможные форматы данных
+      if (Array.isArray(usersByStageRoles)) {
+        // Если API возвращает массив пользователей
 
-        console.log(`📋 Processing stage: ${stageName}`, stageRoles)
-
-        // Для каждой роли в стадии добавляем пользователей
-        Object.keys(stageRoles).forEach((roleName) => {
-          const roleData = stageRoles[roleName]
-          const users = roleData.users || []
-
-          console.log(`  👥 Role ${roleName}: ${users.length} users`)
-          console.log(`  📋 Role data:`, roleData)
-
-          // Инициализируем массив для роли, если его нет
-          if (!dynamicUsers[roleName]) {
-            dynamicUsers[roleName] = []
+        // Получаем все роли из стадий
+        const allRoles = new Set<string>()
+        availableStages.value.forEach((stage) => {
+          if (stage.roles) {
+            stage.roles.forEach((role) => {
+              allRoles.add(role.name)
+            })
           }
-
-          // Добавляем пользователей в динамический массив
-          dynamicUsers[roleName] = [...dynamicUsers[roleName], ...users]
         })
-      })
+
+        // Распределяем пользователей по ролям
+        usersByStageRoles.forEach((user: any) => {
+          if (user.roles && Array.isArray(user.roles)) {
+            user.roles.forEach((role: any) => {
+              const roleName = role.name || role
+              if (allRoles.has(roleName)) {
+                if (!dynamicUsers[roleName]) {
+                  dynamicUsers[roleName] = []
+                }
+                const existingUser = dynamicUsers[roleName].find((u) => u.id === user.id)
+                if (!existingUser) {
+                  dynamicUsers[roleName].push(user)
+                }
+              }
+            })
+          }
+        })
+      } else {
+        // Если API возвращает объект с пользователями по стадиям
+        Object.keys(usersByStageRoles).forEach((stageName) => {
+          const stageData = usersByStageRoles[stageName]
+
+          if (Array.isArray(stageData)) {
+            // Если стадия содержит массив пользователей
+
+            stageData.forEach((user: any) => {
+              if (user.roles && Array.isArray(user.roles)) {
+                user.roles.forEach((role: any) => {
+                  const roleName = role.name || role
+                  if (!dynamicUsers[roleName]) {
+                    dynamicUsers[roleName] = []
+                  }
+                  const existingUser = dynamicUsers[roleName].find((u) => u.id === user.id)
+                  if (!existingUser) {
+                    dynamicUsers[roleName].push(user)
+                  }
+                })
+              }
+            })
+          } else if (stageData && typeof stageData === 'object') {
+            // Если стадия содержит объект с ролями
+            const stageRoles = stageData.users_by_role || stageData.roles || {}
+
+
+            Object.keys(stageRoles).forEach((roleName) => {
+              const roleData = stageRoles[roleName]
+              const users = roleData.users || roleData || []
+
+
+              if (!dynamicUsers[roleName]) {
+                dynamicUsers[roleName] = []
+              }
+
+              if (Array.isArray(users)) {
+                users.forEach((user) => {
+                  const existingUser = dynamicUsers[roleName].find((u) => u.id === user.id)
+                  if (!existingUser) {
+                    dynamicUsers[roleName].push(user)
+                  }
+                })
+              }
+            })
+          }
+        })
+      }
     } else {
-      console.warn('⚠️ usersByStageRoles is not defined or not an object:', usersByStageRoles)
     }
 
     // Удаляем дубликаты пользователей для каждой роли
@@ -510,18 +579,6 @@ onMounted(async () => {
       })
     }
 
-    console.log(
-      '👥 Loaded users by roles:',
-      allUsers && typeof allUsers === 'object'
-        ? Object.keys(allUsers).reduce(
-            (acc, role) => {
-              acc[role] = allUsers[role]?.length || 0
-              return acc
-            },
-            {} as Record<string, number>,
-          )
-        : {},
-    )
 
     // Если пользователи не загрузились, создаем fallback пользователей
     const totalUsers =
@@ -530,53 +587,82 @@ onMounted(async () => {
         : 0
 
     if (totalUsers === 0) {
-      console.log('⚠️ No users from API, creating fallback users')
 
-      // Динамически создаем fallback пользователей для всех ролей из стадий
-      const allRoles = new Set<string>()
+      // Пробуем загрузить пользователей из альтернативных источников
+      const alternativeUsers: Record<string, any[]> = {}
 
-      // Собираем все роли из всех стадий
-      availableStages.value.forEach((stage) => {
-        if (stage.roles) {
-          stage.roles.forEach((role) => {
-            allRoles.add(role.name)
-          })
+      // Обрабатываем данные пользователей по ролям из roleUsersData
+      roleUsersData.forEach((userData, index) => {
+        const roleName = Array.from(allRoles)[index]
+
+        if (userData && userData.data && Array.isArray(userData.data)) {
+          alternativeUsers[roleName] = userData.data
+        } else if (userData && Array.isArray(userData)) {
+          // Если данные приходят напрямую как массив
+          alternativeUsers[roleName] = userData
+        } else {
         }
       })
 
-      // Создаем fallback пользователей для каждой роли
-      allRoles.forEach((roleName, index) => {
-        const fallbackUser = {
-          id: 100 + index,
-          name: `Оператор ${roleName.replace(/_/g, ' ')}`,
-          username: `operator_${roleName}`,
-          roles: [{ name: roleName }],
-        }
-        allUsers[roleName] = [fallbackUser]
-      })
-
-      console.log(
-        '✅ Fallback users created:',
-        allUsers && typeof allUsers === 'object'
-          ? Object.keys(allUsers).reduce(
-              (acc, role) => {
-                acc[role] = allUsers[role]?.length || 0
-                return acc
-              },
-              {} as Record<string, number>,
-            )
-          : {},
+      // Если альтернативные источники не дали результатов, создаем fallback пользователей
+      const alternativeTotalUsers = Object.keys(alternativeUsers).reduce(
+        (sum, role) => sum + (alternativeUsers[role]?.length || 0),
+        0,
       )
+
+      if (alternativeTotalUsers === 0) {
+
+        // Динамически создаем fallback пользователей для всех ролей из стадий
+        const allRoles = new Set<string>()
+
+        // Собираем все роли из всех стадий
+        availableStages.value.forEach((stage) => {
+          if (stage.roles) {
+            stage.roles.forEach((role) => {
+              allRoles.add(role.name)
+            })
+          }
+        })
+
+        // Создаем fallback пользователей для каждой роли
+        Array.from(allRoles).forEach((roleName, index) => {
+          // Создаем несколько тестовых пользователей для каждой роли
+          const fallbackUsers = [
+            {
+              id: 100 + index * 3,
+              name: `Оператор ${roleName.replace(/_/g, ' ')}`,
+              username: `operator_${roleName}`,
+              email: `operator_${roleName}@example.com`,
+              roles: [{ name: roleName }],
+            },
+            {
+              id: 101 + index * 3,
+              name: `Специалист ${roleName.replace(/_/g, ' ')}`,
+              username: `specialist_${roleName}`,
+              email: `specialist_${roleName}@example.com`,
+              roles: [{ name: roleName }],
+            },
+            {
+              id: 102 + index * 3,
+              name: `Мастер ${roleName.replace(/_/g, ' ')}`,
+              username: `master_${roleName}`,
+              email: `master_${roleName}@example.com`,
+              roles: [{ name: roleName }],
+            },
+          ]
+          allUsers[roleName] = fallbackUsers
+        })
+      } else {
+        // Используем альтернативные данные
+        Object.keys(alternativeUsers).forEach((roleName) => {
+          allUsers[roleName] = alternativeUsers[roleName]
+        })
+      }
     }
 
     // Если редактируем продукт
     if (props.product) {
-      console.log('🔧 Loading product for editing:', {
-        id: props.product.id,
-        name: props.product.name,
-        available_stages: props.product.available_stages,
-        available_stages_count: props.product.available_stages?.length || 0,
-      })
+
 
       form.name = props.product.name || ''
 
@@ -589,14 +675,6 @@ onMounted(async () => {
 
         selectedStages.value = validStageIds
 
-        console.log('🔧 Loading stages from product:', {
-          original: props.product.available_stages.map((s) => ({ id: s.id, name: s.name })),
-          filtered: validStageIds,
-          available: availableStages.value.map((s) => ({ id: s.id, name: s.name })),
-          removed: props.product.available_stages
-            .map((stage) => stage.id)
-            .filter((stageId) => !availableStages.value.some((stage) => stage.id === stageId)),
-        })
 
         // Если были удалены невалидные стадии, показываем предупреждение
         const removedStages = props.product.available_stages
@@ -604,13 +682,11 @@ onMounted(async () => {
           .filter((stageId) => !availableStages.value.some((stage) => stage.id === stageId))
 
         if (removedStages.length > 0) {
-          console.warn('⚠️ Removed invalid stages from product:', removedStages)
         }
       } else {
         // Если нет доступных стадий у продукта, НЕ устанавливаем стадии по умолчанию
         // Пользователь должен сам выбрать нужные стадии
         selectedStages.value = []
-        console.log('⚠️ Existing product has no available_stages - no default stages set')
       }
 
       // Дополнительно загружаем все стадии продукта (включая недоступные) для правильного отображения
@@ -619,7 +695,6 @@ onMounted(async () => {
 
       try {
         const productStagesResponse = await getProductStages(props.product.id)
-        console.log('📋 Product stages response:', productStagesResponse)
 
         if (productStagesResponse && productStagesResponse.product_stages) {
           // Получаем все стадии продукта (включая недоступные)
@@ -637,44 +712,23 @@ onMounted(async () => {
             // Исключаем служебные стадии
             const serviceStages = ['draft', 'completed', 'cancelled', 'final']
             if (serviceStages.includes(stage.name)) {
-              console.log(`❌ Excluding service stage: ${stage.name} (${stageId})`)
               return false
             }
 
             return true
           })
 
-          console.log('🔧 Updated stages from product stages API:', {
-            allProductStages: allProductStages.map((ps) => ({
-              stage_id: ps.stage_id,
-              is_available: ps.is_available,
-              stage_name: ps.stage?.name,
-            })),
-            availableStageIds,
-            finalSelectedStages: selectedStages.value,
-            workingStages: workingStages.value.map((s) => ({ id: s.id, name: s.name })),
-          })
+
         }
       } catch (error) {
-        console.warn('⚠️ Could not load product stages from API:', error)
         // Продолжаем с данными из available_stages
       }
 
-      // Загружаем назначения из новой структуры Laravel
-      console.log('📋 Loading assignments from Laravel structure:', {
-        designers: props.product.designers?.length || 0,
-        print_operators: props.product.print_operators?.length || 0,
-        engraving_operators: props.product.engraving_operators?.length || 0,
-        workshop_workers: props.product.workshop_workers?.length || 0,
-      })
+
 
       // Загружаем назначения через API для получения полной структуры
       try {
         const assignmentsResponse = await getProductAssignments(props.product.id)
-        console.log('📋 Product assignments API response:', assignmentsResponse)
-        console.log('📋 Response type:', typeof assignmentsResponse)
-        console.log('📋 Response keys:', Object.keys(assignmentsResponse || {}))
-        console.log('📋 Response full:', assignmentsResponse)
 
         if (assignmentsResponse && assignmentsResponse.assignments) {
           // Группируем назначения по стадиям и ролям
@@ -702,8 +756,6 @@ onMounted(async () => {
           })
 
           // Обновляем stageAssignments
-          console.log('🔍 assignmentsByStageRole:', assignmentsByStageRole)
-          console.log('🔍 assignmentsByStageRole type:', typeof assignmentsByStageRole)
           if (assignmentsByStageRole && typeof assignmentsByStageRole === 'object') {
             Object.keys(assignmentsByStageRole).forEach((stageId) => {
               const stageIdNum = parseInt(stageId)
@@ -728,30 +780,11 @@ onMounted(async () => {
           const allAssignments = assignmentsResponse.assignments || []
           const uniqueRoles = new Set(allAssignments.map((a) => a.role_type))
 
-          console.log('🔍 Processing all assignments by role:', {
-            totalAssignments: allAssignments.length,
-            uniqueRoles: Array.from(uniqueRoles),
-            assignmentsByRole: allAssignments.reduce(
-              (acc, assignment) => {
-                if (!acc[assignment.role_type]) acc[assignment.role_type] = []
-                acc[assignment.role_type].push(assignment)
-                return acc
-              },
-              {} as Record<string, any[]>,
-            ),
-          })
+
 
           uniqueRoles.forEach((roleType) => {
             const roleAssignments = allAssignments.filter((a) => a.role_type === roleType)
-            console.log(`🔍 Processing role ${roleType}:`, {
-              assignmentsCount: roleAssignments.length,
-              assignments: roleAssignments.map((a) => ({
-                id: a.id,
-                user_id: a.user_id,
-                user_name: a.user?.name,
-                is_active: a.is_active,
-              })),
-            })
+
 
             // Находим стадию для этой роли (если есть)
             const stageForRole = availableStages.value.find((stage) =>
@@ -763,9 +796,7 @@ onMounted(async () => {
               const existingAssignments = getAssignmentsForStageRole(stageForRole.id, roleType)
               const newAssignments = [...existingAssignments, ...roleAssignments]
               updateAssignmentsForStageRole(stageForRole.id, roleType, newAssignments)
-              console.log(
-                `✅ Assigned ${roleType} to existing stage ${stageForRole.name} (${stageForRole.id})`,
-              )
+
             } else {
               // Если стадия не найдена, создаем назначения для первой доступной стадии
               // или для стадии по умолчанию
@@ -775,31 +806,14 @@ onMounted(async () => {
                 const existingAssignments = getAssignmentsForStageRole(defaultStage.id, roleType)
                 const newAssignments = [...existingAssignments, ...roleAssignments]
                 updateAssignmentsForStageRole(defaultStage.id, roleType, newAssignments)
-                console.log(
-                  `🔧 Assigned ${roleType} to default stage ${defaultStage.name} (${defaultStage.id})`,
-                )
+
+
               } else {
-                console.error(`❌ No default stage found for role ${roleType}`)
               }
             }
           })
 
-          console.log('✅ Assignments loaded from API:', assignmentsByStageRole)
         } else {
-          console.warn('⚠️ No assignments data from API, using fallback')
-          console.log('📋 Checking fallback data from product:', {
-            designers: props.product.designers?.length || 0,
-            print_operators: props.product.print_operators?.length || 0,
-            engraving_operators: props.product.engraving_operators?.length || 0,
-            workshop_workers: props.product.workshop_workers?.length || 0,
-          })
-          // Fallback на старые поля если API не вернул данные
-          const stageRoleMapping = {
-            design: 'designer',
-            print: 'print_operator',
-            engraving: 'engraving_operator',
-            workshop: 'workshop_worker',
-          }
 
           // Распределяем назначения по стадиям (для всех стадий, включая отключенные)
           const allProductStageIds =
@@ -834,7 +848,6 @@ onMounted(async () => {
                   }
                 }
 
-                console.log(`🔍 Loading users for role ${roleName}:`, users.length, 'users')
 
                 // Создаем назначения для этой стадии и роли
                 const assignments = users.map((user) => ({
@@ -851,7 +864,6 @@ onMounted(async () => {
           })
         }
       } catch (error) {
-        console.error('❌ Error loading assignments from API:', error)
 
         // Показываем более конкретную ошибку
         let errorMessage = 'Ошибка загрузки назначений'
@@ -864,7 +876,6 @@ onMounted(async () => {
             errorMessage = `Ошибка загрузки назначений: ${error.message}`
           }
         }
-        console.warn(`⚠️ ${errorMessage}, using fallback`)
 
         // Используем fallback на старые поля
         const stageRoleMapping = {
@@ -907,7 +918,6 @@ onMounted(async () => {
                 }
               }
 
-              console.log(`🔍 Loading users for role ${roleName}:`, users.length, 'users')
 
               // Создаем назначения для этой стадии и роли
               const assignments = users.map((user) => ({
@@ -924,31 +934,13 @@ onMounted(async () => {
         })
       }
 
-      console.log('✅ Stage assignments loaded for all stages:', {
-        allProductStageIds:
-          allProductStages.length > 0
-            ? allProductStages.map((ps) => ps.stage_id)
-            : selectedStages.value,
-        selectedStages: selectedStages.value,
-        stageAssignments: Object.keys(stageAssignments).map((stageId) => ({
-          stageId: parseInt(stageId),
-          roles: Object.keys(stageAssignments[parseInt(stageId)] || {}),
-          assignmentsCount: Object.values(stageAssignments[parseInt(stageId)] || {}).reduce(
-            (sum, assignments) => sum + assignments.length,
-            0,
-          ),
-        })),
-      })
 
-      console.log('✅ Stage assignments loaded:', stageAssignments)
     } else {
       // Для нового продукта НЕ устанавливаем стадии по умолчанию
       // Пользователь должен сам выбрать нужные стадии
       selectedStages.value = []
-      console.log('🆕 New product - no default stages selected')
     }
   } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
 
     // Более детальная обработка ошибок
     let errorMessage = 'Ошибка загрузки данных'
@@ -981,18 +973,11 @@ onMounted(async () => {
 watch(
   selectedStages,
   (newStages, oldStages) => {
-    console.log('👀 selectedStages changed:', {
-      old: oldStages,
-      new: newStages,
-      added: newStages.filter((id) => !oldStages.includes(id)),
-      removed: oldStages.filter((id) => !newStages.includes(id)),
-      workingStages: workingStages.value.map((s) => ({ id: s.id, name: s.name })),
-    })
+
 
     // Обновляем stageAssignments при изменении выбранных стадий
     const removedStages = oldStages.filter((id) => !newStages.includes(id))
     if (removedStages.length > 0) {
-      console.log('⚠️ Stages removed, keeping assignments for:', removedStages)
       // Назначения сохраняются даже для отключенных стадий
     }
   },
@@ -1000,7 +985,6 @@ watch(
 )
 
 function validateForm(): boolean {
-  console.log('🔍 Validating form:', { name: form.name, selectedStages: selectedStages.value })
 
   // Очищаем ошибки
   errors.name = ''
@@ -1012,21 +996,16 @@ function validateForm(): boolean {
   if (!form.name.trim()) {
     errors.name = 'Название обязательно'
     valid = false
-    console.log('❌ Name validation failed')
   }
 
   // Для новых продуктов разрешаем создание без стадий
   if (selectedStages.value.length === 0 && props.product?.id) {
     errors.stages = 'Выберите хотя бы одну стадию для существующего товара'
     valid = false
-    console.log('❌ Stages validation failed - existing product must have stages')
   } else if (selectedStages.value.length === 0) {
-    console.log('ℹ️ New product - no stages selected (allowed)')
   } else {
-    console.log('✅ Stages validation passed - selected stages:', selectedStages.value.length)
   }
 
-  console.log('✅ Form validation result:', valid)
   return valid
 }
 
@@ -1051,20 +1030,13 @@ async function handleSubmit() {
       stages: stagesData,
     }
 
-    console.log('💾 Saving product with stages:', selectedStages.value)
-    console.log('📋 Valid selected stages:', validSelectedStages)
-    console.log('📋 Stages data to save:', stagesData)
-    console.log('📋 Product data:', productData)
 
     let productId: number
 
     if (props.product?.id) {
       // Обновляем существующий продукт
-      console.log('🔄 Updating existing product:', props.product.id)
-      console.log('📋 Update data:', productData)
       await update(props.product.id, productData)
       productId = props.product.id
-      console.log('✅ Product updated successfully')
     } else {
       // Создаем новый продукт
       const created = await create(productData)
@@ -1072,7 +1044,6 @@ async function handleSubmit() {
       if (!productId) {
         throw new Error('Не удалось получить ID созданного продукта')
       }
-      console.log('🆕 New product created with ID:', productId)
     }
 
     // Сохраняем назначения по стадиям (ВСЕ назначения, включая отключенные стадии)
@@ -1095,29 +1066,20 @@ async function handleSubmit() {
       })
     })
 
-    console.log('💾 Saving stage assignments:', allAssignments.length, 'assignments')
-    console.log('📋 Assignments data:', allAssignments)
 
     if (allAssignments.length > 0) {
       try {
-        console.log('✅ Sending assignments to API...')
         const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
-        console.log('✅ Stage assignments saved successfully:', result)
       } catch (error) {
-        console.error('❌ Error saving assignments:', error)
         toast.show('Ошибка при сохранении назначений', 'error')
         // Не прерываем сохранение продукта, только показываем ошибку
       }
     } else {
-      console.log('ℹ️ No stage assignments to save')
     }
 
     // Обновляем selectedStages, убирая невалидные стадии
     if (validSelectedStages.length !== selectedStages.value.length) {
-      console.log(
-        '⚠️ Removed invalid stages from selection:',
-        selectedStages.value.filter((id) => !validSelectedStages.includes(id)),
-      )
+   
       selectedStages.value = validSelectedStages
     }
 
@@ -1125,21 +1087,12 @@ async function handleSubmit() {
     if (!props.product?.id) {
       try {
         const savedStages = await getProductStages(productId)
-        console.log('🔍 Verification - saved stages:', savedStages)
 
         if (savedStages && savedStages.product_stages) {
           const availableStages = savedStages.product_stages.filter((ps) => ps.is_available)
-          console.log(
-            '🔍 Verification - available stages:',
-            availableStages.map((ps) => ({
-              stage_id: ps.stage_id,
-              stage_name: ps.stage?.name,
-              is_available: ps.is_available,
-            })),
-          )
+   
         }
       } catch (verifyError) {
-        console.warn('⚠️ Could not verify saved stages:', verifyError)
       }
     }
 
@@ -1147,7 +1100,6 @@ async function handleSubmit() {
     emit('submit', { id: productId, ...productData })
     emit('close')
   } catch (error) {
-    console.error('Ошибка сохранения:', error)
 
     // Более детальная обработка ошибок сохранения
     let errorMessage = 'Ошибка при сохранении товара'
@@ -1185,7 +1137,6 @@ async function handleDelete() {
     emit('delete', props.product.id)
     emit('close')
   } catch (error: any) {
-    console.error('❌ Ошибка удаления товара:', props.product.id, error)
 
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'

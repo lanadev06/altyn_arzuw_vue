@@ -69,7 +69,6 @@ async function loadRoles() {
     availableRoles.value = roles
     stagesData.value = stages
   } catch (error) {
-    console.error('Ошибка загрузки ролей:', error)
     // Fallback к статическим ролям в случае ошибки
     availableRoles.value = [
       { id: 1, name: 'admin', display_name: 'Администратор' },

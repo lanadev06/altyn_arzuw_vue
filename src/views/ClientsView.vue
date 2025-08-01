@@ -19,7 +19,6 @@ async function handleLogout() {
     await authApi.logout()
     router.push('/login')
   } catch (error) {
-    console.error('Ошибка выхода:', error)
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user')
     router.push('/login')

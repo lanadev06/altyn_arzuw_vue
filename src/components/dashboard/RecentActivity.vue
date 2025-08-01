@@ -92,7 +92,6 @@ onMounted(async () => {
       activities.value = []
     }
   } catch (e) {
-    console.error('Ошибка загрузки активности:', e)
     activities.value = []
   }
 })

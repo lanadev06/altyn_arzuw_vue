@@ -52,12 +52,12 @@ export function getRoleColorClasses(
 
   // Администратор и менеджер всегда используют дефолтные цвета
   if (DEFAULT_ADMIN_COLORS[roleName]) {
-    return ''
+    return 'font-semibold'
   }
 
-  // Если есть кастомный цвет, используем inline стили
+  // Если есть кастомный цвет, используем только font-semibold
   if (color !== '#6b7280') {
-    return ''
+    return 'font-semibold'
   }
 
   // Fallback к дефолтным Tailwind классам для известных ролей
@@ -93,7 +93,7 @@ export function getRoleColorStyles(
   if (isActive) {
     return {
       backgroundColor: color,
-      color: getContrastColor(color),
+      color: 'white', // Всегда белый текст для лучшей читаемости
     }
   } else {
     const lightColor = getLightColor(color)

@@ -13,7 +13,6 @@ class RoleController {
       const response = await roleApi.getAll()
       return response
     } catch (error) {
-      console.error('Error fetching roles:', error)
       throw error
     }
   }
@@ -23,7 +22,6 @@ class RoleController {
       const response = await roleApi.getById(id)
       return response
     } catch (error) {
-      console.error('Error fetching role:', error)
       throw error
     }
   }
@@ -33,7 +31,6 @@ class RoleController {
       const response = await roleApi.create(data)
       return response
     } catch (error) {
-      console.error('Error creating role:', error)
       throw error
     }
   }
@@ -43,7 +40,6 @@ class RoleController {
       const response = await roleApi.update(id, data)
       return response
     } catch (error) {
-      console.error('❌ Error updating role:', error)
       throw error
     }
   }
@@ -52,7 +48,6 @@ class RoleController {
     try {
       await roleApi.delete(id)
     } catch (error) {
-      console.error('❌ Error deleting role:', id, error)
       throw error
     }
   }
@@ -61,7 +56,6 @@ class RoleController {
     try {
       await roleApi.assignUsers(id, data)
     } catch (error) {
-      console.error('Error assigning users to role:', error)
       throw error
     }
   }
@@ -70,7 +64,6 @@ class RoleController {
     try {
       await roleApi.removeUsers(id, data)
     } catch (error) {
-      console.error('Error removing users from role:', error)
       throw error
     }
   }

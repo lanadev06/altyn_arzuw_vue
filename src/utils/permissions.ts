@@ -25,27 +25,51 @@ export function getCurrentUserRole(): UserRole | null {
 // Проверить, является ли пользователь администратором или менеджером
 export function isAdminOrManager(): boolean {
   const user = getCurrentUser()
-  return hasRole(user, 'admin') || hasRole(user, 'manager')
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false
+  }
+
+  return user.roles.some((role: any) => role.name === 'admin' || role.name === 'manager')
 }
 
 // Проверить, является ли пользователь администратором
 export function isAdmin(): boolean {
   const user = getCurrentUser()
-  return hasRole(user, 'admin')
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false
+  }
+
+  return user.roles.some((role: any) => role.name === 'admin')
 }
 
 // Проверить, является ли пользователь менеджером
 export function isManager(): boolean {
   const user = getCurrentUser()
-  return hasRole(user, 'manager')
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false
+  }
+
+  return user.roles.some((role: any) => role.name === 'manager')
 }
 
 // Проверить, является ли пользователь сотрудником (не админ/менеджер)
 export function isStaff(): boolean {
   const user = getCurrentUser()
-  return (
-    hasRole(user, 'designer') || hasRole(user, 'print_operator') || hasRole(user, 'workshop_worker')
-  )
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false
+  }
+
+  // Проверяем, что у пользователя есть роли, но НЕТ ролей admin или manager
+  const hasAdminRole = user.roles.some((role: any) => role.name === 'admin')
+  const hasManagerRole = user.roles.some((role: any) => role.name === 'manager')
+
+  // Если есть роль admin или manager, то это не сотрудник
+  if (hasAdminRole || hasManagerRole) {
+    return false
+  }
+
+  // Если есть любые другие роли, то это сотрудник
+  return user.roles.length > 0
 }
 
 // Проверить, может ли пользователь создавать/редактировать записи

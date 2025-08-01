@@ -172,7 +172,6 @@ const props = defineProps({
 
 const toast = useToast()
 
-// Загружаем порядок колонок из localStorage или используем по умолчанию
 const defaultColumns = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Имя', sortable: true },
@@ -208,7 +207,6 @@ function changePerPage() {
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
-// Проверяем, есть ли пользовательские настройки
 const hasCustomSettings = computed(() => {
   const savedColumns = localStorage.getItem('clientList_columns')
   const savedSortBy = localStorage.getItem('clientList_sortBy')
@@ -217,31 +215,21 @@ const hasCustomSettings = computed(() => {
   return savedColumns || savedSortBy !== 'id' || savedSortOrder !== 'asc'
 })
 
-// Функция для сброса настроек к значениям по умолчанию
 function resetSettings() {
-  // Сбрасываем порядок колонок
   columns.value = [...defaultColumns]
   localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
 
-  // Сбрасываем сортировку
   setSort('id', props.search)
 
-  // Сбрасываем размер страницы
   perPage.value = 30
   localStorage.setItem('clientList_perPage', perPage.value.toString())
 
-  // Сбрасываем страницу
   currentPage.value = 1
   fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
-  console.log('🔍 goToPage called with:', page)
-  console.log('🔍 pagination:', pagination)
-  console.log('🔍 pagination.last_page:', pagination?.last_page)
-
   if (!pagination || page < 1 || page > pagination.last_page) {
-    console.log('❌ goToPage validation failed')
     return
   }
 
@@ -268,9 +256,7 @@ async function handleUpdateClient(updatedClient: Client) {
 
 async function handleDeleteClient(clientId: number) {
   try {
-    console.log('🔄 Начинаем удаление клиента:', clientId)
     await remove(clientId)
-    console.log('✅ Клиент успешно удален:', clientId)
     showEditModal.value = false
     editingClient.value = null
     if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
@@ -279,7 +265,6 @@ async function handleDeleteClient(clientId: number) {
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
   } catch (err: any) {
     console.error('❌ Ошибка удаления клиента:', clientId, err)
-    // Показываем ошибку пользователю
     let message = 'Произошла неизвестная ошибка при удалении клиента'
     if (err?.response?.data?.message) {
       message = err.response.data.message
@@ -323,8 +308,7 @@ onMounted(async () => {
         const newIndex = evt.newIndex
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
-        // Сохраняем новый порядок колонок в localStorage
+        columns.value.splice(newIndex, 0, moved)  
         localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
       },
     })

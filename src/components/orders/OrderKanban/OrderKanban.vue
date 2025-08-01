@@ -12,7 +12,6 @@
       }"
       :style="{ borderLeft: idx !== 0 ? '1px solid #ece6f6' : 'none' }"
     >
-      <!-- Цветная линия сверху -->
       <div
         class="bitrix-top-bar"
         :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
@@ -23,7 +22,6 @@
         :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
       >
         <span class="bitrix-header-title">{{ stageObj.label }}</span>
-        <!-- Цветная плашка-счетчик -->
         <span
           class="bitrix-counter-badge"
           :style="{
@@ -35,7 +33,6 @@
           {{ ordersByStage(stageObj.key).length }}
         </span>
       </div>
-      <!-- Кнопка '+ Добавить заказ' только в Черновик и только для администраторов/менеджеров -->
       <button
         v-if="stageObj.key === 'draft' && canCreateEdit()"
         class="bitrix-add-btn"
@@ -96,7 +93,6 @@ import { stageApi } from '../../../services/stageApi'
 
 const { orders } = OrderController()
 
-// Загружаем стадии для динамических цветов
 const stages = ref<any[]>([])
 
 onMounted(async () => {
@@ -108,7 +104,6 @@ onMounted(async () => {
       color: stage.color,
     }))
   } catch (error) {
-    console.error('Ошибка загрузки стадий:', error)
   }
 })
 const props = defineProps<{
@@ -155,12 +150,16 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 function ordersByStage(stage: string) {
-  return Array.isArray(props.orders)
-    ? props.orders.filter((order) => (order.stage?.name || order.stage) === stage)
-    : []
+  if (!Array.isArray(props.orders)) {
+    return []
+  }
+
+  return props.orders.filter((order) => {
+    const orderStage = order.stage?.name || order.stage
+    return orderStage === stage
+  })
 }
 function getStatusColor(key: string) {
-  // Сначала ищем в динамических данных
   const stageData = stages.value.find((s) => s.value === key)
   if (stageData && stageData.color) {
     return ''
@@ -169,7 +168,6 @@ function getStatusColor(key: string) {
 }
 
 function getStatusColorStyle(key: string) {
-  // Сначала ищем в динамических данных
   const stageData = stages.value.find((s) => s.value === key)
   if (stageData && stageData.color) {
     return getStageColorStyles(key, stageData.color)
@@ -208,16 +206,14 @@ async function onDrop(event: DragEvent, newStage: string) {
   }
   try {
     await OrderController().updateStage(order.id, payload)
-    // Загружаем все заказы для канбан доски
     await OrderController().fetchAllOrdersForKanban()
     showToast('Статус обновлён: ' + newStage, 'success')
-    emit('update:orders')
-    emit('updated') // Эмитим событие обновления
-    emit('order-updated', order.id) // Эмитим id заказа для обновления деталей, если открыт OrderDetailsModal
+    emit('update:orders') 
+    emit('updated')
+    emit('order-updated', order.id)
   } catch (err: any) {
     const msg = err?.message || 'Ошибка смены стадии'
 
-    // Проверяем, связана ли ошибка с отсутствием назначений
     if (
       msg.includes('дизайнер') ||
       msg.includes('печатник') ||
@@ -448,7 +444,7 @@ function getStatusLabel(stage: string): string {
 }
 .bitrix-add-btn {
   position: sticky;
-  top: 38px; /* высота заголовка */
+  top: 38px;
   z-index: 2;
 }
 @media (max-width: 900px) {

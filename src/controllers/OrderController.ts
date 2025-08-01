@@ -79,16 +79,32 @@ const fetchAllOrdersForKanban = async (assignment_status?: string) => {
   loading.value = true
   error.value = ''
   try {
-    const params: any = {
+    // Загружаем первую страницу для получения информации о пагинации
+    const firstPageParams: any = {
       page: 1,
       sort_by: 'id',
       sort_order: 'desc',
-      per_page: 1000, // Большое количество для загрузки всех заказов
+      per_page: 1000,
     }
-    if (assignment_status) params.assignment_status = assignment_status
-    const res = await getAll(params)
-    orders.value = res.data || []
-    
+    if (assignment_status) firstPageParams.assignment_status = assignment_status
+
+    const firstPageRes = await getAll(firstPageParams)
+    // (логирование или обработка, если нужно)
+
+    // Если есть больше страниц, загружаем их все
+    if (firstPageRes.last_page > 1) {
+      let allOrders = [...(firstPageRes.data || [])]
+
+      for (let page = 2; page <= firstPageRes.last_page; page++) {
+        const pageParams = { ...firstPageParams, page }
+        const pageRes = await getAll(pageParams)
+        allOrders = [...allOrders, ...(pageRes.data || [])]
+      }
+
+      orders.value = allOrders
+    } else {
+      orders.value = firstPageRes.data || []
+    }
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
     error.value = errorMessage
@@ -143,6 +159,7 @@ const getAll = async (params?: {
   search?: string
   assignment_status?: string
 }) => {
+
   const queryParams = new URLSearchParams()
   if (params?.project_id) queryParams.append('project_id', params.project_id.toString())
   if (params?.stage) queryParams.append('stage', params.stage)
@@ -156,183 +173,64 @@ const getAll = async (params?: {
   if (params?.assignment_status) queryParams.append('assignment_status', params.assignment_status)
 
   const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
-  const url = `${API_CONFIG.BASE_URL}/orders${query}`
+  const endpoint = `/orders${query}`
 
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-    },
-  })
 
-  if (!response.ok) throw new Error('Ошибка загрузки заказов')
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  const result = await apiRequest(endpoint)
 
-  const result = await response.json()
+
   return result
 }
 
 const getById = async (id: number) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-
-  return await handleResponse(response)
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest(`/orders/${id}`)
 }
 
 const create = async (data: OrderForm) => {
-  
-
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest('/orders', {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
     body: JSON.stringify(data),
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Create error:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-      data: data,
-    })
-
-    // Пытаемся извлечь сообщение об ошибке из JSON
-    let errorMessage = `Ошибка создания заказа: ${response.status} ${response.statusText}`
-    try {
-      const errorData = JSON.parse(errorText)
-      if (errorData.message) {
-        errorMessage = errorData.message
-      } else if (errorData.errors) {
-        // Если есть ошибки валидации, показываем их
-        const validationErrors = Object.values(errorData.errors).flat()
-        errorMessage = `Ошибки валидации: ${validationErrors.join(', ')}`
-      }
-    } catch {
-      // Если не удалось распарсить JSON, используем оригинальный текст
-      errorMessage = errorText
-    }
-
-    throw new Error(errorMessage)
-  }
-
-  const result = await response.json()
-  
-  return result
 }
 
 const update = async (id: number, data: OrderUpdateForm) => {
-  
-
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest(`/orders/${id}`, {
     method: 'PUT',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-    },
     body: JSON.stringify(data),
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Update error:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-    })
-    throw new Error(`Ошибка обновления заказа: ${response.status} ${response.statusText}`)
-  }
-
-  const result = await response.json()
-  
-  return result
 }
 
 const updateStage = async (id: number, data: StageUpdateForm) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}/stage`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest(`/orders/${id}/stage`, {
     method: 'PUT',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-    },
     body: JSON.stringify(data),
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Stage update error:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-    })
-
-    // Пытаемся извлечь сообщение об ошибке из JSON
-    let errorMessage = `Ошибка обновления статуса: ${response.status} ${response.statusText}`
-    try {
-      const errorData = JSON.parse(errorText)
-      if (errorData.message) {
-        errorMessage = errorData.message
-      }
-    } catch {
-      // Если не удалось распарсить JSON, используем оригинальный текст
-      errorMessage = errorText
-    }
-
-    throw new Error(errorMessage)
-  }
-
-  const result = await response.json()
-  return result
 }
 
 const moveToNextStage = async (id: number) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}/next-stage`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest(`/orders/${id}/next-stage`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
   })
-
-  if (!response.ok) throw new Error('Ошибка перехода к следующей стадии')
-  return await response.json()
 }
 
 const remove = async (id: number) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${id}`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest(`/orders/${id}`, {
     method: 'DELETE',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Delete error:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-    })
-    throw new Error(`Ошибка удаления заказа: ${response.status} ${response.statusText}`)
-  }
-  return await response.json()
 }
 
 const createProjectWithOrders = async (data: {
@@ -340,43 +238,12 @@ const createProjectWithOrders = async (data: {
   client_id: number
   orders: unknown[]
 }) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/projects`, {
+  // Import apiRequest dynamically to avoid circular dependencies
+  const { apiRequest } = await import('../services/api')
+  return await apiRequest('/projects', {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
     body: JSON.stringify(data),
   })
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('❌ Create project error:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-      data: data,
-    })
-
-    // Пытаемся извлечь сообщение об ошибке из JSON
-    let errorMessage = `Ошибка создания проекта с заказами: ${response.status} ${response.statusText}`
-    try {
-      const errorData = JSON.parse(errorText)
-      if (errorData.message) {
-        errorMessage = errorData.message
-      } else if (errorData.errors) {
-        // Если есть ошибки валидации, показываем их
-        const validationErrors = Object.values(errorData.errors).flat()
-        errorMessage = `Ошибки валидации: ${validationErrors.join(', ')}`
-      }
-    } catch {
-      // Если не удалось распарсить JSON, используем оригинальный текст
-      errorMessage = errorText
-    }
-
-    throw new Error(errorMessage)
-  }
-  return await response.json()
 }
 
 // --- SINGLETON STATE ---

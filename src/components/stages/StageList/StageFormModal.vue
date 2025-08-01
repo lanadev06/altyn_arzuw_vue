@@ -247,7 +247,6 @@ const loadAvailableRoles = async () => {
     const rolesData = await getAvailableRoles()
     availableRoles.value = rolesData || []
   } catch (error) {
-    console.error('Error loading roles:', error)
   }
 }
 
@@ -312,7 +311,6 @@ const handleSubmit = async () => {
 
     emit('submit', data)
   } catch (error) {
-    console.error('Error submitting form:', error)
   } finally {
     loading.value = false
   }
