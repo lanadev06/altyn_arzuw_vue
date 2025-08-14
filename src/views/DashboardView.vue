@@ -478,20 +478,15 @@ onMounted(async () => {
 
     // Загрузка стадий
     try {
-      console.log('🔄 Loading stages for DashboardView...')
       const stagesRes = await getAllStages()
-      console.log('📊 Stages data received:', stagesRes)
 
       if (Array.isArray(stagesRes)) {
         stagesData.value = stagesRes
         allStages.value = stagesRes.map((s) => s.name)
-        console.log('✅ Loaded stages directly:', stagesRes.length)
       } else if (stagesRes && stagesRes.data && Array.isArray(stagesRes.data)) {
         stagesData.value = stagesRes.data
         allStages.value = stagesRes.data.map((s) => s.name)
-        console.log('✅ Loaded stages from data property:', stagesRes.data.length)
       } else {
-        console.warn('⚠️ Unexpected stages data format:', stagesRes)
         // Fallback на статические стадии
         allStages.value = [
           'draft',
@@ -505,7 +500,6 @@ onMounted(async () => {
         ]
       }
     } catch (stagesError) {
-      console.error('❌ Error loading stages:', stagesError)
       // Fallback на статические стадии
       allStages.value = [
         'draft',
@@ -522,8 +516,68 @@ onMounted(async () => {
     // Новый эндпоинт для дашборда
     try {
       const res = (await apiRequest('/stats/dashboard')) as any
-      dashboardStats.value = res
-      delayedAssignmentsList.value = res.delayed_assignments_list || []
+
+      // Проверяем, является ли это представлением для сотрудника
+      if (res.is_employee_view) {
+        // Подсчитываем заказы по стадиям из назначений сотрудника
+        const ordersByStage = {}
+        if (res.recent_assignments) {
+          Object.values(res.recent_assignments).forEach((assignment: any) => {
+            const stage = assignment.stage || 'unknown'
+            ordersByStage[stage] = (ordersByStage[stage] || 0) + 1
+          })
+        }
+
+        // Для сотрудников показываем их персональную статистику
+        dashboardStats.value = {
+          orders_by_stage: ordersByStage,
+          orders_by_user: [
+            {
+              user_id: currentUser.value?.id,
+              user_name: currentUser.value?.name,
+              total: res.user_stats?.total_assignments || 0,
+              orders: res.recent_assignments || [],
+            },
+          ],
+          closed_last_30_days: 0,
+          delayed_assignments: res.user_stats?.delayed_assignments || 0,
+          delayed_assignments_list: [],
+          percent_completed: res.user_stats?.total_assignments
+            ? Math.round(
+                (res.user_stats.completed_assignments / res.user_stats.total_assignments) * 100,
+              )
+            : 0,
+          percent_cancelled: 0, // Для сотрудников не показываем отменённые
+        }
+
+        // Для сотрудников показываем их собственные задержанные назначения
+        if (res.recent_assignments) {
+          const delayed = Object.values(res.recent_assignments).filter((assignment: any) => {
+            if (!assignment.deadline) return false
+            const deadline = new Date(assignment.deadline)
+            const now = new Date()
+            return (
+              deadline < now &&
+              assignment.status !== 'completed' &&
+              assignment.status !== 'cancelled'
+            )
+          })
+
+          delayedAssignmentsList.value = delayed.map((assignment: any) => ({
+            id: assignment.id,
+            user_name: currentUser.value?.name,
+            order_id: assignment.id,
+            order_stage: assignment.stage,
+            status: assignment.status,
+          }))
+        } else {
+          delayedAssignmentsList.value = []
+        }
+      } else {
+        // Для админов и менеджеров показываем полную статистику
+        dashboardStats.value = res
+        delayedAssignmentsList.value = res.delayed_assignments_list || []
+      }
     } catch (e) {
       console.error('Ошибка загрузки dashboard stats:', e)
       // Устанавливаем значения по умолчанию при ошибке

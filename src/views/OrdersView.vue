@@ -82,12 +82,7 @@ const { orders, fetchOrders } = OrderController()
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
-  console.log('🔍 Computing filteredKanbanOrders')
-  console.log('📊 Search value:', search.value)
-  console.log('📊 Orders value:', orders.value?.length || 0)
-
   if (!search.value) {
-    console.log('✅ No search, returning all orders:', orders.value?.length || 0)
     return orders.value || []
   }
 
@@ -102,7 +97,6 @@ const filteredKanbanOrders = computed(() => {
     )
   })
 
-  console.log('✅ Filtered orders:', filtered.length)
   return filtered
 })
 
@@ -112,40 +106,13 @@ const orderListRef = ref()
 
 const loadOrders = async () => {
   try {
-    console.log('🔄 Loading orders, isTableView:', isTableView.value)
-
     if (!isTableView.value) {
       // Для Kanban используем fetchAllOrdersForKanban
       const { fetchAllOrdersForKanban } = OrderController()
-      console.log('📊 Fetching orders for Kanban...')
-      console.log('📊 selectedAssignmentStatus:', selectedAssignmentStatus.value)
       await fetchAllOrdersForKanban(selectedAssignmentStatus.value || undefined)
-      console.log('✅ Loaded orders for Kanban:', orders.value.length)
-      console.log('🔍 Стадии заказов:', [
-        ...new Set(orders.value.map((o) => o.stage?.name || o.stage)),
-      ])
-      console.log(
-        '🔍 Первые 5 заказов Kanban:',
-        orders.value.slice(0, 5).map((o) => ({
-          id: o.id,
-          stage: o.stage?.name || o.stage,
-          assignment_status: o.assignment_status,
-        })),
-      )
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
-      console.log('📊 Fetching orders for table...')
-      console.log('📊 search value:', search.value)
       await fetchOrders(1, 'id', 'asc', undefined, undefined, String(search.value))
-      console.log('✅ Loaded orders for table:', orders.value.length)
-      console.log(
-        '🔍 Первые 5 заказов Table:',
-        orders.value.slice(0, 5).map((o) => ({
-          id: o.id,
-          stage: o.stage?.name || o.stage,
-          assignment_status: o.assignment_status,
-        })),
-      )
     }
   } catch (error) {
     console.error('❌ Ошибка загрузки заказов:', error)
@@ -193,13 +160,10 @@ async function loadStages() {
         key: stage.name,
         label: stage.display_name || stage.name,
       }))
-      console.log('✅ Loaded all stages for admin/manager:', allStages.length)
-    } else {
       // Для всех остальных пользователей (с динамическими ролями) исключаем стадии "Отменено" и "Завершено"
       const filteredStages = allStages.filter((stage) => {
         const stageName = stage.name.toLowerCase()
         const isExcluded = stageName === 'cancelled' || stageName === 'completed'
-        console.log(`🔍 Stage ${stage.name} excluded for user with dynamic role:`, isExcluded)
         return !isExcluded
       })
 
@@ -207,7 +171,6 @@ async function loadStages() {
         key: stage.name,
         label: stage.display_name || stage.name,
       }))
-      console.log('✅ Loaded filtered stages for user with dynamic role:', filteredStages.length)
     }
   } catch (error) {
     console.error('❌ Error loading stages:', error)

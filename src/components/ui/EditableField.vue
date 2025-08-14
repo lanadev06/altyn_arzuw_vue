@@ -29,7 +29,7 @@
       <input
         v-model="editValue"
         :type="type"
-        class="border rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-200"
+        class="border rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white"
         :placeholder="placeholder"
         @keydown.enter.prevent="saveEdit"
         @keydown.esc.prevent="cancelEdit"

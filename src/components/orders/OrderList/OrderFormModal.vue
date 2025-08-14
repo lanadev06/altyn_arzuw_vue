@@ -914,8 +914,6 @@ function updateAssignmentsForStageRole(
 
 function getUsersForRole(roleName: string): User[] {
   const users = allUsers[roleName] || []
-  console.log(`👥 getUsersForRole(${roleName}):`, users.length, 'users')
-  console.log(`👥 Available roles:`, Object.keys(allUsers))
   return users
 }
 
@@ -973,7 +971,6 @@ function handleUserSelect(
 
 function getRoleDisplayName(roleName: string): string {
   // Автоматически создаем красивое название из имени роли
-  console.log(`🆕 Auto-generating display name for role: ${roleName}`)
   return (
     roleName
       .split('_')

@@ -253,8 +253,6 @@ function updateAssignmentsForStageRole(
     stageAssignments[stageId] = {}
   }
   stageAssignments[stageId][roleName] = assignments
-
-
 }
 
 function getUsersForRole(roleName: string): User[] {
@@ -318,8 +316,7 @@ function toggleStage(stageId: number) {
 
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-  } catch (error) {
-  }
+  } catch (error) {}
 }
 
 function selectAllStages() {
@@ -333,11 +330,9 @@ function selectAllStages() {
       }
     })
 
-
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-  } catch (error) {
-  }
+  } catch (error) {}
 }
 
 function clearAllStages() {
@@ -348,8 +343,7 @@ function clearAllStages() {
 
     // Принудительно обновляем реактивность
     selectedStages.value = [...selectedStages.value]
-  } catch (error) {
-  }
+  } catch (error) {}
 }
 
 onMounted(async () => {
@@ -383,7 +377,6 @@ onMounted(async () => {
         }
       })
     }
-
 
     // Загружаем пользователей по ролям стадий и альтернативные источники
     let usersByStageRoles, roleUsersData
@@ -540,11 +533,9 @@ onMounted(async () => {
             // Если стадия содержит объект с ролями
             const stageRoles = stageData.users_by_role || stageData.roles || {}
 
-
             Object.keys(stageRoles).forEach((roleName) => {
               const roleData = stageRoles[roleName]
               const users = roleData.users || roleData || []
-
 
               if (!dynamicUsers[roleName]) {
                 dynamicUsers[roleName] = []
@@ -579,7 +570,6 @@ onMounted(async () => {
       })
     }
 
-
     // Если пользователи не загрузились, создаем fallback пользователей
     const totalUsers =
       allUsers && typeof allUsers === 'object'
@@ -587,7 +577,6 @@ onMounted(async () => {
         : 0
 
     if (totalUsers === 0) {
-
       // Пробуем загрузить пользователей из альтернативных источников
       const alternativeUsers: Record<string, any[]> = {}
 
@@ -611,7 +600,6 @@ onMounted(async () => {
       )
 
       if (alternativeTotalUsers === 0) {
-
         // Динамически создаем fallback пользователей для всех ролей из стадий
         const allRoles = new Set<string>()
 
@@ -662,8 +650,6 @@ onMounted(async () => {
 
     // Если редактируем продукт
     if (props.product) {
-
-
       form.name = props.product.name || ''
 
       // Загружаем выбранные стадии
@@ -674,7 +660,6 @@ onMounted(async () => {
           .filter((stageId) => availableStages.value.some((stage) => stage.id === stageId))
 
         selectedStages.value = validStageIds
-
 
         // Если были удалены невалидные стадии, показываем предупреждение
         const removedStages = props.product.available_stages
@@ -717,14 +702,10 @@ onMounted(async () => {
 
             return true
           })
-
-
         }
       } catch (error) {
         // Продолжаем с данными из available_stages
       }
-
-
 
       // Загружаем назначения через API для получения полной структуры
       try {
@@ -780,11 +761,8 @@ onMounted(async () => {
           const allAssignments = assignmentsResponse.assignments || []
           const uniqueRoles = new Set(allAssignments.map((a) => a.role_type))
 
-
-
           uniqueRoles.forEach((roleType) => {
             const roleAssignments = allAssignments.filter((a) => a.role_type === roleType)
-
 
             // Находим стадию для этой роли (если есть)
             const stageForRole = availableStages.value.find((stage) =>
@@ -796,7 +774,6 @@ onMounted(async () => {
               const existingAssignments = getAssignmentsForStageRole(stageForRole.id, roleType)
               const newAssignments = [...existingAssignments, ...roleAssignments]
               updateAssignmentsForStageRole(stageForRole.id, roleType, newAssignments)
-
             } else {
               // Если стадия не найдена, создаем назначения для первой доступной стадии
               // или для стадии по умолчанию
@@ -806,15 +783,11 @@ onMounted(async () => {
                 const existingAssignments = getAssignmentsForStageRole(defaultStage.id, roleType)
                 const newAssignments = [...existingAssignments, ...roleAssignments]
                 updateAssignmentsForStageRole(defaultStage.id, roleType, newAssignments)
-
-
               } else {
               }
             }
           })
-
         } else {
-
           // Распределяем назначения по стадиям (для всех стадий, включая отключенные)
           const allProductStageIds =
             allProductStages.length > 0
@@ -848,7 +821,6 @@ onMounted(async () => {
                   }
                 }
 
-
                 // Создаем назначения для этой стадии и роли
                 const assignments = users.map((user) => ({
                   id: user.id,
@@ -864,7 +836,6 @@ onMounted(async () => {
           })
         }
       } catch (error) {
-
         // Показываем более конкретную ошибку
         let errorMessage = 'Ошибка загрузки назначений'
         if (error instanceof Error) {
@@ -918,7 +889,6 @@ onMounted(async () => {
                 }
               }
 
-
               // Создаем назначения для этой стадии и роли
               const assignments = users.map((user) => ({
                 id: user.id,
@@ -933,15 +903,12 @@ onMounted(async () => {
           }
         })
       }
-
-
     } else {
       // Для нового продукта НЕ устанавливаем стадии по умолчанию
       // Пользователь должен сам выбрать нужные стадии
       selectedStages.value = []
     }
   } catch (error) {
-
     // Более детальная обработка ошибок
     let errorMessage = 'Ошибка загрузки данных'
 
@@ -973,8 +940,6 @@ onMounted(async () => {
 watch(
   selectedStages,
   (newStages, oldStages) => {
-
-
     // Обновляем stageAssignments при изменении выбранных стадий
     const removedStages = oldStages.filter((id) => !newStages.includes(id))
     if (removedStages.length > 0) {
@@ -985,7 +950,6 @@ watch(
 )
 
 function validateForm(): boolean {
-
   // Очищаем ошибки
   errors.name = ''
   errors.stages = ''
@@ -1030,7 +994,6 @@ async function handleSubmit() {
       stages: stagesData,
     }
 
-
     let productId: number
 
     if (props.product?.id) {
@@ -1066,7 +1029,6 @@ async function handleSubmit() {
       })
     })
 
-
     if (allAssignments.length > 0) {
       try {
         const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
@@ -1079,7 +1041,6 @@ async function handleSubmit() {
 
     // Обновляем selectedStages, убирая невалидные стадии
     if (validSelectedStages.length !== selectedStages.value.length) {
-   
       selectedStages.value = validSelectedStages
     }
 
@@ -1090,17 +1051,14 @@ async function handleSubmit() {
 
         if (savedStages && savedStages.product_stages) {
           const availableStages = savedStages.product_stages.filter((ps) => ps.is_available)
-   
         }
-      } catch (verifyError) {
-      }
+      } catch (verifyError) {}
     }
 
     toast.show(`Товар ${props.product ? 'обновлен' : 'создан'} успешно!`)
     emit('submit', { id: productId, ...productData })
     emit('close')
   } catch (error) {
-
     // Более детальная обработка ошибок сохранения
     let errorMessage = 'Ошибка при сохранении товара'
 
@@ -1137,7 +1095,6 @@ async function handleDelete() {
     emit('delete', props.product.id)
     emit('close')
   } catch (error: any) {
-
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 

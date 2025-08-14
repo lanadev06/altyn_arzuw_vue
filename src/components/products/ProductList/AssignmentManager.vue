@@ -132,7 +132,7 @@ watch(
   () => props.assignments,
   (assignments) => {
     if (assignments.length > 0) {
-    } 
+    }
   },
   { immediate: true },
 )

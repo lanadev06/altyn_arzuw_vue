@@ -303,7 +303,14 @@ function loadOrders(page = 1) {
 
 function setSort(key: string) {
   // Разрешённые поля для сортировки
-  const allowedSortFields = ['id', 'quantity', 'stage', 'deadline', ...(canViewPrices() ? ['price'] : []), 'created_at']
+  const allowedSortFields = [
+    'id',
+    'quantity',
+    'stage',
+    'deadline',
+    ...(canViewPrices() ? ['price'] : []),
+    'created_at',
+  ]
   if (!allowedSortFields.includes(key)) return
   if (sortBy.value === key) sortOrder.value = (sortOrder.value as string) === 'asc' ? 'desc' : 'asc'
   else {

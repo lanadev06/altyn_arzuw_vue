@@ -40,7 +40,7 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
-                v-for="col in dynamicColumns"
+                v-for="col in columns"
                 :key="col.key"
                 @click="col.sortable ? setSort(col.key, props.search) : null"
                 :class="[
@@ -74,7 +74,7 @@
               style="height: 44px"
             >
               <td
-                v-for="col in dynamicColumns"
+                v-for="col in columns"
                 :key="col.key"
                 class="border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle"
               >
@@ -104,17 +104,17 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
                 Загрузка товаров...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-red-500">
+              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
-              <td :colspan="dynamicColumns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
                 {{ props.search ? 'Товары не найдены' : 'Товары отсутствуют' }}
               </td>
             </tr>
@@ -214,6 +214,7 @@ const { pagination, loading, error, fetchProducts, sortBy, sortOrder, update, re
 // Теперь определяем dynamicColumns после pagination
 const dynamicColumns = computed<Column[]>(() => {
   try {
+    // Создаем базовые колонки
     const columns = [...baseColumns]
 
     // Получаем все уникальные стадии с назначениями из всех продуктов
@@ -319,8 +320,32 @@ const dynamicColumns = computed<Column[]>(() => {
   }
 })
 
+// Инициализируем columns из localStorage или используем dynamicColumns
+const savedColumnsData = savedColumns ? JSON.parse(savedColumns) : null
+const columns = ref<Column[]>(savedColumnsData || [])
+
+// Если нет сохраненных колонок, инициализируем из dynamicColumns
+if (!savedColumnsData) {
+  watch(
+    dynamicColumns,
+    (newColumns) => {
+      if (newColumns.length > 0 && columns.value.length === 0) {
+        columns.value = [...newColumns]
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+      }
+    },
+    { immediate: true },
+  )
+}
+
 // Функция для получения назначений для конкретной стадии и роли
 function getStageAssignments(product: Product, stageId: number, roleType: string) {
+  console.log(
+    `🔍 getStageAssignments called for product ${product.id}, stage ${stageId}, role ${roleType}`,
+  )
+  console.log(`🔍 Product assignments:`, product.assignments)
+  console.log(`🔍 Product available_stages:`, product.available_stages)
+
   // Сначала пытаемся получить назначения из массива assignments
   if (product.assignments) {
     const filteredAssignments = product.assignments.filter(
@@ -396,7 +421,29 @@ function getRoleDisplayName(roleType: string): string {
   return names[roleType]
 }
 
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : baseColumns)
+// Обновляем columns при изменении dynamicColumns (для новых колонок)
+watch(
+  dynamicColumns,
+  (newColumns) => {
+    if (newColumns.length > 0) {
+      // Если columns пустые, инициализируем их
+      if (columns.value.length === 0) {
+        columns.value = [...newColumns]
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+      } else {
+        // Если есть новые колонки, добавляем их к существующим
+        const existingKeys = new Set(columns.value.map((col) => col.key))
+        const newColumnsToAdd = newColumns.filter((col) => !existingKeys.has(col.key))
+
+        if (newColumnsToAdd.length > 0) {
+          columns.value.push(...newColumnsToAdd)
+          localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+        }
+      }
+    }
+  },
+  { immediate: true },
+)
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
 if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
@@ -582,8 +629,7 @@ onMounted(async () => {
     console.error('❌ Failed to load stages for columns:', error)
   }
 
-  // Принудительно сбрасываем productList_columns в localStorage, чтобы обновить колонки
-  localStorage.removeItem('productList_columns')
+  // Инициализируем колонки из localStorage, если они есть
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {

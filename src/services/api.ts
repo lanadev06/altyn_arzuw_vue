@@ -166,7 +166,6 @@ export const authApi = {
     } catch (error) {
       // Если API недоступен и включен fallback, используем имитацию
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-
         // Имитация API вызова
         await new Promise((resolve) => setTimeout(resolve, API_CONFIG.DEV.MOCK_DELAY))
 
@@ -234,7 +233,6 @@ export const authApi = {
       return await apiRequest<LoginResponse['user']>(API_ENDPOINTS.AUTH.ME)
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-
         const user = localStorage.getItem('user')
         if (user) {
           return JSON.parse(user)
@@ -258,7 +256,6 @@ export const authApi = {
       return { valid: true, user }
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
-
         // Для демонстрации считаем токен валидным, если он есть
         const user = localStorage.getItem('user')
         return {

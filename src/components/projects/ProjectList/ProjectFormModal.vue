@@ -81,7 +81,7 @@
                 locale: Russian,
               }"
               placeholder="Выберите дату и время дедлайна"
-              class="w-full text-gray-700 text-base p-3 border border-gray-300 rounded-lg flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 hover:shadow-sm focus:shadow-md"
+              class="w-full text-gray-900 text-base p-3 border border-gray-300 rounded-lg flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 hover:shadow-sm focus:shadow-md bg-white"
             />
             <div v-if="errors.deadline" class="text-red-600 text-sm mt-2 flex items-center gap-1">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

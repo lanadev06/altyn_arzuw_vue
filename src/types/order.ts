@@ -44,6 +44,12 @@ export interface Order {
     id: number
     name: string
     company_name?: string | null
+    contacts?: Array<{
+      id: number
+      type: 'phone' | 'email' | 'telegram' | 'whatsapp' | 'instagram' | 'other'
+      value: string
+      client_id: number
+    }>
   } | null
   product?: {
     id: number
