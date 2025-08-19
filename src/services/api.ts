@@ -1,8 +1,21 @@
 import { API_CONFIG, API_ENDPOINTS, ERROR_MESSAGES } from '../config/api'
 import { handle401Error } from '../utils/auth'
+import type {
+  PaginatedResponse,
+  User,
+  Order,
+  Client,
+  Product,
+  Project,
+  CreateOrderData,
+  UpdateOrderData,
+  CreateUserData,
+  UpdateUserData,
+  ApiRequestConfig,
+} from '../types/api'
 
 // Development mode flag
-const DEV_MODE = import.meta.env.DEV || false
+const DEV_MODE = false // Отключаем DEV_MODE для тестирования
 
 // Типы для Laravel API
 export interface LoginCredentials {
@@ -37,11 +50,7 @@ export interface LoginResponse {
   token: string // Laravel Sanctum token
 }
 
-export interface ApiError {
-  message: string
-  status?: number
-  errors?: Record<string, string[]> // Laravel validation errors
-}
+// Удаляем дублирующийся интерфейс ApiError, так как он уже импортирован из types/api
 
 // Функция для выполнения HTTP запросов с таймаутом
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -59,6 +68,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = localStorage.getItem('auth_token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
+    console.log('🔑 Sending request with token:', token.substring(0, 20) + '...')
+  } else {
+    console.warn('⚠️ No auth token found in localStorage')
   }
 
   // Только если не FormData, добавляем Content-Type
@@ -67,8 +79,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   // Если FormData — удаляем Content-Type и из options.headers
-  if (isFormData && options.headers && options.headers['Content-Type']) {
-    delete options.headers['Content-Type']
+  if (
+    isFormData &&
+    options.headers &&
+    (options.headers as Record<string, string>)['Content-Type']
+  ) {
+    delete (options.headers as Record<string, string>)['Content-Type']
   }
 
   const config: RequestInit = {
@@ -132,7 +148,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       }
     }
 
-    return await response.json()
+    const responseData = await response.json()
+
+    // Laravel API может возвращать данные в формате {data: {...}}
+    // Проверяем, есть ли обертка data
+    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+      return responseData
+    }
+
+    return responseData
   } catch (error) {
     clearTimeout(timeoutId)
 
@@ -177,6 +201,7 @@ export const authApi = {
               username: credentials.username,
               name: 'Администратор',
               phone: '+7 (999) 123-45-67',
+              is_active: true,
               roles: [
                 { id: 1, name: 'admin', display_name: 'Администратор' },
                 { id: 2, name: 'manager', display_name: 'Менеджер' },
@@ -228,9 +253,9 @@ export const authApi = {
   },
 
   // Получить текущего пользователя
-  async me(): Promise<LoginResponse['user']> {
+  async me(): Promise<User> {
     try {
-      return await apiRequest<LoginResponse['user']>(API_ENDPOINTS.AUTH.ME)
+      return await apiRequest<User>(API_ENDPOINTS.AUTH.ME)
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
         const user = localStorage.getItem('user')
@@ -245,7 +270,7 @@ export const authApi = {
   },
 
   // Проверка токена (через /me endpoint)
-  async verifyToken(): Promise<{ valid: boolean; user?: any }> {
+  async verifyToken(): Promise<{ valid: boolean; user?: User }> {
     const token = localStorage.getItem('auth_token')
     if (!token) {
       return { valid: false }
@@ -260,7 +285,7 @@ export const authApi = {
         const user = localStorage.getItem('user')
         return {
           valid: !!user,
-          user: user ? JSON.parse(user) : null,
+          user: user ? JSON.parse(user) : undefined,
         }
       } else {
         // Если токен недействителен, очищаем localStorage
@@ -276,21 +301,30 @@ export const authApi = {
 export { apiRequest }
 
 // --- Клиенты ---
-import type { Client } from '@/types/client'
+// Удаляем дублирующийся импорт Client, так как он уже импортирован из types/api
 
 export async function getClients({
-  page = 1,
+  page = '1',
   search = '',
   sort_by = 'id',
   sort_order = 'asc',
   per_page,
-} = {}): Promise<any> {
+  all,
+}: {
+  page?: string
+  search?: string
+  sort_by?: string
+  sort_order?: string
+  per_page?: string
+  all?: boolean
+} = {}): Promise<PaginatedResponse<Client> | Client[]> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
-  if (page) params.push(`page=${page}`)
+  if (page && !all) params.push(`page=${page}`)
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
+  if (all) params.push('all=true')
   const query = params.length ? `?${params.join('&')}` : ''
 
   const res = await fetch(`${API_CONFIG.BASE_URL}/clients${query}`, {
@@ -334,6 +368,8 @@ export async function updateClient(id: number, data: Partial<Client>): Promise<C
 }
 
 export async function deleteClient(id: number): Promise<void> {
+  console.log('🗑️ Deleting client with ID:', id)
+
   const res = await fetch(`${API_CONFIG.BASE_URL}/clients/${id}`, {
     method: 'DELETE',
     headers: {
@@ -341,7 +377,31 @@ export async function deleteClient(id: number): Promise<void> {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  if (!res.ok) throw new Error('Ошибка удаления клиента')
+
+  console.log('📡 Delete response status:', res.status, res.statusText)
+
+  if (!res.ok) {
+    let errorMessage = 'Ошибка удаления клиента'
+    let errorData = null
+
+    try {
+      errorData = await res.json()
+      console.log('❌ Error response data:', errorData)
+      if (errorData.message) {
+        errorMessage = errorData.message
+      }
+    } catch (e) {
+      console.log('❌ Could not parse error response')
+    }
+
+    const error = new Error(errorMessage)
+    ;(error as any).status = res.status
+    ;(error as any).response = res
+    ;(error as any).data = errorData
+    throw error
+  }
+
+  console.log('✅ Client deleted successfully')
 }
 
 // Создать контакт клиента
@@ -392,7 +452,7 @@ export async function deleteClientContact(clientId: number, contactId: number) {
 }
 
 // --- Проекты ---
-import type { Project } from '@/types/project'
+// Удаляем дублирующийся импорт Project, так как он уже импортирован из types/api
 
 export async function getProjects({
   page = 1,
@@ -400,7 +460,7 @@ export async function getProjects({
   sort_by = 'id',
   sort_order = 'desc',
   per_page = 30,
-} = {}): Promise<any> {
+} = {}): Promise<PaginatedResponse<Project>> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
   if (page) params.push(`page=${page}`)
@@ -459,15 +519,17 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 // --- Товары ---
-import type { Product, ProductForm } from '@/types/product'
+// Удаляем дублирующийся импорт Product, так как он уже импортирован из types/api
+// Оставляем только ProductForm если он нужен
+import type { ProductForm } from '@/types/product'
 
 export async function getProducts({
-  page = 1,
+  page = '1',
   search = '',
   sort_by = 'id',
   sort_order = 'desc',
-  per_page = 30,
-} = {}): Promise<any> {
+  per_page = '30',
+} = {}): Promise<PaginatedResponse<Product>> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
   if (page) params.push(`page=${page}`)
@@ -602,13 +664,13 @@ export async function updateProductStages(
 
   const response = await apiRequest(`/products/${productId}/stages`, {
     method: 'PUT',
-    data: { stages },
+    body: JSON.stringify({ stages }),
   })
   return response
 }
 
 // --- Дизайнеры ---
-export async function getByRole(role: string): Promise<{ data: any[] }> {
+export async function getByRole(role: string): Promise<{ data: User[] }> {
   const url = `${API_CONFIG.BASE_URL}/users/role/${role}`
   const token = localStorage.getItem('auth_token')
 
@@ -677,6 +739,117 @@ export async function getAllProjects(): Promise<any[]> {
 }
 
 // --- Заказы ---
+export async function getOrders({
+  page = '1',
+  search = '',
+  sort_by = 'id',
+  sort_order = 'desc',
+  per_page = '30',
+  stage,
+  is_archived,
+  assignment_status,
+}: {
+  page?: string
+  search?: string
+  sort_by?: string
+  sort_order?: string
+  per_page?: string
+  stage?: string
+  is_archived?: boolean
+  assignment_status?: string
+} = {}): Promise<PaginatedResponse<Order>> {
+  const params = new URLSearchParams({
+    page,
+    search,
+    sort_by,
+    sort_order,
+    per_page,
+  })
+  if (stage) params.append('stage', stage)
+  if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
+  if (assignment_status) params.append('assignment_status', assignment_status)
+
+  return await apiRequest(`/orders?${params.toString()}`)
+}
+
+// Специальная функция для получения всех заказов без пагинации
+export async function getAllOrders({
+  search = '',
+  sort_by = 'id',
+  sort_order = 'desc',
+  stage,
+  is_archived = false,
+  assignment_status,
+}: {
+  search?: string
+  sort_by?: string
+  sort_order?: string
+  stage?: string
+  is_archived?: boolean
+  assignment_status?: string
+} = {}): Promise<PaginatedResponse<Order>> {
+  const params = new URLSearchParams({
+    search,
+    sort_by,
+    sort_order,
+    per_page: '10000', // Очень большое число для получения всех заказов
+  })
+  if (stage) params.append('stage', stage)
+  if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
+  if (assignment_status) params.append('assignment_status', assignment_status)
+
+  return await apiRequest(`/orders?${params.toString()}`)
+}
+
+// Специальная функция для получения всех заказов админом (с очисткой кэша)
+export async function getAllOrdersForAdmin({
+  search = '',
+  sort_by = 'id',
+  sort_order = 'desc',
+  stage,
+  is_archived = false,
+  assignment_status,
+}: {
+  search?: string
+  sort_by?: string
+  sort_order?: string
+  stage?: string
+  is_archived?: boolean
+  assignment_status?: string
+} = {}): Promise<PaginatedResponse<Order>> {
+  const params = new URLSearchParams({
+    search,
+    sort_by,
+    sort_order,
+    per_page: '10000', // Очень большое число для получения всех заказов
+    force_refresh: 'true', // Принудительная очистка кэша
+    admin_view: 'true', // Специальный флаг для админа
+  })
+  if (stage) params.append('stage', stage)
+  if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
+  if (assignment_status) params.append('assignment_status', assignment_status)
+
+  console.log('🔑 Admin API request:', `/orders?${params.toString()}`)
+  return await apiRequest(`/orders?${params.toString()}`)
+}
+
+export async function createOrder(data: CreateOrderData): Promise<Order> {
+  return await apiRequest('/orders', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateOrder(id: number, data: UpdateOrderData): Promise<Order> {
+  return await apiRequest(`/orders/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteOrder(id: number): Promise<void> {
+  await apiRequest(`/orders/${id}`, { method: 'DELETE' })
+}
 export async function getOrderDetails(orderId: number) {
   return await apiRequest(`/orders/${orderId}`)
 }
@@ -710,12 +883,12 @@ export async function getProjectDetails(projectId: number) {
 
 export async function updateOrderStage(orderId: number, stage: string): Promise<void> {
   await apiRequest(`/orders/${orderId}/stage`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify({ stage }),
   })
 }
 
-export async function createUser(data: any): Promise<any> {
+export async function createUser(data: CreateUserData & { image?: File }): Promise<User> {
   const formData = new FormData()
   formData.append('name', data.name)
   formData.append('username', data.username)
@@ -737,7 +910,7 @@ export async function createUser(data: any): Promise<any> {
     body: formData,
   })
 
-  return res
+  return res as User
 }
 
 export async function deleteUser(id: number): Promise<void> {
@@ -746,9 +919,9 @@ export async function deleteUser(id: number): Promise<void> {
   })
 }
 
-export async function getUser(id: number): Promise<any> {
+export async function getUser(id: number): Promise<User> {
   const res = await apiRequest(`/users/${id}`)
-  return res
+  return res as User
 }
 
 export async function getUsers({
@@ -759,7 +932,7 @@ export async function getUsers({
   per_page = 30,
   role = '',
   is_active = null,
-} = {}): Promise<any> {
+} = {}): Promise<PaginatedResponse<User>> {
   const params = new URLSearchParams({
     page: page.toString(),
     search,
@@ -768,9 +941,9 @@ export async function getUsers({
     per_page: per_page.toString(),
   })
   if (role) params.append('role', role)
-  if (is_active !== null) params.append('is_active', is_active.toString())
+  if (is_active !== null) params.append('is_active', String(is_active))
   const res = await apiRequest(`/users?${params.toString()}`)
-  return res
+  return res as PaginatedResponse<User>
 }
 
 export async function getUsersByRole(role: string): Promise<any> {
@@ -785,7 +958,7 @@ export async function toggleUserActive(id: number): Promise<any> {
   return res
 }
 
-export async function updateUser(id: number, data: any): Promise<any> {
+export async function updateUser(id: number, data: UpdateUserData): Promise<User> {
   const token = localStorage.getItem('auth_token')
   if (data.image instanceof File) {
     const formData = new FormData()
@@ -838,8 +1011,8 @@ export async function updateUser(id: number, data: any): Promise<any> {
 export async function getRoles(): Promise<
   Array<{ id: number; name: string; display_name?: string }>
 > {
-  const res = await apiRequest('/roles')
-  return res.data || res // поддержка разных форматов ответа
+  const res = (await apiRequest('/roles')) as { data?: any[] } | any[]
+  return (res as any).data || res // поддержка разных форматов ответа
 }
 
 // Алиас для совместимости

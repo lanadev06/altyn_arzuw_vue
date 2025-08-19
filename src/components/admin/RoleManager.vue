@@ -196,7 +196,7 @@ import { ref, onMounted, computed } from 'vue'
 import {
   createRole,
   updateRole,
-  deleteRole,
+  deleteRole as deleteRoleApi,
   getAllRoles,
   assignUsersToRole,
   removeUsersFromRole,
@@ -315,7 +315,7 @@ async function handleSubmit() {
     // Подготавливаем данные для отправки
     const submitData = {
       ...form.value,
-      description: form.value.description.trim() || null, // Исправлено: используем trim() и null
+      description: (form.value.description || '').trim() || null, // Исправлено: используем trim() и null
     }
 
     if (isEditing.value && editingRole.value) {
@@ -340,7 +340,7 @@ async function deleteRole(id: number) {
   }
 
   try {
-    await deleteRole(id)
+    await deleteRoleApi(id)
     toast.success('Роль удалена')
     await loadRoles()
   } catch (error) {

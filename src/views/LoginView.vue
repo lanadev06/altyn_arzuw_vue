@@ -46,8 +46,11 @@ const handleLogin = async (formData) => {
     const data = await response.json()
 
     if (data.token) {
+      console.log('🔑 Token received:', data.token.substring(0, 20) + '...')
+      console.log('👤 User data received:', data.user)
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      console.log('💾 Data saved to localStorage')
       router.push('/')
     } else {
       throw new Error('Токен не получен')

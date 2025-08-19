@@ -121,11 +121,11 @@
                     <!-- Получаем название стадии из всех возможных источников -->
                     <span
                       v-if="getOrderStageName(item)"
-                      :class="getStatusClass(getOrderStageName(item))"
+                      :class="getStatusClass(getOrderStageName(item) || '')"
                       :style="getOrderStageStyle(item)"
                       class="inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer"
                     >
-                      {{ getStatusText(getOrderStageName(item)) }}
+                      {{ getStatusText(getOrderStageName(item) || '') }}
                     </span>
                     <!-- Показываем дефолтную стадию если ничего нет -->
                     <span
@@ -143,7 +143,7 @@
                   </div>
                 </template>
                 <template v-else-if="col.key === 'deadline'">
-                  <span class="text-gray-700">{{ formatDate(item.deadline) }}</span>
+                  <span class="text-gray-700">{{ formatDate(item.deadline || '') }}</span>
                 </template>
                 <template v-else-if="col.key === 'price'">
                   <span v-if="canViewPrices()" class="text-blue-500 font-semibold">
@@ -237,7 +237,7 @@ const defaultColumns = [
 const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
 const sortBy = ref(savedSortBy || 'id')
-const sortOrder = ref(savedSortOrder || 'asc')
+const sortOrder = ref<'asc' | 'desc'>((savedSortOrder as 'asc' | 'desc') || 'asc')
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const showCreateModal = ref(false)
@@ -245,15 +245,19 @@ const showCreateProjectModal = ref(false)
 const showDetailsModal = ref(false)
 const detailsOrderId = ref<number | null>(null)
 
-const selectedStage = ref('')
+// Add search variable to the component
+const search = ref('')
+const currentPage = ref(1)
+const selectedStage = ref<string | null>(null)
 const selectedArchive = ref('')
-const selectedAssignmentStatus = ref('')
+const isArchived = ref<boolean>(false)
+const selectedAssignmentStatus = ref<string | null>(null)
 const stages = ref<any[]>([])
 const loadingStages = ref(false)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -280,13 +284,13 @@ function loadOrders(page = 1) {
 
   fetchOrders(
     page,
+    search.value,
     sortBy.value,
     sortOrder.value,
     selectedStage.value || undefined,
     isArchived,
-    undefined,
-    selectedAssignmentStatus.value || undefined,
     perPage.value,
+    selectedAssignmentStatus.value || undefined,
   ).then(() => {
     // Отладочная информация после загрузки заказов
     if (orders.value.length > 0) {
@@ -312,7 +316,7 @@ function setSort(key: string) {
     'created_at',
   ]
   if (!allowedSortFields.includes(key)) return
-  if (sortBy.value === key) sortOrder.value = (sortOrder.value as string) === 'asc' ? 'desc' : 'asc'
+  if (sortBy.value === key) sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   else {
     sortBy.value = key
     sortOrder.value = 'asc'
@@ -538,7 +542,7 @@ async function loadStages() {
 }
 
 // Интервал для автоматического обновления данных
-let autoRefreshInterval: NodeJS.Timeout | null = null
+let autoRefreshInterval: number | null = null
 let handleFocus: (() => void) | null = null
 
 defineExpose({ loadOrders })
@@ -567,7 +571,7 @@ onMounted(async () => {
   loadOrders()
 
   // Запускаем автоматическое обновление каждые 10 секунд
-  autoRefreshInterval = setInterval(() => {
+  autoRefreshInterval = window.setInterval(() => {
     console.log('🔄 OrderList: Автоматическое обновление данных')
     loadOrders()
   }, 10000)

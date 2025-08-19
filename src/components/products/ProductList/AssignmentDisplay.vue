@@ -61,16 +61,6 @@ const activeAssignments = computed(() => {
     return assignment.user
   })
 
-  console.log(
-    `🎯 AssignmentDisplay: roleType=${props.roleType}, assignments=${assignments.length}`,
-    assignments.map((a) => ({
-      id: a.id,
-      user: a.user?.name,
-      role_type: a.role_type,
-      is_active: a.is_active,
-    })),
-  )
-
   return assignments
 })
 </script>

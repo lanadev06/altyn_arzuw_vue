@@ -88,7 +88,7 @@
                     <div class="flex items-center gap-2">
                       <div
                         class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-                        :style="getStageColorStyles(stage.name, stage.color)"
+                        :style="getStageColorStyles(stage.name, stage.color || undefined)"
                       >
                         {{ (stage.display_name || stage.name).charAt(0).toUpperCase() }}
                       </div>
@@ -313,8 +313,7 @@ const handleCreateStage = async (stageData: {
     await StageController.create(stageData)
     emit('close-create-modal')
     await fetchStages()
-  } catch (err: unknown) {
-  }
+  } catch (err: unknown) {}
 }
 
 const handleUpdateStage = async (stageData: {
@@ -331,13 +330,11 @@ const handleUpdateStage = async (stageData: {
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
-  } catch (err: unknown) {
-  }
+  } catch (err: unknown) {}
 }
 
 const handleDeleteStage = async (stageId: number) => {
   try {
-
     // Проверяем права доступа
     if (!canDelete()) {
       alert('У вас нет прав для удаления стадий')

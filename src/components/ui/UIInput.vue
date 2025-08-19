@@ -35,7 +35,7 @@ interface Props {
   modelValue: string | number | null
   label?: string
   placeholder?: string
-  type?: 'text' | 'username' | 'password' | 'number'
+  type?: 'text' | 'username' | 'password' | 'number' | 'datetime-local'
   disabled?: boolean
   error?: string
   id?: string

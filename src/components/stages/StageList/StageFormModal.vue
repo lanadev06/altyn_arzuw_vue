@@ -227,7 +227,7 @@ const form = reactive({
 const initializeForm = () => {
   if (props.stage) {
     form.name = props.stage.name
-    form.display_name = props.stage.display_name
+    form.display_name = props.stage.display_name || ''
     form.description = props.stage.description || '' // Исправлено: используем пустую строку для null/undefined
     form.order = props.stage.order
     form.color = props.stage.color || '#3b82f6' // Initialize color
@@ -246,8 +246,7 @@ const loadAvailableRoles = async () => {
   try {
     const rolesData = await getAvailableRoles()
     availableRoles.value = rolesData || []
-  } catch (error) {
-  }
+  } catch (error) {}
 }
 
 // Переключение роли

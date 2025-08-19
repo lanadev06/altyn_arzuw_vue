@@ -1,20 +1,4 @@
-export interface Stage {
-  id: number
-  name: string
-  display_name: string
-  description?: string | null
-  order: number
-  color?: string
-  created_at: string
-  updated_at: string
-  roles?: Role[]
-}
-
-export interface Role {
-  id: number
-  name: string
-  display_name: string
-}
+export type { Stage, Role } from './api'
 
 export interface CreateStageRequest {
   name: string

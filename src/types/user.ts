@@ -1,27 +1,4 @@
-export interface Role {
-  id: number
-  name: string
-  display_name?: string
-  created_at?: string
-  updated_at?: string
-}
-
-export interface User {
-  id: number
-  name: string
-  username: string
-  phone?: string
-  image?: string
-  is_active?: boolean
-  created_at?: string
-  updated_at?: string
-
-  // Новая система множественных ролей (Laravel)
-  roles: Role[]
-
-  // Устаревшие поля (для обратной совместимости)
-  role?: UserRole
-}
+export type { User } from './api'
 
 export enum UserRole {
   ADMIN = 'admin',

@@ -1,7 +1,7 @@
 // Утилита для работы с цветами ролей
 
 // Дефолтные цвета для администратора и менеджера
-const DEFAULT_ADMIN_COLORS = {
+const DEFAULT_ADMIN_COLORS: Record<string, string> = {
   admin: '#ef4444', // red-500
   manager: '#3b82f6', // blue-500
 }

@@ -22,10 +22,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import UserProfile from './UserProfile.vue'
-import { authApi } from '@/services/api'
+import { authApi } from '../../services/api'
 import { useRoute, useRouter } from 'vue-router'
-import SearchInput from '@/components/ui/SearchInput.vue'
-import NotificationBell from '@/components/ui/NotificationBell.vue'
+import SearchInput from '../ui/SearchInput.vue'
+import NotificationBell from '../ui/NotificationBell.vue'
 
 const emit = defineEmits(['logout', 'search'])
 
@@ -33,7 +33,12 @@ const route = useRoute()
 const router = useRouter()
 const pageTitle = computed(() => route.meta.title || 'Панель управления')
 
-const currentUser = ref({
+const currentUser = ref<{
+  name: string
+  role: string
+  image: any
+  roles?: any[]
+}>({
   name: '',
   role: '',
   image: null,
@@ -64,12 +69,40 @@ function handleSearchInput() {
 }
 
 onMounted(async () => {
+  // Сначала загружаем данные из localStorage
+  const storedUser = localStorage.getItem('user')
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser)
+      currentUser.value = {
+        name: user.name,
+        role: user.roles?.[0]?.name || '',
+        image: user.image || null,
+        roles: user.roles || [],
+      }
+    } catch (parseError) {
+      console.error('Failed to parse stored user:', parseError)
+    }
+  }
+
+  // Затем пытаемся обновить данные через API (в фоне)
   try {
     const response = await authApi.me()
-    const user = response.data
-    currentUser.value = user
+
+    // Laravel API возвращает данные в формате {data: {...}}
+    const user = (response as any).data || response
+
+    currentUser.value = {
+      name: user.name,
+      role: user.roles?.[0]?.name || '',
+      image: user.image || null,
+      roles: user.roles || [],
+    }
+    // Обновляем localStorage с новыми данными
+    localStorage.setItem('user', JSON.stringify(user))
   } catch (e) {
-    currentUser.value = { name: 'Гость', role: '', image: null, roles: [] }
+    console.error('API call failed:', e)
+    // Если API не работает, продолжаем использовать данные из localStorage
   }
 })
 

@@ -1,27 +1,19 @@
 <template>
   <Layout>
     <div class="flex flex-col gap-10">
+      <!-- График выручки (только для админов и менеджеров) -->
+      <div v-if="hasAdminOrManagerRole" class="grid grid-cols-1 gap-8">
+        <RevenueChart />
+      </div>
+
       <!-- Первый ряд: метрики -->
       <div
         :class="
           hasAdminOrManagerRole
-            ? 'grid grid-cols-1 md:grid-cols-3 gap-8'
+            ? 'grid grid-cols-1 md:grid-cols-2 gap-8'
             : 'grid grid-cols-1 md:grid-cols-2 gap-8'
         "
       >
-        <StatsCard
-          v-if="hasAdminOrManagerRole"
-          title="Выручка за месяц"
-          :value="
-            stats.revenue.toLocaleString('ru-RU', {
-              style: 'currency',
-              currency: 'TMT',
-              maximumFractionDigits: 0,
-            })
-          "
-          icon="CurrencyIcon"
-          icon-bg-class="bg-yellow-500 bg-opacity-20"
-        />
         <!-- Завершённых заказов -->
         <div
           class="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center justify-center min-h-[220px]"
@@ -199,6 +191,7 @@
           </div>
         </div>
       </div>
+
       <!-- Третий ряд: заказы по сотрудникам -->
       <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[480px] overflow-y-auto">
         <div class="font-extrabold text-xl mb-6 text-gray-900 tracking-wide">
@@ -265,6 +258,7 @@ import Layout from '../components/layout/Layout.vue'
 import StatsCard from '../components/dashboard/StatsCard.vue'
 import QuickActions from '../components/dashboard/QuickActions.vue'
 import RecentActivity from '../components/dashboard/RecentActivity.vue'
+import RevenueChart from '../components/dashboard/RevenueChart.vue'
 import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
 import { ref, onMounted, computed } from 'vue'
@@ -275,13 +269,15 @@ import { getContrastColor } from '../utils/stageColors'
 import { getCurrentUser } from '../utils/auth'
 import axios from 'axios'
 import { API_CONFIG } from '../config/api'
+import type { Stage } from '../types/stage'
+import type { User } from '../types/user'
+import type { Role } from '../types/role'
 
 const router = useRouter()
 
 const stats = ref({
   users: 0,
   orders: 0,
-  revenue: 0,
   newClients: 0,
 })
 
@@ -290,7 +286,26 @@ const staffActivity = ref<any[]>([])
 const notifications = ref([])
 
 // Новые метрики для дашборда
-const dashboardStats = ref({
+const dashboardStats = ref<{
+  orders_by_stage: Record<string, number>
+  orders_by_user: Array<{
+    user_id: number
+    user_name: string
+    total: number
+    orders: any[]
+  }>
+  closed_last_30_days: number
+  delayed_assignments: number
+  delayed_assignments_list: Array<{
+    id: number
+    user_name: string
+    order_id: number
+    order_stage: string
+    status: string
+  }>
+  percent_completed: number
+  percent_cancelled: number
+}>({
   orders_by_stage: {},
   orders_by_user: [],
   closed_last_30_days: 0,
@@ -300,10 +315,18 @@ const dashboardStats = ref({
   percent_cancelled: 0,
 })
 
-const delayedAssignmentsList = ref([])
+const delayedAssignmentsList = ref<
+  Array<{
+    id: number
+    user_name: string
+    order_id: number
+    order_stage: string
+    status: string
+  }>
+>([])
 
-const allStages = ref([])
-const stagesData = ref([])
+const allStages = ref<string[]>([])
+const stagesData = ref<Stage[]>([])
 
 const showOrderDetailsModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
@@ -322,11 +345,11 @@ function openOrderDetailsModal(orderId: number) {
   showOrderDetailsModal.value = true
 }
 
-function hasRole(user, roleName) {
+function hasRole(user: User, roleName: string) {
   return user.roles && user.roles.some((r) => r.name === roleName)
 }
 
-function stageColor(stage) {
+function stageColor(stage: string) {
   // Сначала ищем в динамических данных
   const stageData = stagesData.value.find((s) => s.name === stage)
   if (stageData && stageData.color) {
@@ -335,7 +358,7 @@ function stageColor(stage) {
   }
 
   // Fallback на статические Tailwind классы
-  const map = {
+  const map: Record<string, string> = {
     draft: 'bg-gray-500 text-white',
     design: 'bg-blue-500 text-white',
     print: 'bg-yellow-500 text-gray-900',
@@ -348,7 +371,7 @@ function stageColor(stage) {
   return map[stage] || 'bg-gray-400 text-white'
 }
 
-function stageColorStyle(stage) {
+function stageColorStyle(stage: string) {
   // Сначала ищем в динамических данных
   const stageData = stagesData.value.find((s) => s.name === stage)
   if (stageData && stageData.color) {
@@ -359,8 +382,8 @@ function stageColorStyle(stage) {
   }
   return {}
 }
-function statusBadgeClass(status) {
-  const map = {
+function statusBadgeClass(status: string) {
+  const map: Record<string, string> = {
     in_progress: 'bg-blue-100 text-blue-700',
     under_review: 'bg-yellow-100 text-yellow-700',
     pending: 'bg-gray-100 text-gray-700',
@@ -371,7 +394,7 @@ function statusBadgeClass(status) {
   return map[status] || 'bg-gray-100 text-gray-700'
 }
 
-function stageLabel(stage) {
+function stageLabel(stage: string) {
   // Сначала ищем в динамических данных
   const stageData = stagesData.value.find((s) => s.name === stage)
   if (stageData && stageData.display_name) {
@@ -379,7 +402,7 @@ function stageLabel(stage) {
   }
 
   // Fallback на статические названия
-  const map = {
+  const map: Record<string, string> = {
     draft: 'Черновик',
     design: 'Дизайн',
     print: 'Печать',
@@ -392,7 +415,7 @@ function stageLabel(stage) {
   return map[stage] || stage
 }
 
-function getStageCount(stage) {
+function getStageCount(stage: string) {
   // Проверяем, есть ли данные о заказах по стадиям
   if (!dashboardStats.value.orders_by_stage) return 0
 
@@ -401,8 +424,8 @@ function getStageCount(stage) {
   return count || 0
 }
 
-function statusLabel(status) {
-  const map = {
+function statusLabel(status: string) {
+  const map: Record<string, string> = {
     in_progress: 'В работе',
     under_review: 'На проверке',
     pending: 'Ожидание',
@@ -417,30 +440,29 @@ onMounted(async () => {
   try {
     // Статистика (только для admin и manager)
     if (hasAdminOrManagerRole.value) {
-      const statsData = await safeApiRequest<typeof stats.value>('/api/stats')
+      const statsData = await safeApiRequest<typeof stats.value>('/stats')
       if (statsData) {
         stats.value = statsData
       } else {
-        stats.value = { users: 0, orders: 0, revenue: 0, newClients: 0 }
+        stats.value = { users: 0, orders: 0, newClients: 0 }
       }
     } else {
-      // Для обычных пользователей загружаем только базовую статистику без выручки
-      const statsData = await safeApiRequest<typeof stats.value>('/api/stats')
+      // Для обычных пользователей загружаем только базовую статистику
+      const statsData = await safeApiRequest<typeof stats.value>('/stats')
       if (statsData) {
         stats.value = {
           users: statsData.users || 0,
           orders: statsData.orders || 0,
-          revenue: 0, // Скрываем выручку
           newClients: statsData.newClients || 0,
         }
       } else {
-        stats.value = { users: 0, orders: 0, revenue: 0, newClients: 0 }
+        stats.value = { users: 0, orders: 0, newClients: 0 }
       }
     }
 
     // Активность (только для admin и manager)
     if (hasAdminOrManagerRole.value) {
-      const activityData = await safeApiRequest<any[]>('/api/activity')
+      const activityData = await safeApiRequest<any[]>('/activity')
       if (Array.isArray(activityData)) {
         staffActivity.value = safeProcessActivityData(activityData) as any[]
       } else {
@@ -485,7 +507,7 @@ onMounted(async () => {
         allStages.value = stagesRes.map((s) => s.name)
       } else if (stagesRes && stagesRes.data && Array.isArray(stagesRes.data)) {
         stagesData.value = stagesRes.data
-        allStages.value = stagesRes.data.map((s) => s.name)
+        allStages.value = stagesRes.data.map((s: Stage) => s.name)
       } else {
         // Fallback на статические стадии
         allStages.value = [
@@ -520,7 +542,7 @@ onMounted(async () => {
       // Проверяем, является ли это представлением для сотрудника
       if (res.is_employee_view) {
         // Подсчитываем заказы по стадиям из назначений сотрудника
-        const ordersByStage = {}
+        const ordersByStage: Record<string, number> = {}
         if (res.recent_assignments) {
           Object.values(res.recent_assignments).forEach((assignment: any) => {
             const stage = assignment.stage || 'unknown'
@@ -597,7 +619,6 @@ onMounted(async () => {
     stats.value = {
       users: 0,
       orders: 0,
-      revenue: 0,
       newClients: 0,
     }
     staffActivity.value = []

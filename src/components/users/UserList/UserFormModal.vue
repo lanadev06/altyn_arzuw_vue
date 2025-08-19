@@ -54,8 +54,6 @@
         />
         <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
         <p class="text-xs text-gray-500 mt-1">Формат: +993 XX YYYYYY (например: +993 12 345678)</p>
-        <p class="text-xs text-gray-400 mt-1">Текущее значение: "{{ form.phone }}"</p>
-        <button type="button" @click="clearPhone" class="text-xs text-red-500 mt-1">Очистить телефон</button>
       </div>
 
       <div>
@@ -77,7 +75,7 @@
           v-model="form.roles"
           :options="roleOptions"
           label="label"
-          :reduce="(option) => option.value"
+          :reduce="(option: any) => option.value"
           placeholder="Выберите роли"
           :clearable="true"
           :searchable="true"
@@ -237,16 +235,16 @@ const formatPhoneNumber = (value: string): string => {
 const handlePhoneChange = (event: Event) => {
   const target = event.target as HTMLInputElement
   const value = target.value
-  
+
   console.log('handlePhoneChange called with:', value) // Для отладки
-  
+
   // Если значение пустая строка, очищаем поле
   if (!value || value.trim() === '') {
     console.log('Clearing phone field') // Для отладки
     form.phone = ''
     return
   }
-  
+
   // Если значение не пустое, форматируем его
   console.log('Formatting phone:', value) // Для отладки
   const formatted = formatPhoneNumber(value)
@@ -360,7 +358,7 @@ const handleSubmit = async () => {
       phone: form.phone && form.phone.trim() ? form.phone.trim() : null,
       roles: Array.isArray(form.roles)
         ? form.roles
-            .map((r) => Number(typeof r === 'object' ? r.id : r))
+            .map((r) => Number(typeof r === 'object' ? (r as any)?.id || 0 : r))
             .filter((id) => Number.isInteger(id) && id > 0)
         : [],
     }
@@ -401,7 +399,7 @@ const handleDelete = async () => {
   if (!props.user?.id) return
 
   // Показываем toast с подтверждением вместо alert
-  toast.show('Удаление пользователя...', 'info')
+  toast.show('Удаление пользователя...', 'success')
 
   try {
     await emit('delete', props.user.id)

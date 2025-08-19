@@ -636,7 +636,7 @@
                     v-model="selectedUserId"
                     :options="currentStageUsersWithRoles"
                     label="displayName"
-                    :reduce="(user) => user.id"
+                    :reduce="(user: any) => user.id"
                     placeholder="Добавить сотрудника..."
                     class="w-80"
                     @update:modelValue="assignUser"
@@ -1433,7 +1433,7 @@ async function changeStatus(newStatus: string) {
         )
 
         // Переходим на найденную стадию вместо completed
-        await updateStage(order.value.id, { stage: targetStage })
+        await updateStage(order.value.id, targetStage)
         toast.show('Статус заказа обновлён!')
 
         // Принудительно обновляем данные с небольшой задержкой для синхронизации
@@ -1454,7 +1454,7 @@ async function changeStatus(newStatus: string) {
   disableAutoStageSwitch.value = true
 
   try {
-    await updateStage(order.value.id, { stage: newStatus })
+    await updateStage(order.value.id, newStatus)
     toast.show('Статус заказа обновлён!')
 
     // Принудительно обновляем данные с небольшой задержкой для синхронизации
@@ -1616,11 +1616,7 @@ async function confirmCancel() {
     return
   }
   try {
-    await updateStage(order.value.id, {
-      stage: 'cancelled',
-      reason: cancelReason.value,
-      reason_status: cancelReasonStatus.value,
-    })
+    await updateStage(order.value.id, 'cancelled')
     toast.show('Заказ отменён!')
     showCancelForm.value = false
     cancelReason.value = ''
@@ -1682,6 +1678,8 @@ function onOverlayClick() {
 
 async function fetchAvailableUsers() {
   try {
+    console.log('🔍 fetchAvailableUsers - начинаем загрузку пользователей')
+
     // Попробуем несколько вариантов загрузки пользователей
     let users = []
 
@@ -1689,13 +1687,16 @@ async function fetchAvailableUsers() {
     try {
       const { apiRequest } = await import('../../../services/api')
       const data = await apiRequest('/users')
-      users = data.data || data || []
-    } catch (e) {}
+      users = (data as any).data || data || []
+    } catch (e) {
+      console.error('❌ Ошибка загрузки через apiRequest:', e)
+    }
 
     // Вариант 2: Если первый не сработал, попробуем через getAllUsersByStageRoles
     if (users.length === 0) {
       try {
         const data = await getAllUsersByStageRoles()
+        console.log('🔍 getAllUsersByStageRoles ответ:', data)
         let allUsers: User[] = []
 
         if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -1720,16 +1721,19 @@ async function fetchAvailableUsers() {
         users = allUsers.filter(
           (user, index, self) => index === self.findIndex((u) => u.id === user.id),
         )
-      } catch (e) {}
+
+        console.log(
+          '🔍 Уникальные пользователи:',
+          users.map((u) => ({ id: u.id, name: u.name, roles: u.roles })),
+        )
+      } catch (e) {
+        console.error('❌ Ошибка загрузки через getAllUsersByStageRoles:', e)
+      }
     }
 
-    // Вариант 3: Если ничего не сработало, создаем тестовых пользователей
+    // Если ничего не сработало, оставляем пустой массив
     if (users.length === 0) {
-      users = [
-        { id: 1, name: 'Тестовый пользователь 1', role: 'designer' },
-        { id: 2, name: 'Тестовый пользователь 2', role: 'print_operator' },
-        { id: 3, name: 'Тестовый пользователь 3', role: 'workshop_worker' },
-      ]
+      console.warn('⚠️ Не удалось загрузить пользователей')
     }
 
     availableUsers.value = users
@@ -1751,9 +1755,10 @@ async function fetchAvailableUsers() {
     })
     console.log(
       '🔍 Найдены гравировщики:',
-      engravingUsers.map((u) => ({ name: u.name, roles: u.roles || u.role })),
+      engravingUsers.map((u: any) => ({ name: u.name, roles: u.roles || u.role })),
     )
   } catch (e) {
+    console.error('❌ Ошибка загрузки пользователей:', e)
     availableUsers.value = []
   }
 }
@@ -1793,7 +1798,7 @@ async function assignUser(userId: number) {
     const stageRoles = stageData.roles?.map((role: Role) => role.name) || []
 
     // Находим подходящую роль, но НЕ БЛОКИРУЕМ если её нет
-    const matchingRole = userRoles.find((role) => stageRoles.includes(role))
+    const matchingRole = userRoles.find((role) => stageRoles.includes(role || ''))
 
     // Используем первую доступную роль пользователя или дефолтную
     const roleToAssign = matchingRole || userRoles[0] || user.role || 'unknown'
@@ -2080,7 +2085,7 @@ const currentStageUsersWithRoles = computed(() => {
       user.role,
     ]
     const matchingRole =
-      userRoles.find((role) => stageRoles.includes(role)) ||
+      userRoles.find((role) => stageRoles.includes(role || '')) ||
       userRoles[0] ||
       user.role ||
       'Неизвестная роль'
@@ -2260,8 +2265,6 @@ function findFirstStageWithAssignments(): string | null {
       const stageRoles = stageData?.roles?.map((role: Role) => role.name) || []
       const hasMatchingRole = stageRoles.includes(assignment.role_type)
 
-      // ИСПРАВЛЕНИЕ: Показываем назначения с подходящей ролью на всех стадиях
-      // где эта роль нужна, независимо от assigned_stages
       return hasMatchingRole
     })
 

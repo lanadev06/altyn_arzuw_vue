@@ -249,8 +249,8 @@
                         class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base shadow"
                       >
                         <img
-                          v-if="userImageUrls[comment.user?.name]"
-                          :src="userImageUrls[comment.user?.name]"
+                          v-if="comment.user?.name && userImageUrls[comment.user.name]"
+                          :src="comment.user?.name ? userImageUrls[comment.user.name] : ''"
                           :alt="comment.user?.name"
                           class="w-8 h-8 rounded-full object-cover"
                         />
@@ -288,15 +288,19 @@
                           <span v-if="comment.user?.roles && comment.user.roles.length">
                             <span
                               v-for="role in comment.user.roles"
-                              :key="typeof role === 'string' ? role : role.name"
+                              :key="typeof role === 'string' ? role : (role as any)?.name || ''"
                               class="text-[10px] rounded px-2 py-0.5 font-semibold mr-1"
                               :class="
-                                getRoleBadgeClass(typeof role === 'string' ? role : role.name)
+                                getRoleBadgeClass(
+                                  typeof role === 'string' ? role : (role as any)?.name || '',
+                                )
                               "
                             >
                               {{
                                 getRoleLabel(
-                                  typeof role === 'string' ? role : role.display_name || role.name,
+                                  typeof role === 'string'
+                                    ? role
+                                    : (role as any)?.display_name || (role as any)?.name || '',
                                 )
                               }}
                             </span>

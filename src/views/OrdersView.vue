@@ -67,37 +67,54 @@ import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
-import { canCreateEdit, canViewAllUsers } from '../utils/permissions'
+import { canCreateEdit, canViewAllUsers, canViewAllOrders } from '../utils/permissions'
 import { getAllStages } from '../services/api'
 
 const route = useRoute()
-const search = ref(route.query.search || '')
+const search = ref(
+  Array.isArray(route.query.search) ? route.query.search[0] || '' : route.query.search || '',
+)
 const isTableView = ref(true)
 const detailsOrderId = ref(null)
 const detailsErrorMsg = ref('')
 const showCreateModal = ref(false)
 const selectedAssignmentStatus = ref('')
+const currentPage = ref(1)
+const selectedStage = ref<string | null>(null)
+const isArchived = ref<boolean>(false)
 
-const { orders, fetchOrders } = OrderController()
+const { orders, fetchOrders, fetchAllOrdersForKanban } = OrderController()
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
-  if (!search.value) {
-    return orders.value || []
-  }
+  console.log('🔍 filteredKanbanOrders computed called')
+  console.log('📦 Raw orders.value:', orders.value?.length || 0)
+  console.log('🔍 Search value:', search.value)
 
-  const q = String(search.value).toLowerCase()
-  const filtered = (orders.value || []).filter((order) => {
-    return (
-      String(order.id).includes(q) ||
-      (order.product?.name && String(order.product.name).toLowerCase().includes(q)) ||
-      (order.client?.name && String(order.client.name).toLowerCase().includes(q)) ||
-      (typeof (order.stage?.name || order.stage) === 'string' &&
-        (order.stage?.name || order.stage).toLowerCase().includes(q))
-    )
+  const result = !search.value
+    ? orders.value || []
+    : (orders.value || []).filter((order) => {
+        const q = String(search.value).toLowerCase()
+        return (
+          String(order.id).includes(q) ||
+          (order.product?.name && String(order.product.name).toLowerCase().includes(q)) ||
+          (order.client?.name && String(order.client.name).toLowerCase().includes(q)) ||
+          (typeof (order.stage as any)?.name === 'string' &&
+            String((order.stage as any).name)
+              .toLowerCase()
+              .includes(q))
+        )
+      })
+
+  console.log('🎯 Filtered Kanban orders:', {
+    totalOrders: orders.value?.length || 0,
+    filteredOrders: result.length,
+    searchQuery: search.value,
+    hasSearch: !!search.value,
+    ordersStages: result.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })),
   })
 
-  return filtered
+  return result
 })
 
 const kanbanStatuses = ref([])
@@ -106,13 +123,60 @@ const orderListRef = ref()
 
 const loadOrders = async () => {
   try {
+    console.log('🔄 Loading orders... isTableView:', isTableView.value)
+
     if (!isTableView.value) {
       // Для Kanban используем fetchAllOrdersForKanban
-      const { fetchAllOrdersForKanban } = OrderController()
-      await fetchAllOrdersForKanban(selectedAssignmentStatus.value || undefined)
+      console.log('📋 Loading orders for Kanban view...')
+      await fetchAllOrdersForKanban(
+        1, // всегда первая страница для получения всех данных
+        'id',
+        'desc',
+        undefined, // НЕ передаем фильтр по стадии для получения ВСЕХ заказов
+        false, // только активные заказы
+      )
+      console.log('✅ Kanban orders loaded:', orders.value?.length || 0)
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
-      await fetchOrders(1, 'id', 'asc', undefined, undefined, String(search.value))
+      console.log('📊 Loading orders for Table view...')
+      await fetchOrders(
+        currentPage.value,
+        search.value,
+        'id',
+        'desc',
+        selectedStage.value || undefined,
+        isArchived.value,
+        30,
+        undefined,
+      )
+      console.log('✅ Table orders loaded:', orders.value?.length || 0)
+    }
+
+    console.log('📦 Total orders in state:', orders.value?.length || 0)
+    console.log(
+      '🔍 Orders by stage:',
+      orders.value?.reduce(
+        (acc, order) => {
+          const stage = order.stage?.name || order.stage || 'unknown'
+          acc[stage] = (acc[stage] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      ),
+    )
+
+    // Проверяем структуру первых нескольких заказов
+    if (orders.value && orders.value.length > 0) {
+      console.log('🔍 Sample order structure:', {
+        firstOrder: {
+          id: orders.value[0].id,
+          stage: orders.value[0].stage,
+          stageName: orders.value[0].stage?.name,
+          product: orders.value[0].product?.name,
+          client: orders.value[0].client?.name,
+        },
+        totalOrders: orders.value.length,
+      })
     }
   } catch (error) {
     console.error('❌ Ошибка загрузки заказов:', error)
@@ -123,7 +187,7 @@ const loadOrders = async () => {
 watch(
   () => route.query.search,
   (val) => {
-    search.value = val || ''
+    search.value = Array.isArray(val) ? val[0] || '' : val || ''
     loadOrders()
   },
 )
@@ -150,34 +214,30 @@ async function loadStages() {
       return
     }
 
-    // Фильтруем стадии в зависимости от роли пользователя
-    const isAdminOrManager = canViewAllUsers()
-    console.log('🔍 User role check - isAdminOrManager:', isAdminOrManager)
+    // Показываем все стадии для всех пользователей (временно для отладки)
+    console.log('🎯 Setting all stages for Kanban:', allStages.length)
+    kanbanStatuses.value = allStages.map((stage: any) => ({
+      key: stage.name,
+      label: stage.display_name || stage.name,
+    }))
 
-    if (isAdminOrManager) {
-      // Для администраторов и менеджеров показываем все стадии
-      kanbanStatuses.value = allStages.map((stage) => ({
-        key: stage.name,
-        label: stage.display_name || stage.name,
-      }))
-      // Для всех остальных пользователей (с динамическими ролями) исключаем стадии "Отменено" и "Завершено"
-      const filteredStages = allStages.filter((stage) => {
-        const stageName = stage.name.toLowerCase()
-        const isExcluded = stageName === 'cancelled' || stageName === 'completed'
-        return !isExcluded
-      })
-
-      kanbanStatuses.value = filteredStages.map((stage) => ({
-        key: stage.name,
-        label: stage.display_name || stage.name,
-      }))
-    }
+    console.log('📋 Final kanban statuses:', kanbanStatuses.value)
   } catch (error) {
     console.error('❌ Error loading stages:', error)
   }
 }
 
 onMounted(async () => {
+  // Проверяем роли пользователя
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  console.log('👤 Current user info:', {
+    id: user.id,
+    name: user.name,
+    roles: user.roles?.map((r: any) => r.name) || [],
+    isAdminOrManager: canViewAllUsers(),
+    canViewAllOrders: canViewAllOrders(),
+  })
+
   await loadStages()
   loadOrders()
 })

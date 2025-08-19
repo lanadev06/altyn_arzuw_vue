@@ -20,7 +20,15 @@ function show(msg: string, toastType: 'success' | 'error' = 'success', duration 
   }, 10)
 }
 
-export const toast = { message, visible, type, show }
+function success(msg: string, duration = 3000) {
+  show(msg, 'success', duration)
+}
+
+function error(msg: string, duration = 3000) {
+  show(msg, 'error', duration)
+}
+
+export const toast = { message, visible, type, show, success, error }
 
 // Add useToast composable for compatibility
 export function useToast() {

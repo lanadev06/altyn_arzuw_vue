@@ -63,12 +63,21 @@
 import { ref, onMounted } from 'vue'
 import { safeApiRequest, safeProcessActivityData } from '@/utils/safeData'
 
-const activities = ref([])
+interface Activity {
+  id: number
+  title: string
+  time: string
+  icon: string
+  iconBg: string
+  iconColor: string
+}
+
+const activities = ref<Activity[]>([])
 
 onMounted(async () => {
   try {
-    const data = await safeApiRequest('/api/recent-activity')
-    if (data) {
+    const data = (await safeApiRequest<any[]>('/recent-activity')) || []
+    if (Array.isArray(data)) {
       activities.value = safeProcessActivityData(data).map((a: any) => ({
         ...a,
         iconBg:
@@ -89,10 +98,10 @@ onMounted(async () => {
                 : 'text-gray-400',
       }))
     } else {
-      activities.value = []
+      activities.value = [] as Activity[]
     }
   } catch (e) {
-    activities.value = []
+    activities.value = [] as Activity[]
   }
 })
 </script>

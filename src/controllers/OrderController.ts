@@ -1,274 +1,272 @@
 import { ref, reactive } from 'vue'
-import { API_CONFIG } from '../config/api'
-import { handle401Error } from '../utils/auth'
-import type {
-  Order,
-  OrderForm,
-  OrderUpdateForm,
-  StageUpdateForm,
-  OrderAssignmentCreate,
-} from '../types/order'
-
-// Создаем синглтон экземпляр
-const orders = ref<Order[]>([])
-const pagination = reactive({
-  data: [] as Order[],
-  current_page: 1,
-  last_page: 1,
-  total: 0,
-  per_page: 30,
-})
-const loading = ref(false)
-const error = ref('')
-const sortBy = ref('id')
-const sortOrder = ref<'asc' | 'desc'>('desc')
-
-// Вспомогательная функция для обработки ответов с проверкой 401
-const handleResponse = async (response: Response) => {
-  if (response.status === 401) {
-    handle401Error('Сессия истекла. Необходимо войти в систему заново.')
-    throw new Error('Сессия истекла. Необходимо войти в систему заново.')
-  }
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
-  }
-
-  return response.json()
-}
-
-const fetchOrders = async (
-  page = 1,
-  sort_by = sortBy.value,
-  sort_order = sortOrder.value,
-  stage?: string,
-  is_archived?: boolean,
-  search?: string,
-  assignment_status?: string,
-  per_page = pagination.per_page,
-) => {
-  loading.value = true
-  error.value = ''
-  try {
-    const params = {
-      page,
-      sort_by,
-      sort_order,
-      stage,
-      is_archived,
-      search,
-      assignment_status,
-      per_page,
-    }
-    const res = await getAll(params)
-    pagination.data = res.data || []
-    pagination.current_page = res.current_page || 1
-    pagination.last_page = res.last_page || 1
-    pagination.total = res.total || 0
-    pagination.per_page = res.per_page || 30
-    orders.value = res.data || []
-  } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
-    error.value = errorMessage
-  } finally {
-    loading.value = false
-  }
-}
-
-const fetchAllOrdersForKanban = async (assignment_status?: string) => {
-  loading.value = true
-  error.value = ''
-  try {
-    // Загружаем первую страницу для получения информации о пагинации
-    const firstPageParams: any = {
-      page: 1,
-      sort_by: 'id',
-      sort_order: 'desc',
-      per_page: 1000,
-    }
-    if (assignment_status) firstPageParams.assignment_status = assignment_status
-
-    const firstPageRes = await getAll(firstPageParams)
-    // (логирование или обработка, если нужно)
-
-    // Если есть больше страниц, загружаем их все
-    if (firstPageRes.last_page > 1) {
-      let allOrders = [...(firstPageRes.data || [])]
-
-      for (let page = 2; page <= firstPageRes.last_page; page++) {
-        const pageParams = { ...firstPageParams, page }
-        const pageRes = await getAll(pageParams)
-        allOrders = [...allOrders, ...(pageRes.data || [])]
-      }
-
-      orders.value = allOrders
-    } else {
-      orders.value = firstPageRes.data || []
-    }
-  } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
-    error.value = errorMessage
-  } finally {
-    loading.value = false
-  }
-}
-
-const createOrder = async (data: OrderForm) => {
-  loading.value = true
-  try {
-    const result = await create(data)
-    await fetchOrders(pagination.current_page)
-    return result // Возвращаем результат создания заказа (например, { id: ... })
-  } finally {
-    loading.value = false
-  }
-}
-
-const updateOrder = async (id: number, data: OrderUpdateForm) => {
-  loading.value = true
-  try {
-    await update(id, data)
-    await fetchOrders(pagination.current_page)
-  } finally {
-    loading.value = false
-  }
-}
-
-const removeOrder = async (id: number) => {
-  loading.value = true
-  try {
-    await remove(id)
-    if (pagination.data.length === 1 && pagination.current_page > 1) {
-      await fetchOrders(pagination.current_page - 1)
-    } else {
-      await fetchOrders(pagination.current_page)
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-const getAll = async (params?: {
-  project_id?: number
-  stage?: string
-  page?: number
-  sort_by?: string
-  sort_order?: string
-  is_archived?: boolean
-  per_page?: number
-  search?: string
-  assignment_status?: string
-}) => {
-
-  const queryParams = new URLSearchParams()
-  if (params?.project_id) queryParams.append('project_id', params.project_id.toString())
-  if (params?.stage) queryParams.append('stage', params.stage)
-  if (params?.page) queryParams.append('page', params.page.toString())
-  if (params?.sort_by) queryParams.append('sort_by', params.sort_by)
-  if (params?.sort_order) queryParams.append('sort_order', params.sort_order)
-  if (params?.is_archived !== undefined)
-    queryParams.append('is_archived', params.is_archived.toString())
-  if (params?.per_page) queryParams.append('per_page', params.per_page.toString())
-  if (params?.search) queryParams.append('search', params.search)
-  if (params?.assignment_status) queryParams.append('assignment_status', params.assignment_status)
-
-  const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
-  const endpoint = `/orders${query}`
-
-
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  const result = await apiRequest(endpoint)
-
-
-  return result
-}
-
-const getById = async (id: number) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest(`/orders/${id}`)
-}
-
-const create = async (data: OrderForm) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest('/orders', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
-const update = async (id: number, data: OrderUpdateForm) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest(`/orders/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  })
-}
-
-const updateStage = async (id: number, data: StageUpdateForm) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest(`/orders/${id}/stage`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  })
-}
-
-const moveToNextStage = async (id: number) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest(`/orders/${id}/next-stage`, {
-    method: 'POST',
-  })
-}
-
-const remove = async (id: number) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest(`/orders/${id}`, {
-    method: 'DELETE',
-  })
-}
-
-const createProjectWithOrders = async (data: {
-  title: string
-  client_id: number
-  orders: unknown[]
-}) => {
-  // Import apiRequest dynamically to avoid circular dependencies
-  const { apiRequest } = await import('../services/api')
-  return await apiRequest('/projects', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
-// --- SINGLETON STATE ---
-const controller = {
-  orders,
-  pagination,
-  loading,
-  error,
-  sortBy,
-  sortOrder,
-  fetchOrders,
-  fetchAllOrdersForKanban,
+import {
+  getOrders,
   createOrder,
   updateOrder,
-  removeOrder,
-  getAll,
-  getById,
-  create,
-  update,
-  updateStage,
-  moveToNextStage,
-  remove,
-  createProjectWithOrders,
+  deleteOrder,
+  updateOrderStage,
+  getAllOrders,
+  getAllOrdersForAdmin,
+} from '@/services/api'
+import type { Order } from '@/types/api'
+
+export function useOrderController() {
+  const orders = ref<Order[]>([])
+  const pagination = reactive({
+    data: [] as Order[],
+    current_page: 1,
+    last_page: 1,
+    total: 0,
+    per_page: 30,
+    from: 0,
+    to: 0,
+  })
+  const loading = ref(false)
+  const error = ref('')
+
+  async function fetchOrders(
+    page = 1,
+    search = '',
+    sortBy = 'id',
+    sortOrder = 'desc',
+    stage?: string,
+    isArchived = false,
+    per_page = 30,
+    assignment_status?: string,
+  ) {
+    loading.value = true
+    error.value = ''
+
+    console.log('🔄 fetchOrders called with:', {
+      page,
+      search,
+      sortBy,
+      sortOrder,
+      stage,
+      isArchived,
+      per_page,
+      assignment_status,
+    })
+
+    // Проверяем права пользователя
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    console.log('👤 User permissions check:', {
+      userId: user.id,
+      userName: user.name,
+      userRoles: user.roles?.map((r: any) => r.name) || [],
+      isAdminOrManager:
+        user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false,
+    })
+
+    try {
+      const res = await getOrders({
+        page: String(page),
+        search,
+        per_page: String(per_page),
+        stage,
+        is_archived: isArchived,
+        assignment_status,
+      })
+
+      console.log('📦 API response:', {
+        total: res.total,
+        current_page: res.current_page,
+        last_page: res.last_page,
+        per_page: res.per_page,
+        dataLength: res.data?.length || 0,
+        // Проверяем, есть ли фильтрация по назначениям
+        hasAssignments: res.data?.some((order: any) => order.assignments?.length > 0) || false,
+        // Проверяем разнообразие заказов
+        uniqueStages: [
+          ...new Set(res.data?.map((order: any) => order.stage?.name || order.stage) || []),
+        ],
+        uniqueClients: [...new Set(res.data?.map((order: any) => order.client?.name) || [])],
+      })
+
+      pagination.data = res.data
+      pagination.current_page = res.current_page
+      pagination.last_page = res.last_page
+      pagination.total = res.total
+      pagination.per_page = res.per_page
+      pagination.from = res.from
+      pagination.to = res.to
+
+      console.log('🔄 Setting orders.value in fetchOrders to:', res.data?.length || 0)
+      orders.value = res.data
+      console.log('✅ orders.value after fetchOrders update:', orders.value?.length || 0)
+    } catch (e: unknown) {
+      console.error('❌ Error in fetchOrders:', e)
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Compatibility methods for existing components
+  async function fetchAllOrdersForKanban(
+    page = 1,
+    sortBy = 'id',
+    sortOrder = 'desc',
+    stage?: string,
+    isArchived = false,
+  ) {
+    console.log('🔄 fetchAllOrdersForKanban called with:', {
+      page,
+      sortBy,
+      sortOrder,
+      stage,
+      isArchived,
+    })
+
+    // Проверяем права пользователя
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const isAdminOrManager =
+      user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false
+
+    console.log('📋 Kanban orders loading strategy:', {
+      isAdminOrManager,
+      userRoles: user.roles?.map((r: any) => r.name) || [],
+      strategy: isAdminOrManager ? 'getAllOrdersForAdmin' : 'fetchOrders',
+    })
+
+    if (isAdminOrManager) {
+      // Для админов/менеджеров используем специальную функцию
+      console.log('🔑 Using getAllOrdersForAdmin for admin/manager...')
+      try {
+        const response = await getAllOrdersForAdmin({
+          search: '',
+          sort_by: sortBy,
+          sort_order: sortOrder,
+          stage: undefined, // без фильтра по стадии
+          is_archived: false, // только активные заказы
+        })
+
+        // Обновляем состояние
+        pagination.data = response.data
+        pagination.current_page = response.current_page
+        pagination.last_page = response.last_page
+        pagination.total = response.total
+        pagination.per_page = response.per_page
+        pagination.from = response.from
+        pagination.to = response.to
+
+        console.log('🔄 Setting orders.value to:', response.data?.length || 0)
+        orders.value = response.data
+        console.log('✅ orders.value after update:', orders.value?.length || 0)
+
+        console.log('✅ Admin orders loaded:', {
+          totalOrders: orders.value?.length || 0,
+          paginationTotal: pagination.total,
+          uniqueStages: [
+            ...new Set(response.data?.map((order: any) => order.stage?.name || order.stage) || []),
+          ],
+        })
+
+        return response
+      } catch (error) {
+        console.error('❌ Error loading admin orders:', error)
+        throw error
+      }
+    } else {
+      // Для обычных пользователей используем стандартный подход
+      console.log('📋 Using fetchOrders for regular user...')
+      return await fetchOrders(
+        1, // первая страница
+        '', // без поиска
+        sortBy,
+        sortOrder,
+        undefined, // без фильтра по стадии
+        false, // только активные заказы
+        10000, // очень большое количество на страницу
+      )
+    }
+  }
+
+  async function updateStage(orderId: number, stage: string, additionalData?: any) {
+    try {
+      console.log('🔄 Updating order stage:', { orderId, stage, additionalData })
+
+      // Если есть дополнительные данные (например, для отмененных заказов)
+      if (additionalData && Object.keys(additionalData).length > 0) {
+        // Используем общую функцию updateOrder для отправки дополнительных полей
+        await updateOrder(orderId, { stage, ...additionalData })
+      } else {
+        // Используем специальную функцию только для смены стадии
+        await updateOrderStage(orderId, stage)
+      }
+
+      // Обновляем список заказов после изменения стадии
+      await fetchAllOrdersForKanban()
+      return true
+    } catch (error) {
+      console.error('Error updating order stage:', error)
+      throw error
+    }
+  }
+
+  async function getAll() {
+    return await fetchOrders(1, '', 'id', 'desc', undefined, false, 1000)
+  }
+
+  async function removeOrder(id: number) {
+    return await remove(id)
+  }
+
+  async function createProjectWithOrders(projectData: unknown) {
+    // This would need to be implemented in API service
+    console.log('createProjectWithOrders called:', projectData)
+    await fetchOrders(pagination.current_page)
+  }
+
+  async function create(order: unknown) {
+    loading.value = true
+    try {
+      const created = await createOrder(order as any)
+      await fetchOrders(pagination.current_page)
+      return created
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function update(id: number, order: unknown) {
+    loading.value = true
+    try {
+      const updated = await updateOrder(id, order as any)
+      await fetchOrders(pagination.current_page)
+      return updated
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function remove(id: number) {
+    loading.value = true
+    try {
+      await deleteOrder(id)
+      await fetchOrders(pagination.current_page)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    orders,
+    pagination,
+    loading,
+    error,
+    fetchOrders,
+    fetchAllOrdersForKanban,
+    updateStage,
+    getAll,
+    removeOrder,
+    createProjectWithOrders,
+    create,
+    update,
+    remove,
+  }
 }
 
 export function OrderController() {
-  return controller
+  return useOrderController()
 }

@@ -1,10 +1,13 @@
 // Конфигурация API для Laravel
 export const API_CONFIG = {
   // Базовый URL для Laravel API
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  BASE_URL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    'http://localhost:8000/api',
 
   // Таймаут для запросов (в миллисекундах)
-  TIMEOUT: 10000,
+  TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000'),
 
   // Заголовки по умолчанию для Laravel
   DEFAULT_HEADERS: {
@@ -16,7 +19,7 @@ export const API_CONFIG = {
   // Настройки для разработки
   DEV: {
     // Использовать имитацию API если реальный недоступен
-    USE_MOCK_FALLBACK: true,
+    USE_MOCK_FALLBACK: import.meta.env.VITE_APP_ENV !== 'production',
 
     // Задержка для имитации (в миллисекундах)
     MOCK_DELAY: 1000,

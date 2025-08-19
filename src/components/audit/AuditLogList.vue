@@ -222,7 +222,7 @@ const logs = ref<AuditLog[]>([])
 const loading = ref(false)
 const selectedLog = ref<AuditLog | null>(null)
 const users = ref([])
-  
+
 const AUDIT_PER_PAGE_KEY = 'auditLogList_perPage'
 
 const savedPerPage = localStorage.getItem(AUDIT_PER_PAGE_KEY)
@@ -280,7 +280,7 @@ const clearFilters = () => {
     page: 1,
     per_page: 30,
   }
-  localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
+  localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
   loadLogs()
 }
 
@@ -320,13 +320,13 @@ const USER_ROLE_LABELS: Record<string, string> = {
 }
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-function validatePerPage(val) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
 function changePerPage() {
   filters.value.per_page = validatePerPage(filters.value.per_page)
-  localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
+  localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
   filters.value.page = 1
   loadLogs()
 }
@@ -334,7 +334,7 @@ watch(
   () => filters.value.per_page,
   (newVal) => {
     filters.value.per_page = validatePerPage(newVal)
-    localStorage.setItem(AUDIT_PER_PAGE_KEY, filters.value.per_page.toString())
+    localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
     filters.value.page = 1
     loadLogs()
   },

@@ -177,7 +177,7 @@ import {
 
 const isOpen = ref(true)
 
-function hasRole(user, roleName) {
-  return user.roles && user.roles.some((r) => r.name === roleName)
+function hasRole(user: any, roleName: string) {
+  return user.roles && user.roles.some((r: any) => r.name === roleName)
 }
 </script>

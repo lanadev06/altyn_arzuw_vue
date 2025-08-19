@@ -107,7 +107,7 @@
                     <span class="text-gray-600">{{ formatDate(project.created_at) }}</span>
                   </template>
                   <template v-else>
-                    {{ project[col.key] }}
+                    {{ (project as Record<string, any>)[col.key] }}
                   </template>
                 </td>
               </template>
@@ -223,7 +223,7 @@ const savedPerPage = localStorage.getItem('projectList_perPage')
 const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
-if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
+if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder as 'asc' | 'desc'
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -465,7 +465,7 @@ watch(
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }

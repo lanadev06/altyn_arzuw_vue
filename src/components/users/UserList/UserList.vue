@@ -115,9 +115,9 @@
                     <template v-else>
                       <span
                         class="px-2 py-1 rounded-full text-xs font-medium"
-                        :class="getRoleBadgeClass(user.role)"
+                        :class="getRoleBadgeClass(user.roles?.[0]?.name || '')"
                       >
-                        {{ user.role }}
+                        {{ user.roles?.[0]?.name || 'Нет роли' }}
                       </span>
                     </template>
                   </template>
@@ -267,7 +267,8 @@ const columns = ref(
 )
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
-if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
+if (savedSortOrder && sortOrder.value !== savedSortOrder)
+  sortOrder.value = savedSortOrder as 'asc' | 'desc'
 
 function setSort(key: string) {
   if (sortBy.value === key) {
@@ -483,7 +484,7 @@ function goToPage(page: number) {
   )
 }
 
-function validatePerPage(val) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }

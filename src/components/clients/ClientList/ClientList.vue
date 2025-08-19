@@ -255,8 +255,22 @@ async function handleUpdateClient(updatedClient: Client) {
 }
 
 async function handleDeleteClient(clientId: number) {
+  // Предотвращаем множественные запросы на удаление
+  if (loading.value) {
+    console.log('⚠️ Deletion already in progress, skipping...')
+    return
+  }
+
   try {
+    console.log('🗑️ Starting client deletion for ID:', clientId)
+
+    // Сохраняем текущее состояние списка
+    const currentClients = [...(pagination?.data || [])]
+
     await remove(clientId)
+    console.log('✅ Client deletion completed successfully')
+
+    // Обновляем UI только после успешного удаления
     showEditModal.value = false
     editingClient.value = null
     if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
@@ -265,12 +279,37 @@ async function handleDeleteClient(clientId: number) {
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
   } catch (err: any) {
     console.error('❌ Ошибка удаления клиента:', clientId, err)
+    console.error('❌ Error details:', {
+      message: err.message,
+      status: err.status,
+      response: err.response,
+    })
+
+    // Если ошибка 404 (клиент не найден), не показываем ошибку пользователю
+    // так как клиент уже мог быть удален
+    if (err.status === 404) {
+      console.log('ℹ️ Client not found (404) - may have been already deleted')
+
+      // Проверяем, есть ли специальный код ошибки или сообщение об ошибке
+      if (
+        err?.response?.data?.error_code === 'CLIENT_NOT_FOUND' ||
+        err?.message?.includes('No query results for model') ||
+        err?.data?.error_code === 'CLIENT_NOT_FOUND'
+      ) {
+        console.log('ℹ️ Client was already deleted or not found, refreshing list...')
+        // Обновляем список, чтобы убрать несуществующего клиента
+        await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+        return
+      }
+    }
+
     let message = 'Произошла неизвестная ошибка при удалении клиента'
     if (err?.response?.data?.message) {
       message = err.response.data.message
     } else if (err instanceof Error && err.message) {
       message = `Ошибка удаления клиента: ${err.message}`
     }
+
     toast.show(message, 'error')
   }
 }
@@ -308,7 +347,7 @@ onMounted(async () => {
         const newIndex = evt.newIndex
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)  
+        columns.value.splice(newIndex, 0, moved)
         localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
       },
     })

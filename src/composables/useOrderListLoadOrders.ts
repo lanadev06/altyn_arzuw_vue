@@ -1,19 +1,31 @@
-import { OrderController } from '@/controllers/OrderController'
+import { ref } from 'vue'
+import { useOrderController } from '@/controllers/OrderController'
 
 export function useOrderListLoadOrders() {
-  const { fetchOrders } = OrderController()
-  return {
-    loadOrders: (
-      page = 1,
-      sortBy = 'id',
-      sortOrder = 'asc',
-      selectedStage = '',
-      selectedArchive = '',
-    ) => {
-      const isArchived =
-        selectedArchive === 'archived' ? true : selectedArchive === 'active' ? false : undefined
+  const { fetchOrders } = useOrderController()
+  const selectedStage = ref<string | null>(null)
+  const isArchived = ref<boolean>(false)
+  const search = ref('')
+  const currentPage = ref(1)
 
-      fetchOrders(page, sortBy, sortOrder, selectedStage || undefined, isArchived)
-    },
+  const loadOrders = async () => {
+    await fetchOrders(
+      currentPage.value,
+      search.value,
+      'id',
+      'desc',
+      selectedStage.value || undefined,
+      isArchived.value,
+      30,
+      undefined,
+    )
+  }
+
+  return {
+    selectedStage,
+    isArchived,
+    search,
+    currentPage,
+    loadOrders,
   }
 }

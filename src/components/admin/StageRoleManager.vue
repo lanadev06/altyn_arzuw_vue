@@ -10,7 +10,10 @@
       <div v-for="stage in stages" :key="stage.id" class="border rounded-lg p-4">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="w-4 h-4 rounded-full" :style="{ backgroundColor: stage.color }"></div>
+            <div
+              class="w-4 h-4 rounded-full"
+              :style="{ backgroundColor: stage.color || '#6b7280' }"
+            ></div>
             <h3 class="text-lg font-medium text-gray-900">
               {{ stage.display_name }}
             </h3>
@@ -33,13 +36,13 @@
               <span class="text-sm text-gray-500">({{ role.name }})</span>
               <div class="flex space-x-2">
                 <span
-                  v-if="role.pivot.is_required"
+                  v-if="(role as any).pivot?.is_required"
                   class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded"
                 >
                   Обязательная
                 </span>
                 <span
-                  v-if="role.pivot.auto_assign"
+                  v-if="(role as any).pivot?.auto_assign"
                   class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded"
                 >
                   Автоназначение
@@ -75,7 +78,7 @@
             v-model="selectedRole"
             :options="availableRoles"
             label="display_name"
-            :reduce="(role) => role.id"
+            :reduce="(role: any) => role.id"
             placeholder="Выберите роль"
           />
         </div>

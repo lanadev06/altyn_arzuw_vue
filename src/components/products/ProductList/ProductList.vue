@@ -87,14 +87,15 @@
                 <!-- Колонки для назначений -->
                 <template v-else-if="col.type === 'stage_assignments'">
                   <AssignmentDisplay
-                    :assignments="getStageAssignments(product, col.stageId, col.roleType)"
+                    :assignments="getStageAssignments(product, col.stageId, col.roleType as string)"
                     :role-type="col.roleType"
                     empty-message="Не назначены"
                   />
                   <!-- Отладочная информация -->
                   <div v-if="false" class="text-xs text-gray-400">
                     Debug:
-                    {{ getStageAssignments(product, col.stageId, col.roleType).length }} assignments
+                    {{ getStageAssignments(product, col.stageId, col.roleType as string).length }}
+                    assignments
                   </div>
                 </template>
                 <template v-else-if="col.key === 'created_at'">
@@ -148,8 +149,8 @@
       v-if="showEditModal"
       :product="editingProduct"
       @close="showEditModal = false"
-      @submit="handleUpdateProduct"
       @delete="handleDeleteProduct"
+      @saved="handleProductSaved"
     />
   </div>
 </template>
@@ -162,7 +163,7 @@ import Pagination from '@/components/users/UserList/Pagination.vue'
 import ProductFormModal from './ProductFormModal.vue'
 import AssignmentDisplay from './AssignmentDisplay.vue'
 import productController from '@/controllers/productControllerInstance'
-import type { Product, ProductForm } from '@/types/product'
+import type { Product, ProductForm, ProductAssignment } from '@/types/product'
 import type { Stage } from '@/types/stage'
 import { canCreateEdit } from '@/utils/permissions'
 import { toast } from '@/stores/toast'
@@ -221,22 +222,12 @@ const dynamicColumns = computed<Column[]>(() => {
     const stageAssignments = new Map()
 
     // Сначала собираем все стадии из всех продуктов
-    if (pagination.value?.data) {
-      pagination.value.data.forEach((product, index) => {
+    if (pagination.data) {
+      pagination.data.forEach((product: any, index: number) => {
         if (product.available_stages) {
-          console.log(
-            `🔍 Product ${product.id} stages:`,
-            product.available_stages.map((s) => ({
-              id: s.id,
-              name: s.display_name,
-              roles_count: s.roles?.length || 0,
-              roles: s.roles?.map((r) => r.name) || [],
-            })),
-          )
-
-          product.available_stages.forEach((stage) => {
+          product.available_stages.forEach((stage: any) => {
             if (stage.roles && stage.roles.length > 0) {
-              stage.roles.forEach((role) => {
+              stage.roles.forEach((role: any) => {
                 // Исключаем роль die_cutting_operator из колонок
                 if (role.name === 'die_cutting_operator') {
                   return
@@ -254,11 +245,11 @@ const dynamicColumns = computed<Column[]>(() => {
                 }
               })
             } else {
-              console.log(`⚠️ Stage ${stage.id} (${stage.display_name}) has no roles`)
+              // Stage has no roles
             }
           })
         } else {
-          console.log(`  ⚠️ Product ${product.id} has no available_stages`)
+          // Product has no available_stages
         }
       })
     }
@@ -267,9 +258,9 @@ const dynamicColumns = computed<Column[]>(() => {
     // Это обеспечит появление колонок для новых стадий, даже если они еще не назначены ни одному продукту
     const globalStages = getAvailableStages()
     if (globalStages.length > 0) {
-      globalStages.forEach((stage) => {
+      globalStages.forEach((stage: any) => {
         if (stage.roles && stage.roles.length > 0) {
-          stage.roles.forEach((role) => {
+          stage.roles.forEach((role: any) => {
             // Исключаем роль die_cutting_operator из колонок
             if (role.name === 'die_cutting_operator') {
               return
@@ -302,16 +293,9 @@ const dynamicColumns = computed<Column[]>(() => {
         color: assignment.color,
       }
       columns.push(column)
-      console.log(`📋 Created column:`, column)
     })
 
-    console.log(
-      `🎯 Final columns: ${columns.length}`,
-      columns.map((c) => c.label),
-    )
-
     // Убираем статичные колонки - используем только динамические
-    console.log(`🎯 Final dynamic columns: ${columns.length}`)
 
     return columns
   } catch (error) {
@@ -339,27 +323,11 @@ if (!savedColumnsData) {
 }
 
 // Функция для получения назначений для конкретной стадии и роли
-function getStageAssignments(product: Product, stageId: number, roleType: string) {
-  console.log(
-    `🔍 getStageAssignments called for product ${product.id}, stage ${stageId}, role ${roleType}`,
-  )
-  console.log(`🔍 Product assignments:`, product.assignments)
-  console.log(`🔍 Product available_stages:`, product.available_stages)
-
+function getStageAssignments(product: Product, stageId: number | undefined, roleType: string) {
   // Сначала пытаемся получить назначения из массива assignments
   if (product.assignments) {
     const filteredAssignments = product.assignments.filter(
       (assignment) => assignment.role_type === roleType && assignment.is_active,
-    )
-
-    console.log(
-      `🔍 Product ${product.id}, role ${roleType}: found ${filteredAssignments.length} assignments from assignments array`,
-      filteredAssignments.map((a) => ({
-        id: a.id,
-        user: a.user?.name,
-        role_type: a.role_type,
-        is_active: a.is_active,
-      })),
     )
 
     if (filteredAssignments.length > 0) {
@@ -378,29 +346,29 @@ function getStageAssignments(product: Product, stageId: number, roleType: string
   const roleData = roleFields[roleType as keyof typeof roleFields]
 
   if (roleData && Array.isArray(roleData)) {
-    console.log(
-      `🔍 Product ${product.id}, role ${roleType}: found ${roleData.length} users from ${roleType} field`,
-      roleData.map((u) => ({ id: u.id, name: u.name })),
-    )
-
     // Преобразуем пользователей в формат ProductAssignment
-    return roleData.map((user) => ({
-      id: 0,
-      role_type: roleType,
-      user: user,
-      user_id: user.id,
-      is_active: true,
-    }))
+    return roleData.map(
+      () =>
+        ({
+          id: 0,
+          role_type: roleType,
+          user: null,
+          user_id: 0,
+          is_active: true,
+          product_id: product.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }) as ProductAssignment,
+    )
   }
 
-  console.log(`🔍 Product ${product.id}, role ${roleType}: no assignments found`)
   return []
 }
 
 // Функция для отображения названий ролей
 function getRoleDisplayName(roleType: string): string {
   // Специальные названия для известных ролей
-  const names = {
+  const names: Record<string, string> = {
     designer: 'Дизайнеры',
     print_operator: 'Печатники',
     engraving_operator: 'Гравировщики',
@@ -446,7 +414,8 @@ watch(
 )
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
-if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
+if (savedSortOrder && sortOrder.value !== savedSortOrder)
+  sortOrder.value = savedSortOrder as 'asc' | 'desc'
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -456,7 +425,7 @@ const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -537,25 +506,9 @@ async function handleCreateProduct(newProduct: Product) {
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
-async function handleUpdateProduct(updatedProduct: Product) {
-  console.log('handleUpdateProduct called with:', updatedProduct)
-
-  // Новая структура для Laravel API
-  const productForm: ProductForm = {
-    name: updatedProduct.name,
-    // Поддержка старых полей для совместимости
-    has_design_stage: updatedProduct.has_design_stage,
-    has_print_stage: updatedProduct.has_print_stage,
-    has_engraving_stage: updatedProduct.has_engraving_stage,
-    has_workshop_stage: updatedProduct.has_workshop_stage,
-  }
-
-  console.log('💾 Sending product to API:', productForm)
-
-  await update(updatedProduct.id, productForm)
+async function handleProductSaved() {
+  console.log('✅ Product saved, refreshing list...')
   showEditModal.value = false
-
-  console.log('✅ Product updated, refreshing list...')
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 

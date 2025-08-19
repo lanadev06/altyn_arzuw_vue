@@ -8,19 +8,19 @@
         <img
           v-if="userImageUrl"
           :src="userImageUrl"
-          :alt="user.name"
+          :alt="safeUser.name"
           class="w-8 h-8 rounded-full object-cover"
         />
         <span v-else class="text-white text-sm font-medium">
-          {{ user.name.charAt(0).toUpperCase() }}
+          {{ safeUser.name ? safeUser.name.charAt(0).toUpperCase() : '?' }}
         </span>
       </div>
       <div class="text-left">
-        <p class="text-white text-sm font-medium">{{ user.name }}</p>
+        <p class="text-white text-sm font-medium">{{ safeUser.name || 'Загрузка...' }}</p>
         <p class="text-blue-100 text-xs">
-          <template v-if="user.roles && user.roles.length">
+          <template v-if="safeUser.roles && safeUser.roles.length">
             <span
-              v-for="role in user.roles"
+              v-for="role in safeUser.roles"
               :key="role.id"
               class="inline-block bg-blue-200 text-blue-800 rounded px-2 py-0.5 mr-1"
             >
@@ -28,7 +28,7 @@
             </span>
           </template>
           <template v-else>
-            {{ user.role }}
+            {{ safeUser.role }}
           </template>
         </p>
       </div>
@@ -53,11 +53,11 @@
       class="absolute right-0 top-full mt-2 w-48 bg-white bg-opacity-95 rounded-lg shadow-lg border border-white border-opacity-20 py-2 z-50"
     >
       <div class="px-4 py-3 border-b border-gray-200 border-opacity-20">
-        <p class="text-gray-900 text-sm font-medium">{{ user.name }}</p>
+        <p class="text-gray-900 text-sm font-medium">{{ safeUser.name || 'Загрузка...' }}</p>
         <p class="text-blue-600 text-xs">
-          <template v-if="user.roles && user.roles.length">
+          <template v-if="safeUser.roles && safeUser.roles.length">
             <span
-              v-for="role in user.roles"
+              v-for="role in safeUser.roles"
               :key="role.id"
               class="inline-block bg-blue-100 text-blue-800 rounded px-2 py-0.5 mr-1"
             >
@@ -65,7 +65,7 @@
             </span>
           </template>
           <template v-else>
-            {{ user.role }}
+            {{ safeUser.role }}
           </template>
         </p>
       </div>
@@ -90,21 +90,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { API_CONFIG } from '@/config/api'
 
 const props = defineProps({
   user: {
     type: Object,
     default: () => ({
-      name: 'Пользователь',
-      role: 'user',
+      name: '',
+      role: '',
       image: null,
+      roles: [],
     }),
   },
 })
 
 const emit = defineEmits(['logout'])
+
+// Ensure we always have a safe user object
+const safeUser = computed(() => ({
+  name: props.user?.name || '',
+  role: props.user?.role || '',
+  image: props.user?.image || null,
+  roles: props.user?.roles || [],
+}))
 
 const isDropdownOpen = ref(false)
 const rootRef = ref<HTMLElement>()
@@ -118,15 +127,15 @@ const getUserImageUrl = (user: any) => {
 }
 
 const loadUserImageUrl = () => {
-  if (props.user) {
-    const url = getUserImageUrl(props.user)
+  if (safeUser.value) {
+    const url = getUserImageUrl(safeUser.value)
     userImageUrl.value = url
   } else {
     userImageUrl.value = ''
   }
 }
 
-watch(() => props.user, loadUserImageUrl, { immediate: true })
+watch(() => safeUser.value, loadUserImageUrl, { immediate: true })
 
 onMounted(() => {
   loadUserImageUrl()

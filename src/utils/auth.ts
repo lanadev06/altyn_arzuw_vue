@@ -1,5 +1,7 @@
 // Authentication utility functions
 
+import type { User } from '../types/api'
+
 /**
  * Check if user is authenticated
  */
@@ -28,7 +30,7 @@ export function clearAuth(): void {
 /**
  * Set authentication data
  */
-export function setAuth(token: string, user: any): void {
+export function setAuth(token: string, user: User): void {
   localStorage.setItem('auth_token', token)
   localStorage.setItem('user', JSON.stringify(user))
 }

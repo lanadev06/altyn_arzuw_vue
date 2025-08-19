@@ -3,35 +3,39 @@
  * Помогают избежать ошибок "Attempt to read property on null"
  */
 
+import type { Client } from '../types/api'
+import { API_CONFIG } from '../config/api'
+
 /**
  * Безопасно получает значение из объекта по пути
  * @param obj - объект для поиска
  * @param path - путь к свойству (например, 'client.name')
  * @param defaultValue - значение по умолчанию
  */
-export function safeGet(obj: any, path: string, defaultValue: any = null): any {
+export function safeGet<T = unknown>(obj: unknown, path: string, defaultValue: T = null as T): T {
   if (!obj || typeof obj !== 'object') {
     return defaultValue
   }
 
   const keys = path.split('.')
-  let result = obj
+  let result: unknown = obj
 
   for (const key of keys) {
     if (result === null || result === undefined || typeof result !== 'object') {
       return defaultValue
     }
-    result = result[key]
+    const record = result as Record<string, unknown>
+    result = record[key]
   }
 
-  return result !== undefined ? result : defaultValue
+  return (result as T) ?? defaultValue
 }
 
 /**
  * Безопасно получает имя клиента
  * @param client - объект клиента
  */
-export function safeGetClientName(client: any): string {
+export function safeGetClientName(client: Client | null | undefined): string {
   if (!client) return '-'
   return client.name || client.company_name || '-'
 }
@@ -40,7 +44,7 @@ export function safeGetClientName(client: any): string {
  * Безопасно получает ID клиента
  * @param client - объект клиента
  */
-export function safeGetClientId(client: any): number | null {
+export function safeGetClientId(client: Client | null | undefined): number | null {
   if (!client || typeof client.id !== 'number') {
     return null
   }
@@ -68,7 +72,10 @@ export function safeProcessArray<T, R>(
  * @param response - ответ от API
  * @param processor - функция обработки данных
  */
-export function safeProcessApiResponse<T, R>(response: any, processor: (data: T) => R): R[] {
+export function safeProcessApiResponse<T, R>(
+  response: T[] | null | undefined,
+  processor: (data: T) => R,
+): R[] {
   if (!response || !Array.isArray(response)) {
     return []
   }
@@ -84,7 +91,16 @@ export function safeProcessApiResponse<T, R>(response: any, processor: (data: T)
 export async function safeApiRequest<T>(url: string, options: RequestInit = {}): Promise<T | null> {
   try {
     const token = localStorage.getItem('auth_token')
-    const response = await fetch(url, {
+    // Добавляем базовый URL если URL относительный
+    let fullUrl = url
+    if (!url.startsWith('http')) {
+      // Убираем /api из URL если он уже есть в BASE_URL
+      const cleanUrl = url.startsWith('/api/') ? url.substring(5) : url
+      // Убираем начальный слеш если он есть
+      const finalUrl = cleanUrl.startsWith('/') ? cleanUrl.substring(1) : cleanUrl
+      fullUrl = `${API_CONFIG.BASE_URL}/${finalUrl}`
+    }
+    const response = await fetch(fullUrl, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
@@ -107,36 +123,36 @@ export async function safeApiRequest<T>(url: string, options: RequestInit = {}):
  * Безопасно получает данные активности с защитой от null объектов
  * @param data - данные активности
  */
-export function safeProcessActivityData(data: any[]): any[] {
+export function safeProcessActivityData(data: unknown[]): unknown[] {
   if (!Array.isArray(data)) {
     return []
   }
 
-  return data.map((activity) => ({
-    id: activity.id || 0,
-    title: activity.title || 'Неизвестное действие',
-    time: activity.time || 'Неизвестное время',
-    icon: activity.icon || 'DocumentIcon',
-    iconBg: activity.iconBg || 'bg-gray-500 bg-opacity-20',
-    // Безопасная обработка client
-    client: activity.client
-      ? {
-          id: activity.client.id || 0,
-          name: activity.client.name || 'Неизвестный клиент',
-          company_name: activity.client.company_name || null,
-        }
-      : null,
-    // Безопасная обработка других полей
-    user: activity.user
-      ? {
-          id: activity.user.id || 0,
-          name: activity.user.name || 'Неизвестный пользователь',
-          username: activity.user.username || '',
-        }
-      : null,
-    // Копируем остальные поля
-    ...activity,
-  }))
+  return data.map((activityRaw) => {
+    const activity = activityRaw as Record<string, any>
+    return {
+      id: activity?.id || 0,
+      title: activity?.title || 'Неизвестное действие',
+      time: activity?.time || 'Неизвестное время',
+      icon: activity?.icon || 'DocumentIcon',
+      iconBg: activity?.iconBg || 'bg-gray-500 bg-opacity-20',
+      client: activity?.client
+        ? {
+            id: activity.client.id || 0,
+            name: activity.client.name || 'Неизвестный клиент',
+            company_name: activity.client.company_name || null,
+          }
+        : null,
+      user: activity?.user
+        ? {
+            id: activity.user.id || 0,
+            name: activity.user.name || 'Неизвестный пользователь',
+            username: activity.user.username || '',
+          }
+        : null,
+      ...activity,
+    }
+  })
 }
 
 /**
@@ -144,11 +160,11 @@ export function safeProcessActivityData(data: any[]): any[] {
  * @param date - дата в любом формате
  * @param format - формат даты (по умолчанию 'ru-RU')
  */
-export function safeFormatDate(date: any, format: string = 'ru-RU'): string {
+export function safeFormatDate(date: unknown, format: string = 'ru-RU'): string {
   if (!date) return '-'
 
   try {
-    const d = new Date(date)
+    const d = new Date(date as any)
     if (isNaN(d.getTime())) return '-'
 
     return d.toLocaleString(format, {
@@ -169,20 +185,21 @@ export function safeFormatDate(date: any, format: string = 'ru-RU'): string {
  * @param key - ключ
  * @param defaultValue - значение по умолчанию
  */
-export function safeGetValue<T>(obj: any, key: string, defaultValue: T): T {
+export function safeGetValue<T>(obj: unknown, key: string, defaultValue: T): T {
   if (!obj || typeof obj !== 'object') {
     return defaultValue
   }
 
-  const value = obj[key]
-  return value !== undefined ? value : defaultValue
+  const record = obj as Record<string, unknown>
+  const value = record[key]
+  return (value as T) ?? defaultValue
 }
 
 /**
  * Проверяет, является ли объект валидным
  * @param obj - объект для проверки
  */
-export function isValidObject(obj: any): boolean {
+export function isValidObject(obj: unknown): boolean {
   return obj !== null && obj !== undefined && typeof obj === 'object'
 }
 

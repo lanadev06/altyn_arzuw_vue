@@ -354,7 +354,7 @@ onMounted(() => {
   if (props.client) {
     form.name = props.client.name || ''
     form.company_name = props.client.company_name || ''
-    form.contacts = props.client.contacts.map((c) => ({ ...c }))    
+    form.contacts = props.client.contacts.map((c) => ({ ...c }))
     errors.contactErrors = new Array(form.contacts.length).fill('')
   } else {
     form.name = ''
@@ -444,7 +444,7 @@ async function handleSubmit() {
     if (clientId) {
       const clientData: Partial<Client> = {
         name: form.name,
-        company_name: form.company_name || null,
+        company_name: form.company_name || undefined,
         contacts: form.contacts.map((contact) => ({
           type: contact.type || 'phone',
           value: contact.value || '',
@@ -456,7 +456,7 @@ async function handleSubmit() {
     } else {
       const clientData: Partial<Client> = {
         name: form.name,
-        company_name: form.company_name || null,
+        company_name: form.company_name || undefined,
         contacts: form.contacts.map((contact) => ({
           type: contact.type || 'phone',
           value: contact.value || '',
@@ -475,16 +475,14 @@ async function handleSubmit() {
             value: contact.value,
           })
           contact.id = createdContact.id
-        } catch (e) { 
-        }
+        } catch (e) {}
       } else if (contact.id) {
         try {
           await updateContact(clientId, contact.id, {
             type: contact.type || 'phone',
             value: contact.value || '',
           })
-        } catch (e) {
-        }
+        } catch (e) {}
       }
     }
     emit('submit', { id: clientId, ...form })
@@ -582,7 +580,6 @@ h3 svg {
 h3:hover svg {
   transform: scale(1.1);
 }
-
 
 .space-y-4 > div {
   transition: all 0.2s ease;

@@ -158,7 +158,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { createStage, updateStage, deleteStage, getAllStages } from '@/services/api'
+import {
+  createStage,
+  updateStage,
+  deleteStage as deleteStageApi,
+  getAllStages,
+} from '@/services/api'
 import Modal from '@/components/ui/Modal.vue'
 import { useToast } from '@/stores/toast'
 
@@ -243,7 +248,7 @@ async function handleSubmit() {
     // Подготавливаем данные для отправки
     const submitData = {
       ...form.value,
-      description: form.value.description.trim() || null, // Исправлено: используем trim() и null
+      description: (form.value.description || '').trim() || null, // Исправлено: используем trim() и null
     }
 
     if (isEditing.value && editingStage.value) {
@@ -268,7 +273,7 @@ async function deleteStage(id: number) {
   }
 
   try {
-    await deleteStage(id)
+    await deleteStageApi(id)
     toast.success('Стадия удалена')
     await loadStages()
   } catch (error) {

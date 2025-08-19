@@ -86,18 +86,30 @@ const availableUsers = computed(() => {
 })
 
 function addAssignment() {
+  // Проверяем, что roleType не пустой и валидный
+  if (!props.roleType || props.roleType.trim() === '') {
+    console.warn('Попытка добавить назначение с пустой ролью')
+    return
+  }
+
   const newAssignment: ProductAssignment = {
-    id: 0, // Временный ID, будет заменен сервером
+    id: Date.now() + Math.random(), // Уникальный временный ID
+    product_id: 0, // Будет установлен при сохранении
     role_type: props.roleType,
     user: null,
     user_id: 0,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }
 
+  // Создаем новый массив для правильной реактивности
   const updatedAssignments = [...props.assignments, newAssignment]
   emit('update', updatedAssignments)
 }
 
 function removeAssignment(index: number) {
+  // Создаем новый массив без указанного элемента для правильной реактивности
   const updatedAssignments = props.assignments.filter((_, i) => i !== index)
   emit('update', updatedAssignments)
 }
@@ -107,6 +119,7 @@ function handleUserSelect(
   assignment: ProductAssignment,
   index: number,
 ): void {
+  // Создаем новый массив для правильной реактивности
   const updatedAssignments = [...props.assignments]
 
   if (val) {

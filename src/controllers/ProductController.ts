@@ -1,8 +1,9 @@
 import { ref, reactive } from 'vue'
 import { getProducts, createProduct, updateProduct, deleteProduct } from '@/services/api'
-import type { Product, ProductForm } from '@/types/product'
+import type { Product } from '@/types/api'
+import type { ProductForm } from '@/types/product'
 
-export function ProductController() {
+export function useProductController() {
   const products = ref<Product[]>([])
   const pagination = reactive({
     data: [] as Product[],
@@ -10,78 +11,88 @@ export function ProductController() {
     last_page: 1,
     total: 0,
     per_page: 30,
+    from: 0,
+    to: 0,
   })
   const loading = ref(false)
   const error = ref('')
   const sortBy = ref('id')
-  const sortOrder = ref<'asc' | 'desc'>('desc')
-  // ВАЖНО: сортировка по name на сервере всегда сначала кириллица, потом латиница, а внутри каждой группы — по алфавиту (см. backend). Это влияет на отображение списка товаров при сортировке по name.
+  const sortOrder = ref('desc')
 
   async function fetchProducts(
     page = 1,
     search = '',
-    sort_by = sortBy.value,
-    sort_order = sortOrder.value,
-    per_page = pagination.per_page,
+    sortByParam = 'id',
+    sortOrderParam = 'desc',
+    per_page = 30,
   ) {
+    sortBy.value = sortByParam
+    sortOrder.value = sortOrderParam
     loading.value = true
     error.value = ''
     try {
-      const res = await getProducts({ page, search, sort_by, sort_order, per_page })
-
-      // Отладочная информация
-      console.log('📦 Raw API response:', res)
-
-      // Исправление: поддержка структуры с meta (Laravel Resource)
-      if (res.meta && Array.isArray(res.data)) {
-        pagination.data = res.data
-        pagination.current_page = res.meta.current_page || 1
-        pagination.last_page = res.meta.last_page || 1
-        pagination.total = res.meta.total || 0
-        pagination.per_page = res.meta?.per_page || res.per_page || 30
-      } else {
-        pagination.data = res.data || []
-        pagination.current_page = res.current_page || 1
-        pagination.last_page = res.last_page || 1
-        pagination.total = res.total || 0
-        pagination.per_page = res.per_page || 30
-      }
-
-      // Отладочная информация о продуктах
-      console.log(
-        '📦 Processed products:',
-        pagination.data.map((p) => ({
-          id: p.id,
-          name: p.name,
-          assignments_count: p.assignments?.length || 0,
-          available_stages_count: p.available_stages?.length || 0,
-        })),
-      )
-
-      products.value = pagination.data
-    } catch (e: any) {
-      error.value = e.message || 'Ошибка загрузки товаров'
+      const res = await getProducts({
+        page: String(page),
+        search,
+        per_page: String(per_page),
+        sort_by: sortBy.value,
+        sort_order: sortOrder.value,
+      })
+      pagination.data = res.data
+      pagination.current_page = res.current_page
+      pagination.last_page = res.last_page
+      pagination.total = res.total
+      pagination.per_page = res.per_page
+      pagination.from = res.from
+      pagination.to = res.to
+      products.value = res.data
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки продуктов'
     } finally {
       loading.value = false
     }
   }
 
-  async function create(newProduct: ProductForm) {
+  // Compatibility method for existing components
+  async function fetchProductsWithSort(
+    page = 1,
+    search = '',
+    sortByParam = 'id',
+    sortOrderParam = 'desc',
+    per_page = 30,
+  ) {
+    sortBy.value = sortByParam
+    sortOrder.value = sortOrderParam
+    return await fetchProducts(page, search, sortByParam, sortOrderParam, per_page)
+  }
+
+  function setSort(key: string, search = '') {
+    if (sortBy.value === key) {
+      sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+    } else {
+      sortBy.value = key
+      sortOrder.value = 'asc'
+    }
+    fetchProducts(1, search, sortBy.value, sortOrder.value)
+  }
+
+  async function create(product: Partial<Product> | ProductForm) {
     loading.value = true
     try {
-      const res = await createProduct(newProduct)
+      const created = await createProduct(product as any) // Type assertion for compatibility
       await fetchProducts(pagination.current_page)
-      return res
+      return created
     } finally {
       loading.value = false
     }
   }
 
-  async function update(id: number, updatedProduct: ProductForm) {
+  async function update(id: number, product: Partial<Product> | ProductForm) {
     loading.value = true
     try {
-      await updateProduct(id, updatedProduct)
+      const updated = await updateProduct(id, product as any) // Type assertion for compatibility
       await fetchProducts(pagination.current_page)
+      return updated
     } finally {
       loading.value = false
     }
@@ -91,14 +102,7 @@ export function ProductController() {
     loading.value = true
     try {
       await deleteProduct(id)
-      if (pagination.data.length === 1 && pagination.current_page > 1) {
-        await fetchProducts(pagination.current_page - 1)
-      } else {
-        await fetchProducts(pagination.current_page)
-      }
-    } catch (err: any) {
-      // Пробрасываем ошибку дальше для обработки в компоненте
-      throw err
+      await fetchProducts(pagination.current_page)
     } finally {
       loading.value = false
     }
@@ -112,8 +116,14 @@ export function ProductController() {
     sortBy,
     sortOrder,
     fetchProducts,
+    fetchProductsWithSort,
+    setSort,
     create,
     update,
     remove,
   }
+}
+
+export function ProductController() {
+  return useProductController()
 }

@@ -92,7 +92,7 @@
               v-model="form.client_id"
               :options="clients"
               label="name"
-              :reduce="(client) => client.id"
+              :reduce="(client: any) => client.id"
               placeholder="Выберите клиента"
               :clearable="true"
               :searchable="true"
@@ -130,7 +130,7 @@
               v-model="form.project_id"
               :options="projects"
               label="title"
-              :reduce="(project) => project.id"
+              :reduce="(project: any) => project.id"
               placeholder="Выберите проект (необязательно)"
               :clearable="true"
               :searchable="true"
@@ -169,7 +169,7 @@
               v-model="form.project_id"
               :options="projects"
               label="title"
-              :reduce="(project) => project.id"
+              :reduce="(project: any) => project.id"
               placeholder="Выберите существующий проект"
               :clearable="true"
               :searchable="true"
@@ -249,7 +249,7 @@
                     v-model="order.product_id"
                     :options="products"
                     label="name"
-                    :reduce="(product) => product.id"
+                    :reduce="reduceProduct"
                     placeholder="Выберите продукт"
                     :clearable="true"
                     :searchable="true"
@@ -268,7 +268,8 @@
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">Цена</label>
                   <UIInput
-                    v-model.number="order.price"
+                    :model-value="order.price ?? null"
+                    @update:model-value="(val) => (order.price = val === null ? null : Number(val))"
                     type="number"
                     step="0.01"
                     min="0"
@@ -343,7 +344,7 @@
                     <div class="flex items-center">
                       <div
                         class="w-3 h-3 rounded-full mr-2"
-                        :style="{ backgroundColor: stage.color }"
+                        :style="{ backgroundColor: stage.color || '#6b7280' }"
                       ></div>
                       <span class="text-sm font-medium text-gray-900">{{
                         stage.display_name
@@ -363,7 +364,7 @@
                   <div class="flex items-center mb-3">
                     <div
                       class="w-4 h-4 rounded-full mr-3"
-                      :style="{ backgroundColor: stage.color }"
+                      :style="{ backgroundColor: stage.color || '#6b7280' }"
                     ></div>
                     <h5 class="text-sm font-semibold text-gray-900">{{ stage.display_name }}</h5>
                   </div>
@@ -414,15 +415,14 @@
                               :searchable="true"
                               class="text-sm"
                               @update:model-value="
-                                (val) =>
-                                  handleBulkOrderUserSelect(
-                                    val,
-                                    assignment,
-                                    index,
-                                    stage.id,
-                                    role.name,
-                                    assignmentIndex,
-                                  )
+                                onBulkOrderUserChange(
+                                  $event,
+                                  assignment,
+                                  index,
+                                  stage.id,
+                                  role.name,
+                                  assignmentIndex,
+                                )
                               "
                             />
                           </div>
@@ -485,7 +485,7 @@
             v-model="form.product_id"
             :options="products"
             label="name"
-            :reduce="(product) => product.id"
+            :reduce="reduceProduct"
             placeholder="Выберите продукт"
             :clearable="true"
             :searchable="true"
@@ -504,7 +504,8 @@
               Количество <span class="text-red-500">*</span>
             </label>
             <UIInput
-              v-model.number="form.quantity"
+              :model-value="form.quantity ?? null"
+              @update:model-value="(val) => (form.quantity = val === null ? 1 : Number(val))"
               type="number"
               min="1"
               placeholder="Введите количество"
@@ -515,7 +516,8 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Цена</label>
             <UIInput
-              v-model.number="form.price"
+              :model-value="form.price ?? null"
+              @update:model-value="(val) => (form.price = val === null ? undefined : Number(val))"
               type="number"
               step="0.01"
               min="0"
@@ -528,7 +530,8 @@
         <div v-if="orderMode === 'single' || order">
           <label class="block text-sm font-medium text-gray-700 mb-2">Дедлайн</label>
           <UIInput
-            v-model="form.deadline"
+            :model-value="form.deadline ?? null"
+            @update:model-value="(val) => (form.deadline = val === null ? undefined : String(val))"
             type="datetime-local"
             placeholder="Выберите дату и время"
           />
@@ -607,7 +610,7 @@
             <div class="flex items-center">
               <div
                 class="w-3 h-3 rounded-full mr-2"
-                :style="{ backgroundColor: stage.color }"
+                :style="{ backgroundColor: stage.color || '#6b7280' }"
               ></div>
               <span class="font-medium text-gray-900">{{ stage.display_name }}</span>
             </div>
@@ -629,7 +632,7 @@
             <div class="flex items-center mb-3">
               <div
                 class="w-4 h-4 rounded-full mr-2"
-                :style="{ backgroundColor: stage.color }"
+                :style="{ backgroundColor: stage.color || '#6b7280' }"
               ></div>
               <h4 class="text-md font-medium text-gray-900">{{ stage.display_name }}</h4>
             </div>
@@ -677,7 +680,7 @@
                           :clearable="true"
                           :searchable="true"
                           @update:model-value="
-                            (val) => handleUserSelect(val, assignment, stage.id, role.name, index)
+                            onUserChange($event, assignment, stage.id, role.name, index)
                           "
                         />
                       </div>
@@ -755,7 +758,7 @@ import {
   getUsersByRole,
   getByRole,
 } from '../../../services/api'
-import type { ProductAssignment } from '../../../types/product'
+import type { ProductAssignment, ProductAssignmentMinimal } from '../../../types/product'
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
@@ -769,9 +772,9 @@ const { create, update, remove } = orderController
 
 const loading = ref(false)
 const stagesLoading = ref(false)
-const clients = ref([])
+const clients = ref<any[]>([])
 const products = ref<Product[]>([])
-const projects = ref([])
+const projects = ref<any[]>([])
 const availableStages = ref<Stage[]>([])
 const selectedOrderStages = ref<number[]>([])
 
@@ -801,7 +804,7 @@ const form = reactive<OrderForm>({
   project_id: undefined,
   product_id: undefined,
   quantity: 1,
-  price: null,
+  price: undefined,
   deadline: getTodayDateTime(),
 })
 
@@ -820,8 +823,21 @@ const errors = reactive({
 // Пользователи по ролям (динамическая структура)
 const allUsers = reactive<Record<string, User[]>>({})
 
+// Локальный тип назначений, не требующий всех полей API
+type AssignmentLike = {
+  id: number
+  user_id: number | null
+  role_type: string
+  user: User | null
+  stage_id?: number
+  is_active?: boolean
+  product_id?: number
+  created_at?: string
+  updated_at?: string
+}
+
 // Структура для хранения назначений по стадиям и ролям
-const stageAssignments = reactive<Record<number, Record<string, ProductAssignment[]>>>({})
+const stageAssignments = reactive<Record<number, Record<string, AssignmentLike[]>>>({})
 
 // Вычисляемое свойство для валидации формы
 const isFormValid = computed(() => {
@@ -833,13 +849,14 @@ const isFormValid = computed(() => {
     const hasProducts =
       bulkOrders.value.length > 0 &&
       bulkOrders.value.every((order) => order.product_id !== null && order.quantity > 0)
-    return form.client_id > 0 && hasProject && hasProducts
+    return form.client_id && form.client_id > 0 && hasProject && hasProducts
   } else {
     // Для одиночного заказа нужны клиент, продукт, количество и стадии (проект необязателен)
     return (
+      form.client_id &&
       form.client_id > 0 &&
       form.product_id !== null &&
-      form.quantity > 0 &&
+      Number(form.quantity) > 0 &&
       selectedOrderStages.value.length > 0
     )
   }
@@ -889,7 +906,7 @@ watch(
 )
 
 // Функции для работы с назначениями по стадиям
-function getAssignmentsForStageRole(stageId: number, roleName: string): ProductAssignment[] {
+function getAssignmentsForStageRole(stageId: number, roleName: string): AssignmentLike[] {
   if (!stageAssignments[stageId]) {
     stageAssignments[stageId] = {}
   }
@@ -903,13 +920,13 @@ function getAssignmentsForStageRole(stageId: number, roleName: string): ProductA
 function updateAssignmentsForStageRole(
   stageId: number,
   roleName: string,
-  assignments: ProductAssignment[],
+  assignments: (AssignmentLike | ProductAssignment)[],
 ) {
   if (!stageAssignments[stageId]) {
     stageAssignments[stageId] = {}
   }
 
-  stageAssignments[stageId][roleName] = assignments
+  stageAssignments[stageId][roleName] = assignments as AssignmentLike[]
 }
 
 function getUsersForRole(roleName: string): User[] {
@@ -924,7 +941,7 @@ function getErrorsForStageRole(stageId: number, roleName: string): string[] {
 
 // Функции для работы с назначениями
 function addAssignment(stageId: number, roleName: string) {
-  const newAssignment: ProductAssignment = {
+  const newAssignment: AssignmentLike = {
     id: 0, // Временный ID, будет заменен сервером
     role_type: roleName,
     user: null,
@@ -944,7 +961,7 @@ function removeAssignment(stageId: number, roleName: string, index: number) {
 
 function handleUserSelect(
   val: User | undefined,
-  assignment: ProductAssignment,
+  assignment: AssignmentLike | ProductAssignment,
   stageId: number,
   roleName: string,
   index: number,
@@ -964,6 +981,34 @@ function handleUserSelect(
       user: null,
       user_id: 0,
     }
+  }
+  // Обработчики событий для шаблона, чтобы избежать implicit any в лямбдах
+  function onUserChange(
+    user: User | null | undefined,
+    assignment: AssignmentLike | ProductAssignment,
+    stageId: number,
+    roleName: string,
+    index: number,
+  ) {
+    handleUserSelect(user || undefined, assignment, stageId, roleName, index)
+  }
+
+  function onBulkOrderUserChange(
+    user: User | null,
+    assignment: AssignmentLike | ProductAssignment,
+    orderIndex: number,
+    stageId: number,
+    roleName: string,
+    assignmentIndex: number,
+  ) {
+    handleBulkOrderUserSelect(
+      user,
+      assignment as any,
+      orderIndex,
+      stageId,
+      roleName,
+      assignmentIndex,
+    )
   }
 
   updateAssignmentsForStageRole(stageId, roleName, updatedAssignments)
@@ -1100,7 +1145,11 @@ async function onProductChange(productId: number | null) {
               user_id: assignment.user_id,
               role_type: assignment.role_type,
               user: assignment.user,
-            })
+              product_id: assignment.product_id || 0,
+              is_active: assignment.is_active || true,
+              created_at: assignment.created_at || new Date().toISOString(),
+              updated_at: assignment.updated_at || new Date().toISOString(),
+            } as ProductAssignment)
           })
 
           console.log('📋 Product assignments by role:', productAssignmentsByRole)
@@ -1417,41 +1466,97 @@ onMounted(async () => {
           id: 2,
           name: 'design',
           display_name: 'Дизайн',
+          description: undefined,
           color: '#3B82F6',
           order: 2,
+          is_active: true,
+          is_initial: false,
+          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          roles: [{ id: 1, name: 'designer', display_name: 'Дизайнер' }],
+          roles: [
+            {
+              id: 1,
+              name: 'designer',
+              display_name: 'Дизайнер',
+              description: undefined,
+              color: undefined,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
         },
         {
           id: 3,
           name: 'print',
           display_name: 'Печать',
+          description: undefined,
           color: '#10B981',
           order: 3,
+          is_active: true,
+          is_initial: false,
+          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          roles: [{ id: 2, name: 'print_operator', display_name: 'Печатник' }],
+          roles: [
+            {
+              id: 2,
+              name: 'print_operator',
+              display_name: 'Печатник',
+              description: undefined,
+              color: undefined,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
         },
         {
           id: 4,
           name: 'engraving',
           display_name: 'Гравировка',
+          description: undefined,
           color: '#8B5CF6',
           order: 4,
+          is_active: true,
+          is_initial: false,
+          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          roles: [{ id: 3, name: 'engraving_operator', display_name: 'Гравировщик' }],
+          roles: [
+            {
+              id: 3,
+              name: 'engraving_operator',
+              display_name: 'Гравировщик',
+              description: undefined,
+              color: undefined,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
         },
         {
           id: 5,
           name: 'workshop',
           display_name: 'Цех',
+          description: undefined,
           color: '#F59E0B',
           order: 5,
+          is_active: true,
+          is_initial: false,
+          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          roles: [{ id: 4, name: 'workshop_worker', display_name: 'Работник цеха' }],
+          roles: [
+            {
+              id: 4,
+              name: 'workshop_worker',
+              display_name: 'Работник цеха',
+              description: undefined,
+              color: undefined,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
         },
       ]
     }
@@ -1697,7 +1802,9 @@ onMounted(async () => {
 
       // Загружаем стадии заказа
       if (props.order.stages) {
-        selectedOrderStages.value = props.order.stages.map((stage) => stage.id)
+        selectedOrderStages.value = props.order.stages.map((stage: any) =>
+          typeof stage === 'number' ? stage : stage?.id,
+        )
       }
 
       // Загружаем назначения заказа
@@ -1709,9 +1816,9 @@ onMounted(async () => {
               assignment.role_type,
             )
             existingAssignments.push({
-              id: assignment.user_id,
+              id: typeof assignment.user_id === 'number' ? assignment.user_id : 0,
               role_type: assignment.role_type,
-              user: assignment.user,
+              user: assignment.user as User | null,
               user_id: assignment.user_id,
             })
           }
@@ -2084,7 +2191,11 @@ async function onBulkOrderProductChange(index: number) {
             user_id: assignment.user_id,
             role_type: assignment.role_type,
             user: assignment.user,
-          })
+            product_id: assignment.product_id || 0,
+            is_active: assignment.is_active || true,
+            created_at: assignment.created_at || new Date().toISOString(),
+            updated_at: assignment.updated_at || new Date().toISOString(),
+          } as ProductAssignment)
         })
 
         console.log(
@@ -2207,10 +2318,15 @@ function addBulkOrderAssignment(orderIndex: number, stageId: number, roleName: s
 
   order.assignments[stageId][roleName].push({
     id: Date.now() + Math.random(), // Временный ID
+    user_id: null,
     user: null,
     stage_id: stageId,
     role_type: roleName,
-  })
+    product_id: 0,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as ProductAssignment)
 
   console.log(
     `➕ Added assignment for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`,
@@ -2257,7 +2373,7 @@ function handleBulkOrderUserSelect(
 
   if (user) {
     assignment.user_id = user.id
-    assignment.user = user
+    assignment.user = user as User | null
     console.log(
       `👤 User selected for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}:`,
       user.name,
@@ -2277,7 +2393,7 @@ function handleBulkOrderUserSelect(
     }
   } else {
     assignment.user_id = 0
-    assignment.user = undefined
+    assignment.user = null
     console.log(`❌ User cleared for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`)
   }
 }
@@ -2381,6 +2497,44 @@ function onProjectCreated(project: any) {
   showProjectModal.value = false
   toast.show('Проект создан!')
 }
+
+// Вспомогательные функции для шаблона
+function reduceProduct(product: Product): number {
+  return product.id
+}
+
+function onUserChange(
+  user: User | null | undefined,
+  assignment: AssignmentLike | ProductAssignment,
+  stageId: number,
+  roleName: string,
+  index: number,
+) {
+  handleUserSelect(user || undefined, assignment, stageId, roleName, index)
+}
+
+function onBulkOrderUserChange(
+  user: User | null,
+  assignment: AssignmentLike | ProductAssignment,
+  orderIndex: number,
+  stageId: number,
+  roleName: string,
+  assignmentIndex: number,
+) {
+  handleBulkOrderUserSelect(user, assignment as any, orderIndex, stageId, roleName, assignmentIndex)
+}
+
+// Fix the property access by ensuring proper typing
+const selectedClient = computed(() => {
+  if (!Array.isArray(clients.value)) {
+    return null
+  }
+  const clientId = form.client_id
+  if (typeof clientId !== 'number' || clientId <= 0) {
+    return null
+  }
+  return clients.value.find((c) => c.id === clientId) || null
+})
 </script>
 
 <style scoped>

@@ -103,8 +103,17 @@ onMounted(async () => {
       label: stage.display_name || stage.name,
       color: stage.color,
     }))
-  } catch (error) {
-  }
+
+    console.log(
+      '🎯 Available stages in Kanban:',
+      stages.value.map((s) => s.value),
+    )
+  } catch (error) {}
+
+  OrderController().fetchAllOrdersForKanban()
+  pollingInterval = setInterval(() => {
+    OrderController().fetchAllOrdersForKanban()
+  }, 7000)
 })
 const props = defineProps<{
   statuses: { key: string; label: string }[]
@@ -150,14 +159,32 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 function ordersByStage(stage: string) {
+  console.log('🔍 ordersByStage called for stage:', stage)
+  console.log('📦 Total orders in props.orders:', props.orders?.length || 0)
+  console.log(
+    '📋 All orders stages:',
+    props.orders?.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })) || [],
+  )
+
   if (!Array.isArray(props.orders)) {
+    console.warn('⚠️ props.orders is not an array:', props.orders)
     return []
   }
 
-  return props.orders.filter((order) => {
+  const filtered = props.orders.filter((order) => {
     const orderStage = order.stage?.name || order.stage
     return orderStage === stage
   })
+
+  console.log(`📋 Stage "${stage}": ${filtered.length} orders`)
+  if (filtered.length > 0) {
+    console.log(
+      `   Orders in ${stage}:`,
+      filtered.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })),
+    )
+  }
+
+  return filtered
 }
 function getStatusColor(key: string) {
   const stageData = stages.value.find((s) => s.value === key)
@@ -199,16 +226,21 @@ async function onDrop(event: DragEvent, newStage: string) {
     return
   }
 
-  const payload: any = { stage: newStage }
-  if (newStage === 'cancelled') {
-    payload.reason = 'Отменено через kanban'
-    payload.reason_status = 'refused'
-  }
   try {
-    await OrderController().updateStage(order.id, payload)
+    // Подготавливаем дополнительные данные для отмененных заказов
+    let additionalData = {}
+    if (newStage === 'cancelled') {
+      additionalData = {
+        reason: 'Отменено через kanban',
+        reason_status: 'refused',
+      }
+    }
+
+    // Передаем стадию и дополнительные данные
+    await OrderController().updateStage(order.id, newStage, additionalData)
     await OrderController().fetchAllOrdersForKanban()
     showToast('Статус обновлён: ' + newStage, 'success')
-    emit('update:orders') 
+    emit('update:orders')
     emit('updated')
     emit('order-updated', order.id)
   } catch (err: any) {

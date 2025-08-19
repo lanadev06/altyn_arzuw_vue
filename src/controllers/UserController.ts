@@ -8,9 +8,8 @@ import {
   toggleUserActive,
   getUsersByRole,
 } from '@/services/api'
-import type { User, UserRole, CreateUserData, UpdateUserData } from '@/types/user'
+import type { User, CreateUserData, UpdateUserData, Role, Stage } from '@/types/api'
 import { getRoleLabel as getRoleLabelFromUtils, getRoleColorClasses } from '@/utils/roleColors'
-import axios from 'axios'
 
 export function useUserController() {
   const users = ref<User[]>([])
@@ -37,7 +36,7 @@ export function useUserController() {
     sort_order = sortOrder.value,
     per_page = 30,
     role = '',
-    is_active = null,
+    is_active: boolean | null | undefined = null,
   ) {
     loading.value = true
     error.value = ''
@@ -52,16 +51,16 @@ export function useUserController() {
         sort_order,
         per_page,
         role,
-        is_active,
+        is_active: is_active === null ? null : undefined,
       })
 
       // Проверяем структуру ответа
       if (res.data && Array.isArray(res.data)) {
         pagination.data = res.data
-        pagination.current_page = res.pagination?.current_page || res.meta?.current_page || 1
-        pagination.last_page = res.pagination?.last_page || res.meta?.last_page || 1
-        pagination.total = res.pagination?.total || res.meta?.total || 0
-        pagination.per_page = res.pagination?.per_page || res.meta?.per_page || 30
+        pagination.current_page = res.current_page || 1
+        pagination.last_page = res.last_page || 1
+        pagination.total = res.total || 0
+        pagination.per_page = res.per_page || 30
         users.value = res.data
       } else {
         // Если данные приходят в другом формате
@@ -72,8 +71,8 @@ export function useUserController() {
         pagination.per_page = 30
         users.value = Array.isArray(res) ? res : []
       }
-    } catch (e: any) {
-      error.value = e.message || 'Ошибка загрузки пользователей'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователей'
     } finally {
       loading.value = false
     }
@@ -84,8 +83,8 @@ export function useUserController() {
     try {
       const user = await getUser(id)
       return user
-    } catch (e: any) {
-      error.value = e.message || 'Ошибка загрузки пользователя'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователя'
       throw e
     } finally {
       loading.value = false
@@ -97,8 +96,8 @@ export function useUserController() {
     try {
       const res = await getUsersByRole(role)
       return res.data || []
-    } catch (e: any) {
-      error.value = e.message || 'Ошибка загрузки пользователей по роли'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователей по роли'
       throw e
     } finally {
       loading.value = false
@@ -127,7 +126,7 @@ export function useUserController() {
     fetchUsers(1, search, sortByParam, sortOrder.value)
   }
 
-  async function create(userData: any) {
+  async function create(userData: CreateUserData & { image?: File }) {
     loading.value = true
     try {
       const created = await createUser(userData)
@@ -139,7 +138,7 @@ export function useUserController() {
     }
   }
 
-  async function update(id: number, userData: any) {
+  async function update(id: number, userData: UpdateUserData & { image?: File }) {
     loading.value = true
     try {
       const updated = await updateUser(id, userData)
@@ -178,7 +177,7 @@ export function useUserController() {
   }
 
   // Функция для получения класса бейджа роли
-  function getRoleBadgeClass(role: string, roleData?: any, stagesData?: any[]): string {
+  function getRoleBadgeClass(role: string, roleData?: Role, stagesData?: Stage[]): string {
     return getRoleColorClasses(role, roleData, stagesData)
   }
 

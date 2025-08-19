@@ -1,12 +1,7 @@
-export interface Project {
-  id: number
-  title: string
-  deadline: string | null
-  total_price: number | null
-  payment_amount: number | null
-  created_at: string
-  updated_at: string
-  items: any[]
+import type { Project as ApiProject } from './api'
+
+export interface Project extends ApiProject {
+  items?: any[]
   client?: any
   orders?: any[]
 }
