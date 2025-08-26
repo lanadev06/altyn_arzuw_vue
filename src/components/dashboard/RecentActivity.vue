@@ -13,42 +13,7 @@
           class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
           :class="activity.iconBg"
         >
-          <svg
-            class="w-4 h-4"
-            :class="activity.iconColor"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              v-if="activity.icon === 'UsersIcon'"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-            />
-            <path
-              v-else-if="activity.icon === 'DocumentIcon'"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-            <path
-              v-else-if="activity.icon === 'CurrencyIcon'"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-            />
-            <path
-              v-else-if="activity.icon === 'UserAddIcon'"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-            />
-          </svg>
+          <ActivityIcon :icon="activity.icon" :class="activity.iconColor" />
         </div>
         <div class="flex-1">
           <p class="text-gray-900 text-sm font-medium">{{ activity.title }}</p>
@@ -60,8 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { safeApiRequest, safeProcessActivityData } from '@/utils/safeData'
+import { ref, onMounted, defineComponent, h } from 'vue'
+import { safeApiRequest, safeProcessActivityData } from '../../utils/safeData'
 
 interface Activity {
   id: number
@@ -72,36 +37,163 @@ interface Activity {
   iconColor: string
 }
 
+interface ApiActivity {
+  id: number
+  title: string
+  time: string
+  icon: string
+}
+
+// Компонент для иконок активности
+const ActivityIcon = defineComponent({
+  props: {
+    icon: { type: String, required: true },
+  },
+  setup(props) {
+    return () => {
+      switch (props.icon) {
+        case 'PlusIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M12 4v16m8-8H4',
+              }),
+            ],
+          )
+        case 'PencilIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+              }),
+            ],
+          )
+        case 'TrashIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+              }),
+            ],
+          )
+        case 'UsersIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z',
+              }),
+            ],
+          )
+        case 'DocumentIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+              }),
+            ],
+          )
+        case 'CurrencyIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+              }),
+            ],
+          )
+        case 'UserAddIcon':
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
+              }),
+            ],
+          )
+        default:
+          return h(
+            'svg',
+            { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+              }),
+            ],
+          )
+      }
+    }
+  },
+})
+
+// Функция для определения цветов иконок
+function getIconStyles(icon: string): { iconBg: string; iconColor: string } {
+  const styles = {
+    PlusIcon: { iconBg: 'bg-green-100', iconColor: 'text-green-600' },
+    PencilIcon: { iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    TrashIcon: { iconBg: 'bg-red-100', iconColor: 'text-red-600' },
+    UsersIcon: { iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    DocumentIcon: { iconBg: 'bg-green-100', iconColor: 'text-green-600' },
+    UserAddIcon: { iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+    CurrencyIcon: { iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600' },
+  }
+
+  return (
+    styles[icon as keyof typeof styles] || { iconBg: 'bg-gray-100', iconColor: 'text-gray-400' }
+  )
+}
+
 const activities = ref<Activity[]>([])
 
 onMounted(async () => {
   try {
-    const data = (await safeApiRequest<any[]>('/recent-activity')) || []
+    const data = (await safeApiRequest<ApiActivity[]>('/recent-activity')) || []
     if (Array.isArray(data)) {
-      activities.value = safeProcessActivityData(data).map((a: any) => ({
-        ...a,
-        iconBg:
-          a.icon === 'UsersIcon'
-            ? 'bg-blue-100'
-            : a.icon === 'DocumentIcon'
-              ? 'bg-green-100'
-              : a.icon === 'UserAddIcon'
-                ? 'bg-purple-100'
-                : 'bg-gray-100',
-        iconColor:
-          a.icon === 'UsersIcon'
-            ? 'text-blue-600'
-            : a.icon === 'DocumentIcon'
-              ? 'text-green-600'
-              : a.icon === 'UserAddIcon'
-                ? 'text-purple-600'
-                : 'text-gray-400',
+      activities.value = safeProcessActivityData(data).map((activity: unknown) => ({
+        ...(activity as ApiActivity),
+        ...getIconStyles((activity as ApiActivity).icon),
       }))
     } else {
-      activities.value = [] as Activity[]
+      activities.value = []
     }
-  } catch (e) {
-    activities.value = [] as Activity[]
+  } catch (error) {
+    console.error('RecentActivity: Error loading data:', error)
+    activities.value = []
   }
 })
 </script>

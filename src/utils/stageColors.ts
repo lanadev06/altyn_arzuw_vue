@@ -1,16 +1,8 @@
 // Утилита для работы с цветами стадий
 
-// Дефолтные цвета для стадий
+// Дефолтные цвета для стадий (используются только как fallback)
 export const DEFAULT_STAGE_COLORS: Record<string, string> = {
-  draft: '#6b7280', // gray-500
-  design: '#3b82f6', // blue-500
-  print: '#f59e0b', // yellow-500
-  engraving: '#f97316', // orange-500
-  workshop: '#8b5cf6', // purple-500
-  die_cutting: '#10b981', // green-500
-  final: '#10b981', // green-500
-  completed: '#059669', // emerald-600
-  cancelled: '#ef4444', // red-500
+  // Убираем старые цвета, чтобы не переопределять динамические
 }
 
 // Получить цвет стадии
@@ -18,14 +10,15 @@ export function getStageColor(stageName: string, customColor?: string): string {
   if (customColor) {
     return customColor
   }
-  return DEFAULT_STAGE_COLORS[stageName] || '#6366f1'
+  // Возвращаем нейтральный цвет вместо старых дефолтных
+  return '#6366f1' // Нейтральный синий
 }
 
 // Получить CSS классы для стадии
 export function getStageColorClasses(
   stageName: string,
   customColor?: string,
-  isActive: boolean = true,
+  isActive = true,
 ): string {
   const color = getStageColor(stageName, customColor)
 

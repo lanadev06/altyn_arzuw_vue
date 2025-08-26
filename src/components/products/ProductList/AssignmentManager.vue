@@ -31,7 +31,7 @@
             placeholder="Выберите пользователя"
             :clearable="true"
             :searchable="true"
-            @update:model-value="(val) => handleUserSelect(val, assignment, index)"
+            @update:model-value="getUserSelectHandler(index)"
           />
         </div>
 
@@ -53,9 +53,9 @@
 import { computed, watch } from 'vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
-import UIButton from '@/components/ui/UIButton.vue'
+import UIButton from '../../ui/UIButton.vue'
 import type { User } from '../../../types/user'
-import type { ProductAssignment } from '../../../types/product'
+import type { ProductAssignment } from '../../../types/api'
 
 interface Props {
   title: string
@@ -85,6 +85,16 @@ const availableUsers = computed(() => {
   return result
 })
 
+// Функция для получения обработчика выбора пользователя для конкретного индекса
+const getUserSelectHandler = (index: number) => {
+  return (val: any) => {
+    const assignment = props.assignments[index]
+    if (assignment) {
+      handleUserSelect(val as User | null, assignment, index)
+    }
+  }
+}
+
 function addAssignment() {
   // Проверяем, что roleType не пустой и валидный
   if (!props.roleType || props.roleType.trim() === '') {
@@ -97,7 +107,7 @@ function addAssignment() {
     product_id: 0, // Будет установлен при сохранении
     role_type: props.roleType,
     user: null,
-    user_id: 0,
+    user_id: null, // Может быть null согласно типу
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -114,11 +124,7 @@ function removeAssignment(index: number) {
   emit('update', updatedAssignments)
 }
 
-function handleUserSelect(
-  val: User | undefined,
-  assignment: ProductAssignment,
-  index: number,
-): void {
+function handleUserSelect(val: User | null, assignment: ProductAssignment, index: number): void {
   // Создаем новый массив для правильной реактивности
   const updatedAssignments = [...props.assignments]
 
@@ -133,7 +139,7 @@ function handleUserSelect(
     updatedAssignments[index] = {
       ...assignment,
       user: null,
-      user_id: 0,
+      user_id: null,
     }
   }
 

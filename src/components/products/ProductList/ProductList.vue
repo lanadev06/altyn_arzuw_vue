@@ -96,6 +96,10 @@
                     Debug:
                     {{ getStageAssignments(product, col.stageId, col.roleType as string).length }}
                     assignments
+                    <br />
+                    Product assignments: {{ product.assignments?.length || 0 }}
+                    <br />
+                    Role: {{ col.roleType }}
                   </div>
                 </template>
                 <template v-else-if="col.key === 'created_at'">
@@ -182,14 +186,6 @@ const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('productList_perPage')
 
-// Загружаем все доступные стадии для создания колонок
-const availableStages = ref<Stage[]>([])
-
-// Безопасная функция для получения доступных стадий
-const getAvailableStages = () => {
-  return availableStages.value || []
-}
-
 // Тип для колонок
 interface Column {
   key: string
@@ -226,6 +222,12 @@ const dynamicColumns = computed<Column[]>(() => {
       pagination.data.forEach((product: any, index: number) => {
         if (product.available_stages) {
           product.available_stages.forEach((stage: any) => {
+            // Исключаем служебные стадии
+            const serviceStages = ['draft', 'completed', 'cancelled', 'final']
+            if (serviceStages.includes(stage.name)) {
+              return
+            }
+
             if (stage.roles && stage.roles.length > 0) {
               stage.roles.forEach((role: any) => {
                 // Исключаем роль die_cutting_operator из колонок
@@ -243,37 +245,6 @@ const dynamicColumns = computed<Column[]>(() => {
                     color: stage.color,
                   })
                 }
-              })
-            } else {
-              // Stage has no roles
-            }
-          })
-        } else {
-          // Product has no available_stages
-        }
-      })
-    }
-
-    // Дополнительно добавляем стадии из глобального списка стадий (если есть)
-    // Это обеспечит появление колонок для новых стадий, даже если они еще не назначены ни одному продукту
-    const globalStages = getAvailableStages()
-    if (globalStages.length > 0) {
-      globalStages.forEach((stage: any) => {
-        if (stage.roles && stage.roles.length > 0) {
-          stage.roles.forEach((role: any) => {
-            // Исключаем роль die_cutting_operator из колонок
-            if (role.name === 'die_cutting_operator') {
-              return
-            }
-
-            const key = `${stage.id}_${role.name}`
-            if (!stageAssignments.has(key)) {
-              stageAssignments.set(key, {
-                stageId: stage.id,
-                stageName: stage.display_name,
-                roleType: role.name,
-                roleDisplayName: role.display_name,
-                color: stage.color,
               })
             }
           })
@@ -299,7 +270,6 @@ const dynamicColumns = computed<Column[]>(() => {
 
     return columns
   } catch (error) {
-    console.error('❌ Error building dynamic columns:', error)
     return baseColumns
   }
 })
@@ -333,33 +303,6 @@ function getStageAssignments(product: Product, stageId: number | undefined, role
     if (filteredAssignments.length > 0) {
       return filteredAssignments
     }
-  }
-
-  // Fallback: проверяем отдельные поля для ролей
-  const roleFields = {
-    designer: product.designers,
-    print_operator: product.print_operators,
-    engraving_operator: product.engraving_operators,
-    workshop_worker: product.workshop_workers,
-  }
-
-  const roleData = roleFields[roleType as keyof typeof roleFields]
-
-  if (roleData && Array.isArray(roleData)) {
-    // Преобразуем пользователей в формат ProductAssignment
-    return roleData.map(
-      () =>
-        ({
-          id: 0,
-          role_type: roleType,
-          user: null,
-          user_id: 0,
-          is_active: true,
-          product_id: product.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }) as ProductAssignment,
-    )
   }
 
   return []
@@ -481,23 +424,8 @@ function editProduct(product: Product) {
     return
   }
 
-  console.log('Editing product:', {
-    id: product.id,
-    name: product.name,
-    designers: product.designers,
-    print_operators: product.print_operators,
-    engraving_operators: product.engraving_operators,
-    workshop_workers: product.workshop_workers,
-  })
-
   editingProduct.value = product
   showEditModal.value = true
-
-  console.log('🔧 Modal state after setting:', {
-    showEditModal: showEditModal.value,
-    editingProduct: editingProduct.value?.id,
-    canCreateEdit: canCreateEdit(),
-  })
 }
 
 async function handleCreateProduct(newProduct: Product) {
@@ -507,9 +435,28 @@ async function handleCreateProduct(newProduct: Product) {
 }
 
 async function handleProductSaved() {
-  console.log('✅ Product saved, refreshing list...')
   showEditModal.value = false
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+
+  // Принудительно очищаем кэш и обновляем список
+  // Добавляем небольшую задержку для обновления данных на сервере
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
+  // Обновляем список с принудительным сбросом кэша
+  await fetchProducts(
+    currentPage.value,
+    props.search,
+    sortBy.value,
+    sortOrder.value,
+    perPage.value,
+    true,
+  )
+
+  // Принудительно обновляем колонки после обновления данных
+  await nextTick()
+  if (dynamicColumns.value.length > 0) {
+    columns.value = [...dynamicColumns.value]
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  }
 }
 
 async function handleDeleteProduct(productId: number) {
@@ -522,8 +469,6 @@ async function handleDeleteProduct(productId: number) {
     }
     toast.show('Товар успешно удален!', 'success')
   } catch (e: any) {
-    console.error('❌ Ошибка удаления товара:', productId, e)
-
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 
@@ -573,15 +518,6 @@ watch(
 )
 
 onMounted(async () => {
-  // Загружаем все доступные стадии для создания колонок
-  try {
-    const stagesResult = await getAllStages()
-    availableStages.value = stagesResult.data || stagesResult || []
-    console.log('📋 Loaded available stages for columns:', availableStages.value.length)
-  } catch (error) {
-    console.error('❌ Failed to load stages for columns:', error)
-  }
-
   // Инициализируем колонки из localStorage, если они есть
   await nextTick()
   if (columnsHeader.value) {

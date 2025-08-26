@@ -221,7 +221,6 @@ import Pagination from '@/components/users/UserList/Pagination.vue'
 const logs = ref<AuditLog[]>([])
 const loading = ref(false)
 const selectedLog = ref<AuditLog | null>(null)
-const users = ref([])
 
 const AUDIT_PER_PAGE_KEY = 'auditLogList_perPage'
 
@@ -260,7 +259,7 @@ const loadLogs = async () => {
       per_page: response.pagination?.per_page || response.per_page,
       total: response.pagination?.total || response.total,
     }
-  } catch (error) {
+  } catch {
     logs.value = []
     pagination.value = null
   } finally {

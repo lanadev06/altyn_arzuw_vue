@@ -37,26 +37,8 @@ export function useOrderController() {
     loading.value = true
     error.value = ''
 
-    console.log('🔄 fetchOrders called with:', {
-      page,
-      search,
-      sortBy,
-      sortOrder,
-      stage,
-      isArchived,
-      per_page,
-      assignment_status,
-    })
-
     // Проверяем права пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}')
-    console.log('👤 User permissions check:', {
-      userId: user.id,
-      userName: user.name,
-      userRoles: user.roles?.map((r: any) => r.name) || [],
-      isAdminOrManager:
-        user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false,
-    })
 
     try {
       const res = await getOrders({
@@ -68,21 +50,6 @@ export function useOrderController() {
         assignment_status,
       })
 
-      console.log('📦 API response:', {
-        total: res.total,
-        current_page: res.current_page,
-        last_page: res.last_page,
-        per_page: res.per_page,
-        dataLength: res.data?.length || 0,
-        // Проверяем, есть ли фильтрация по назначениям
-        hasAssignments: res.data?.some((order: any) => order.assignments?.length > 0) || false,
-        // Проверяем разнообразие заказов
-        uniqueStages: [
-          ...new Set(res.data?.map((order: any) => order.stage?.name || order.stage) || []),
-        ],
-        uniqueClients: [...new Set(res.data?.map((order: any) => order.client?.name) || [])],
-      })
-
       pagination.data = res.data
       pagination.current_page = res.current_page
       pagination.last_page = res.last_page
@@ -91,11 +58,8 @@ export function useOrderController() {
       pagination.from = res.from
       pagination.to = res.to
 
-      console.log('🔄 Setting orders.value in fetchOrders to:', res.data?.length || 0)
       orders.value = res.data
-      console.log('✅ orders.value after fetchOrders update:', orders.value?.length || 0)
     } catch (e: unknown) {
-      console.error('❌ Error in fetchOrders:', e)
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
     } finally {
       loading.value = false
@@ -110,35 +74,20 @@ export function useOrderController() {
     stage?: string,
     isArchived = false,
   ) {
-    console.log('🔄 fetchAllOrdersForKanban called with:', {
-      page,
-      sortBy,
-      sortOrder,
-      stage,
-      isArchived,
-    })
-
     // Проверяем права пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     const isAdminOrManager =
       user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false
 
-    console.log('📋 Kanban orders loading strategy:', {
-      isAdminOrManager,
-      userRoles: user.roles?.map((r: any) => r.name) || [],
-      strategy: isAdminOrManager ? 'getAllOrdersForAdmin' : 'fetchOrders',
-    })
-
     if (isAdminOrManager) {
       // Для админов/менеджеров используем специальную функцию
-      console.log('🔑 Using getAllOrdersForAdmin for admin/manager...')
       try {
         const response = await getAllOrdersForAdmin({
           search: '',
           sort_by: sortBy,
           sort_order: sortOrder,
           stage: undefined, // без фильтра по стадии
-          is_archived: false, // только активные заказы
+          is_archived: null, // загружаем все заказы (и активные, и архивированные)
         })
 
         // Обновляем состояние
@@ -150,33 +99,21 @@ export function useOrderController() {
         pagination.from = response.from
         pagination.to = response.to
 
-        console.log('🔄 Setting orders.value to:', response.data?.length || 0)
         orders.value = response.data
-        console.log('✅ orders.value after update:', orders.value?.length || 0)
-
-        console.log('✅ Admin orders loaded:', {
-          totalOrders: orders.value?.length || 0,
-          paginationTotal: pagination.total,
-          uniqueStages: [
-            ...new Set(response.data?.map((order: any) => order.stage?.name || order.stage) || []),
-          ],
-        })
 
         return response
       } catch (error) {
-        console.error('❌ Error loading admin orders:', error)
         throw error
       }
     } else {
       // Для обычных пользователей используем стандартный подход
-      console.log('📋 Using fetchOrders for regular user...')
       return await fetchOrders(
         1, // первая страница
         '', // без поиска
         sortBy,
         sortOrder,
         undefined, // без фильтра по стадии
-        false, // только активные заказы
+        null, // загружаем все заказы (и активные, и архивированные)
         10000, // очень большое количество на страницу
       )
     }
@@ -184,8 +121,6 @@ export function useOrderController() {
 
   async function updateStage(orderId: number, stage: string, additionalData?: any) {
     try {
-      console.log('🔄 Updating order stage:', { orderId, stage, additionalData })
-
       // Если есть дополнительные данные (например, для отмененных заказов)
       if (additionalData && Object.keys(additionalData).length > 0) {
         // Используем общую функцию updateOrder для отправки дополнительных полей
@@ -195,17 +130,14 @@ export function useOrderController() {
         await updateOrderStage(orderId, stage)
       }
 
-      // Обновляем список заказов после изменения стадии
-      await fetchAllOrdersForKanban()
       return true
     } catch (error) {
-      console.error('Error updating order stage:', error)
       throw error
     }
   }
 
   async function getAll() {
-    return await fetchOrders(1, '', 'id', 'desc', undefined, false, 1000)
+    return await fetchOrders(1, '', 'id', 'desc', undefined, null, 1000)
   }
 
   async function removeOrder(id: number) {
@@ -214,7 +146,6 @@ export function useOrderController() {
 
   async function createProjectWithOrders(projectData: unknown) {
     // This would need to be implemented in API service
-    console.log('createProjectWithOrders called:', projectData)
     await fetchOrders(pagination.current_page)
   }
 

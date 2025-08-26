@@ -21,4 +21,12 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['vue', 'vue-router'],
+  },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
 })

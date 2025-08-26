@@ -2,11 +2,16 @@
   <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
     <!-- Заголовок -->
     <div class="mb-6">
-      <h3 class="text-xl font-bold text-gray-900 mb-1">Выручка по месяцам</h3>
+      <h3 class="text-xl font-bold text-gray-900 mb-1">Общая выручка по месяцам</h3>
       <p class="text-3xl font-bold text-blue-600">
         {{ revenueData.total_revenue_formatted }} <span class="text-lg text-gray-500">TMT</span>
       </p>
-      <p class="text-sm text-gray-500 mt-1">Общая выручка за {{ revenueData.year }} год</p>
+      <p class="text-sm text-gray-500 mt-1">
+        Общая выручка (по всем проектам и заказам) за {{ revenueData.year }} год
+      </p>
+      <p class="text-xs text-gray-400 mt-1">
+        * Включает все проекты и заказы, независимо от статуса оплаты
+      </p>
     </div>
 
     <!-- Индикатор загрузки -->
@@ -147,6 +152,7 @@
         >
           <div class="font-semibold">{{ tooltip.month_name }}</div>
           <div>{{ tooltip.revenue_formatted }} TMT</div>
+          <div class="text-xs text-gray-300 mt-1">Общая выручка</div>
           <div
             class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"
           ></div>
@@ -159,7 +165,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { apiRequest } from '../../services/api'
-import type { RevenueByMonthResponse, RevenueByMonthData } from '../../types/api'
+import type { RevenueByMonthResponse } from '../../types/api'
+
+// Интерфейс для точки графика
+interface ChartPoint {
+  x: number
+  y: number
+  month_name: string
+  revenue_formatted: string
+  revenue: number
+}
 
 const currentYear = new Date().getFullYear()
 const loading = ref(false)
@@ -179,6 +194,7 @@ const tooltip = ref({
 })
 
 // Функция для перевода месяцев на русский
+// Выручка теперь считается по общей сумме проектов и заказов, а не по оплаченным суммам
 const getRussianMonthName = (monthName: string): string => {
   const monthMap: { [key: string]: string } = {
     January: 'Январь',
@@ -210,7 +226,7 @@ const getRussianMonthName = (monthName: string): string => {
   return monthMap[monthName] || monthName
 }
 
-const chartPoints = computed(() => {
+const chartPoints = computed((): ChartPoint[] => {
   if (!revenueData.value.monthly_data.length) return []
 
   const maxRevenue = Math.max(...revenueData.value.monthly_data.map((d) => d.revenue))
@@ -244,7 +260,7 @@ const areaPath = computed(() => {
   return `M ${points} L ${chartPoints.value[chartPoints.value.length - 1].x},200 L ${chartPoints.value[0].x},200 Z`
 })
 
-const showTooltip = (point: any, event: MouseEvent) => {
+const showTooltip = (point: ChartPoint, event: MouseEvent) => {
   const rect = (event.target as Element).closest('svg')?.getBoundingClientRect()
   if (rect) {
     const x = rect.left + point.x * (rect.width / 800)
@@ -283,6 +299,9 @@ const hideTooltip = () => {
 
 const animateChart = async () => {
   await nextTick()
+
+  // Проверяем, что данные загружены
+  if (chartPoints.value.length === 0) return
 
   // Анимация линии
   const line = document.querySelector('.chart-line') as SVGPathElement
@@ -335,17 +354,31 @@ const animateChart = async () => {
 const loadRevenueData = async (year: number) => {
   loading.value = true
   try {
+    // Загружаем данные о выручке (теперь по общей сумме, а не по оплаченной)
     const response = (await apiRequest(
       `/stats/revenue-by-month?year=${year}`,
     )) as RevenueByMonthResponse
-    revenueData.value = response
 
-    // Запускаем анимацию после загрузки данных
-    if (response.monthly_data.length > 0) {
-      setTimeout(animateChart, 100)
+    // Проверяем, что ответ содержит необходимые данные
+    if (response && response.monthly_data) {
+      revenueData.value = response
+
+      // Запускаем анимацию после загрузки данных
+      if (response.monthly_data.length > 0) {
+        setTimeout(animateChart, 100)
+      }
+    } else {
+      console.warn('Получены некорректные данные о выручке (общая сумма):', response)
     }
   } catch (error) {
-    console.error('Ошибка загрузки данных выручки:', error)
+    console.error('Ошибка загрузки данных выручки (общая сумма):', error)
+    // Устанавливаем пустые данные при ошибке
+    revenueData.value = {
+      monthly_data: [],
+      total_revenue: 0,
+      total_revenue_formatted: '0',
+      year: year,
+    }
   } finally {
     loading.value = false
   }

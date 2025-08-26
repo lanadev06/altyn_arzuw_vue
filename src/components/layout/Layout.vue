@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="min-h-screen w-full flex"
-  >
+  <div class="min-h-screen w-full flex">
     <Sidebar class="fixed left-0 top-0 bottom-0 z-20 w-48" />
     <div class="flex-1 flex flex-col min-h-screen">
       <Navbar class="fixed top-0 left-48 right-0 z-30" @search="onSearch" @logout="handleLogout" />

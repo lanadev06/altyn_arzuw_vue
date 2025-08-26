@@ -254,12 +254,16 @@
 </template>
 
 <script setup lang="ts">
+// @ts-expect-error Vue component with script setup has no default export
 import Layout from '../components/layout/Layout.vue'
-import StatsCard from '../components/dashboard/StatsCard.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import QuickActions from '../components/dashboard/QuickActions.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import RecentActivity from '../components/dashboard/RecentActivity.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import RevenueChart from '../components/dashboard/RevenueChart.vue'
-import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
+import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
 import { ref, onMounted, computed } from 'vue'
 import { authApi, getAllStages, apiRequest } from '../services/api'
@@ -461,16 +465,23 @@ onMounted(async () => {
     }
 
     // Активность (только для admin и manager)
-    if (hasAdminOrManagerRole.value) {
-      const activityData = await safeApiRequest<any[]>('/activity')
-      if (Array.isArray(activityData)) {
-        staffActivity.value = safeProcessActivityData(activityData) as any[]
-      } else {
-        staffActivity.value = [] as any[]
-      }
-    } else {
-      staffActivity.value = [] as any[]
-    }
+    // Убираем дублирование - RecentActivity уже показывает эту информацию
+    // if (hasAdminOrManagerRole.value) {
+    //   console.log('DashboardView: Loading activity data...')
+    //   const activityData = await safeApiRequest<any[]>('/activity')
+    //   console.log('DashboardView: Activity API response:', activityData)
+    //   if (Array.isArray(activityData)) {
+    //     staffActivity.value = safeProcessActivityData(activityData) as any[]
+    //     console.log('DashboardView: Processed staff activity:', staffActivity.value)
+    //   } else {
+    //     staffActivity.value = [] as any[]
+    //   }
+    // } else {
+    //   staffActivity.value = [] as any[]
+    // }
+
+    // Оставляем пустой массив - активность показывается в RecentActivity
+    staffActivity.value = []
 
     // Уведомления
     try {

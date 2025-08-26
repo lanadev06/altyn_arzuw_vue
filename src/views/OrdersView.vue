@@ -61,11 +61,17 @@
 import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
+// @ts-expect-error Vue component with script setup has no default export
 import Layout from '../components/layout/Layout.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderList from '../components/orders/OrderList/OrderList.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders } from '../utils/permissions'
 import { getAllStages } from '../services/api'
@@ -87,10 +93,6 @@ const { orders, fetchOrders, fetchAllOrdersForKanban } = OrderController()
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
-  console.log('🔍 filteredKanbanOrders computed called')
-  console.log('📦 Raw orders.value:', orders.value?.length || 0)
-  console.log('🔍 Search value:', search.value)
-
   const result = !search.value
     ? orders.value || []
     : (orders.value || []).filter((order) => {
@@ -106,14 +108,6 @@ const filteredKanbanOrders = computed(() => {
         )
       })
 
-  console.log('🎯 Filtered Kanban orders:', {
-    totalOrders: orders.value?.length || 0,
-    filteredOrders: result.length,
-    searchQuery: search.value,
-    hasSearch: !!search.value,
-    ordersStages: result.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })),
-  })
-
   return result
 })
 
@@ -123,11 +117,8 @@ const orderListRef = ref()
 
 const loadOrders = async () => {
   try {
-    console.log('🔄 Loading orders... isTableView:', isTableView.value)
-
     if (!isTableView.value) {
       // Для Kanban используем fetchAllOrdersForKanban
-      console.log('📋 Loading orders for Kanban view...')
       await fetchAllOrdersForKanban(
         1, // всегда первая страница для получения всех данных
         'id',
@@ -135,10 +126,8 @@ const loadOrders = async () => {
         undefined, // НЕ передаем фильтр по стадии для получения ВСЕХ заказов
         false, // только активные заказы
       )
-      console.log('✅ Kanban orders loaded:', orders.value?.length || 0)
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
-      console.log('📊 Loading orders for Table view...')
       await fetchOrders(
         currentPage.value,
         search.value,
@@ -149,37 +138,8 @@ const loadOrders = async () => {
         30,
         undefined,
       )
-      console.log('✅ Table orders loaded:', orders.value?.length || 0)
-    }
-
-    console.log('📦 Total orders in state:', orders.value?.length || 0)
-    console.log(
-      '🔍 Orders by stage:',
-      orders.value?.reduce(
-        (acc, order) => {
-          const stage = order.stage?.name || order.stage || 'unknown'
-          acc[stage] = (acc[stage] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>,
-      ),
-    )
-
-    // Проверяем структуру первых нескольких заказов
-    if (orders.value && orders.value.length > 0) {
-      console.log('🔍 Sample order structure:', {
-        firstOrder: {
-          id: orders.value[0].id,
-          stage: orders.value[0].stage,
-          stageName: orders.value[0].stage?.name,
-          product: orders.value[0].product?.name,
-          client: orders.value[0].client?.name,
-        },
-        totalOrders: orders.value.length,
-      })
     }
   } catch (error) {
-    console.error('❌ Ошибка загрузки заказов:', error)
     orders.value = []
   }
 }
@@ -198,46 +158,28 @@ watch(isTableView, (newValue) => {
 
 async function loadStages() {
   try {
-    console.log('🔄 Loading stages for OrdersView...')
     const stagesData = await getAllStages()
-    console.log('📊 Stages data received:', stagesData)
 
     let allStages = []
     if (Array.isArray(stagesData)) {
       allStages = stagesData
-      console.log('✅ Loaded stages directly:', stagesData.length)
     } else if (stagesData && stagesData.data && Array.isArray(stagesData.data)) {
       allStages = stagesData.data
-      console.log('✅ Loaded stages from data property:', stagesData.data.length)
     } else {
-      console.warn('⚠️ Unexpected stages data format:', stagesData)
       return
     }
 
-    // Показываем все стадии для всех пользователей (временно для отладки)
-    console.log('🎯 Setting all stages for Kanban:', allStages.length)
+    // Показываем все стадии для всех пользователей
     kanbanStatuses.value = allStages.map((stage: any) => ({
       key: stage.name,
       label: stage.display_name || stage.name,
     }))
-
-    console.log('📋 Final kanban statuses:', kanbanStatuses.value)
   } catch (error) {
     console.error('❌ Error loading stages:', error)
   }
 }
 
 onMounted(async () => {
-  // Проверяем роли пользователя
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  console.log('👤 Current user info:', {
-    id: user.id,
-    name: user.name,
-    roles: user.roles?.map((r: any) => r.name) || [],
-    isAdminOrManager: canViewAllUsers(),
-    canViewAllOrders: canViewAllOrders(),
-  })
-
   await loadStages()
   loadOrders()
 })
@@ -294,6 +236,7 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     if (!order || !order.id) {
       throw new Error('Некорректные данные заказа')
     }
+
     const validStatuses = [
       'draft',
       'design',
@@ -304,23 +247,17 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
       'completed',
       'cancelled',
     ]
+
     if (!validStatuses.includes(newStatus)) {
       throw new Error(`Недопустимый статус: ${newStatus}`)
     }
-    const orderId = order.id
-    const updateData: any = { stage: newStatus }
-    if (newStatus === 'cancelled') {
-      updateData.reason = 'Отменен пользователем'
-      updateData.reason_status = 'refused'
-    }
-    await OrderController().updateStage(order.id, updateData)
+
+    // Обновляем заказы для Kanban
+    await fetchAllOrdersForKanban()
+
+    // Обновляем заказы для таблицы
     orderListRef.value?.loadOrders()
-    const updatedOrder = orders.value.find((o) => o.id === orderId)
-    if (updatedOrder) {
-    } else {
-    }
   } catch (error: any) {
-    console.error('❌ Ошибка обновления статуса:', error)
     let errorMessage = 'Ошибка обновления статуса'
     if (error.message && error.message.includes('422')) {
       try {

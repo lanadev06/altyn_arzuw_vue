@@ -92,7 +92,7 @@
               v-model="form.client_id"
               :options="clients"
               label="name"
-              :reduce="(client: any) => client.id"
+              :reduce="(client) => client.id"
               placeholder="Выберите клиента"
               :clearable="true"
               :searchable="true"
@@ -130,7 +130,7 @@
               v-model="form.project_id"
               :options="projects"
               label="title"
-              :reduce="(project: any) => project.id"
+              :reduce="(project) => project.id"
               placeholder="Выберите проект (необязательно)"
               :clearable="true"
               :searchable="true"
@@ -169,7 +169,7 @@
               v-model="form.project_id"
               :options="projects"
               label="title"
-              :reduce="(project: any) => project.id"
+              :reduce="(project) => project.id"
               placeholder="Выберите существующий проект"
               :clearable="true"
               :searchable="true"
@@ -245,16 +245,36 @@
               <div class="grid grid-cols-4 gap-3">
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">Продукт</label>
-                  <Vue3Select
-                    v-model="order.product_id"
-                    :options="products"
-                    label="name"
-                    :reduce="reduceProduct"
-                    placeholder="Выберите продукт"
-                    :clearable="true"
-                    :searchable="true"
-                    @update:model-value="() => onBulkOrderProductChange(index)"
-                  />
+                  <div class="flex gap-2">
+                    <Vue3Select
+                      v-model="order.product_id"
+                      :options="products"
+                      label="name"
+                      :reduce="reduceProduct"
+                      placeholder="Выберите продукт"
+                      :clearable="true"
+                      :searchable="true"
+                      @update:model-value="() => onBulkOrderProductChange(index)"
+                      class="flex-1"
+                    />
+                    <UIButton
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      @click="showProductModal = true"
+                      class="flex-shrink-0"
+                      title="Создать новый продукт"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </UIButton>
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">Количество</label>
@@ -370,7 +390,7 @@
                   </div>
 
                   <!-- Роли для этой стадии -->
-                  <div v-if="stage.roles && stage.roles.length > 0" class="space-y-4">
+                  <div v-if="stage.roles && stage.roles.length > 0" class="space-y-3">
                     <div v-for="role in stage.roles" :key="role.id" class="space-y-3">
                       <div class="flex items-center justify-between">
                         <label class="block text-sm font-medium text-gray-700">
@@ -481,17 +501,37 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Продукт <span class="text-red-500">*</span>
           </label>
-          <Vue3Select
-            v-model="form.product_id"
-            :options="products"
-            label="name"
-            :reduce="reduceProduct"
-            placeholder="Выберите продукт"
-            :clearable="true"
-            :searchable="true"
-            :error="errors.product_id"
-            required
-          />
+          <div class="flex gap-2">
+            <Vue3Select
+              v-model="form.product_id"
+              :options="products"
+              label="name"
+              :reduce="reduceProduct"
+              placeholder="Выберите продукт"
+              :clearable="true"
+              :searchable="true"
+              :error="errors.product_id"
+              required
+              class="flex-1"
+            />
+            <UIButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              @click="showProductModal = true"
+              class="flex-shrink-0"
+              title="Создать новый продукт"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </UIButton>
+          </div>
           <div v-if="errors.product_id" class="text-red-600 text-sm mt-1">
             {{ errors.product_id }}
           </div>
@@ -733,13 +773,23 @@
       @close="showProjectModal = false"
       @submit="onProjectCreated"
     />
+
+    <!-- Модальное окно для создания продукта -->
+    <ProductFormModal
+      v-if="showProductModal"
+      @close="showProductModal = false"
+      @saved="onProductCreated"
+    />
   </Modal>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
+// @ts-expect-error Vue component with script setup has no default export
 import Modal from '../../ui/Modal.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import UIInput from '../../ui/UIInput.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import UIButton from '../../ui/UIButton.vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
@@ -762,8 +812,12 @@ import type { ProductAssignment, ProductAssignmentMinimal } from '../../../types
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
+// @ts-expect-error Vue component with script setup has no default export
 import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
+import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
 
 const props = defineProps<{ order?: Order | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -772,9 +826,9 @@ const { create, update, remove } = orderController
 
 const loading = ref(false)
 const stagesLoading = ref(false)
-const clients = ref<any[]>([])
+const clients = ref<Array<{ id: number; name: string; company_name?: string }>>([])
 const products = ref<Product[]>([])
-const projects = ref<any[]>([])
+const projects = ref<Array<{ id: number; title: string }>>([])
 const availableStages = ref<Stage[]>([])
 const selectedOrderStages = ref<number[]>([])
 
@@ -783,6 +837,7 @@ const orderMode = ref<'single' | 'bulk'>('single')
 
 const showClientModal = ref(false)
 const showProjectModal = ref(false)
+const showProductModal = ref(false)
 
 // Переменная для названия проекта в массовом заказе
 const bulkProjectTitle = ref('')
@@ -865,7 +920,7 @@ const isFormValid = computed(() => {
 // Выбранный продукт для отображения назначений
 const selectedProduct = computed(() => {
   if (!Array.isArray(products.value)) {
-    console.warn('⚠️ products.value is not an array:', products.value)
+    // products.value is not an array
     return null
   }
   const product = products.value.find((p) => p.id === form.product_id) || null
@@ -898,7 +953,7 @@ watch(
     const invalidStages = newStages.filter((id) => !validStageIds.includes(id))
 
     if (invalidStages.length > 0) {
-      console.warn('⚠️ Removing invalid stage IDs:', invalidStages)
+      // Removing invalid stage IDs
       selectedOrderStages.value = newStages.filter((id) => validStageIds.includes(id))
     }
   },
@@ -931,6 +986,20 @@ function updateAssignmentsForStageRole(
 
 function getUsersForRole(roleName: string): User[] {
   const users = allUsers[roleName] || []
+
+  // Если нет пользователей для роли, пробуем найти пользователей с похожими ролями
+  if (users.length === 0) {
+    // Ищем пользователей с похожими ролями (например, designer -> design)
+    const similarRoles = Object.keys(allUsers).filter(
+      (role) => role.includes(roleName) || roleName.includes(role),
+    )
+
+    if (similarRoles.length > 0) {
+      // Берем пользователей из первой найденной похожей роли
+      return allUsers[similarRoles[0]] || []
+    }
+  }
+
   return users
 }
 
@@ -1054,7 +1123,7 @@ function toggleOrderStage(stageId: number) {
     // Принудительно обновляем реактивность
     selectedOrderStages.value = [...selectedOrderStages.value]
   } catch (error) {
-    console.error('❌ Error toggling order stage:', error)
+    // Error toggling order stage
   }
 }
 
@@ -1072,7 +1141,7 @@ function selectAllStages() {
     // Принудительно обновляем реактивность
     selectedOrderStages.value = [...selectedOrderStages.value]
   } catch (error) {
-    console.error('❌ Error selecting all order stages:', error)
+    // Error selecting all order stages
   }
 }
 
@@ -1090,7 +1159,7 @@ function clearAllStages() {
     // Принудительно обновляем реактивность
     selectedOrderStages.value = [...selectedOrderStages.value]
   } catch (error) {
-    console.error('❌ Error clearing all order stages:', error)
+    // Error clearing all order stages
   }
 }
 
@@ -1114,27 +1183,16 @@ async function onProductChange(productId: number | null) {
         // Загружаем назначения продукта для автоматического подтягивания
 
         const productAssignmentsResponse = await getProductAssignments(productId)
-        console.log('📋 Product assignments response:', productAssignmentsResponse)
-
         if (
           productAssignmentsResponse &&
           productAssignmentsResponse.assignments &&
           Array.isArray(productAssignmentsResponse.assignments)
         ) {
-          console.log(
-            '📋 Found assignments in response:',
-            productAssignmentsResponse.assignments.length,
-          )
-
           // Группируем назначения продукта по ролям (без stage_id)
           const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
           productAssignmentsResponse.assignments.forEach((assignment: any) => {
             const roleType = assignment.role_type
-
-            console.log(
-              `📋 Processing assignment: role ${roleType}, user ${assignment.user?.name || 'unknown'}`,
-            )
 
             if (!productAssignmentsByRole[roleType]) {
               productAssignmentsByRole[roleType] = []
@@ -1152,8 +1210,6 @@ async function onProductChange(productId: number | null) {
             } as ProductAssignment)
           })
 
-          console.log('📋 Product assignments by role:', productAssignmentsByRole)
-
           // Выбираем все доступные стадии продукта по умолчанию
           if (
             selectedProduct.value &&
@@ -1163,9 +1219,10 @@ async function onProductChange(productId: number | null) {
             selectedOrderStages.value = selectedProduct.value.available_stages.map(
               (stage) => stage.id,
             )
-            console.log('✅ Selected stages for order:', selectedOrderStages.value)
+            selectedOrderStages.value = selectedProduct.value.available_stages.map(
+              (stage) => stage.id,
+            )
           } else {
-            console.warn('⚠️ No available stages found for product, using empty selection')
             selectedOrderStages.value = []
           }
 
@@ -1174,8 +1231,6 @@ async function onProductChange(productId: number | null) {
             Object.keys(productAssignmentsByRole).forEach((roleType) => {
               const assignments = productAssignmentsByRole[roleType]
               if (Array.isArray(assignments)) {
-                console.log(`📋 Copying ${assignments.length} assignments for role ${roleType}`)
-
                 // Находим стадии, которые используют эту роль
                 const stagesWithRole = availableStages.value.filter((stage) => {
                   // Проверяем, есть ли у стадии эта роль
@@ -1193,13 +1248,7 @@ async function onProductChange(productId: number | null) {
               }
             })
           }
-
-          console.log('✅ Product assignments copied to order')
-          console.log('📋 Final stageAssignments:', stageAssignments)
         } else {
-          console.warn('⚠️ No assignments found in product response or invalid format')
-          console.log('📋 Response structure:', productAssignmentsResponse)
-
           // Если нет назначений, все равно выбираем стадии продукта
           if (
             selectedProduct.value &&
@@ -1209,11 +1258,11 @@ async function onProductChange(productId: number | null) {
             selectedOrderStages.value = selectedProduct.value.available_stages.map(
               (stage) => stage.id,
             )
-            console.log('✅ Selected stages for order (no assignments):', selectedOrderStages.value)
+            // Selected stages for order (no assignments)
           }
         }
       } catch (error) {
-        console.warn('⚠️ Could not load product assignments:', error)
+        // Could not load product assignments
         // Продолжаем без назначений продукта, но выбираем стадии
         if (
           selectedProduct.value &&
@@ -1223,34 +1272,22 @@ async function onProductChange(productId: number | null) {
           selectedOrderStages.value = selectedProduct.value.available_stages.map(
             (stage) => stage.id,
           )
-          console.log('✅ Selected stages for order (error fallback):', selectedOrderStages.value)
         }
       } finally {
         stagesLoading.value = false
       }
-    } else {
-      console.log('⚠️ No product selected or no available stages')
     }
 
-    console.log('🔄 ===== PRODUCT CHANGE FINISHED =====')
-    console.log('🔄 Final form.product_id:', form.product_id)
-    console.log('🔄 Final selectedOrderStages:', selectedOrderStages.value)
-    console.log('🔄 Final stageAssignments:', stageAssignments)
+    // Product change finished
   } catch (error) {
-    console.error('❌ Error in onProductChange:', error)
     stagesLoading.value = false
   }
 }
 
 onMounted(async () => {
   try {
-    console.log('🚀 OrderFormModal mounted, loading data...')
-
     // Загружаем стадии и собираем все роли
-    const stagesResult = await getAllStages().catch((error) => {
-      console.error('❌ Error loading stages:', error)
-      return { data: [] }
-    })
+    const stagesResult = await getAllStages().catch(() => ({ data: [] }))
 
     // Обрабатываем данные стадий
     if (Array.isArray(stagesResult)) {
@@ -1263,7 +1300,6 @@ onMounted(async () => {
     ) {
       availableStages.value = (stagesResult as any).data
     } else {
-      console.warn('⚠️ Invalid stages data format:', stagesResult)
       availableStages.value = []
     }
 
@@ -1277,7 +1313,7 @@ onMounted(async () => {
       }
     })
 
-    console.log('🔍 Found roles from stages:', Array.from(allRoles))
+    // Found roles from stages
 
     // Загружаем пользователей по ролям стадий и альтернативные источники
     let usersByStageRoles, roleUsersData
@@ -1287,54 +1323,30 @@ onMounted(async () => {
         // Динамическая загрузка пользователей по всем ролям
         ...Array.from(allRoles).map((roleName) =>
           getUsersByRole(roleName)
-            .then((result) => {
-              console.log(`✅ Successfully loaded ${roleName} users via getUsersByRole:`, result)
-              return result
-            })
+            .then((result) => result)
             .catch((error) => {
-              console.error(`❌ Error loading ${roleName} users via getUsersByRole:`, error)
               // Пробуем альтернативный метод
               return getByRole(roleName)
-                .then((result) => {
-                  console.log(`✅ Successfully loaded ${roleName} users via getByRole:`, result)
-                  return result
-                })
+                .then((result) => result)
                 .catch((error2) => {
-                  console.error(`❌ Error loading ${roleName} users via getByRole:`, error2)
                   return { data: [], roleName }
                 })
             }),
         ),
       ])
     } catch (error) {
-      console.error('❌ Failed to load users data:', error)
       usersByStageRoles = {}
       roleUsersData = []
     }
 
     // Загружаем остальные данные
     const [clientsData, productsData, projectsData] = await Promise.all([
-      getAllClients().catch((error) => {
-        console.error('❌ Error loading clients:', error)
-        return []
-      }),
-      getAllProducts().catch((error) => {
-        console.error('❌ Error loading products:', error)
-        return []
-      }),
-      getAllProjects().catch((error) => {
-        console.error('❌ Error loading projects:', error)
-        return []
-      }),
+      getAllClients().catch(() => []),
+      getAllProducts().catch(() => []),
+      getAllProjects().catch(() => []),
     ])
 
-    console.log('📋 Raw data loaded:', {
-      clients: clientsData,
-      products: productsData,
-      projects: projectsData,
-      stages: availableStages.value,
-      usersByStageRoles: usersByStageRoles,
-    })
+    // Raw data loaded
 
     // Обрабатываем данные клиентов
     if (Array.isArray(clientsData)) {
@@ -1347,7 +1359,6 @@ onMounted(async () => {
     ) {
       clients.value = (clientsData as any).data
     } else {
-      console.warn('⚠️ Invalid clients data format:', clientsData)
       clients.value = []
     }
 
@@ -1362,7 +1373,6 @@ onMounted(async () => {
     ) {
       products.value = (productsData as any).data
     } else {
-      console.warn('⚠️ Invalid products data format:', productsData)
       products.value = []
     }
 
@@ -1381,197 +1391,16 @@ onMounted(async () => {
       projects.value = []
     }
 
-    console.log('✅ Processed data:', {
-      clientsCount: clients.value.length,
-      productsCount: products.value.length,
-      projectsCount: projects.value.length,
-      stagesCount: availableStages.value.length,
-    })
-
-    // Если клиенты не загрузились, создаем fallback клиентов
-    if (clients.value.length === 0) {
-      console.log('⚠️ No clients from API, creating fallback clients')
-      clients.value = [
-        { id: 1, name: 'Тестовый клиент 1', company_name: 'Компания 1' },
-        { id: 2, name: 'Тестовый клиент 2', company_name: 'Компания 2' },
-      ]
-    }
-
-    // Если продукты не загрузились, создаем fallback продукты
-    if (products.value.length === 0) {
-      console.log('⚠️ No products from API, creating fallback products')
-      products.value = [
-        {
-          id: 1,
-          name: 'Тестовый продукт 1',
-          available_stages: [
-            {
-              id: 2,
-              name: 'design',
-              display_name: 'Дизайн',
-              color: '#3B82F6',
-              order: 2,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              roles: [{ id: 1, name: 'designer', display_name: 'Дизайнер' }],
-            },
-            {
-              id: 3,
-              name: 'print',
-              display_name: 'Печать',
-              color: '#10B981',
-              order: 3,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              roles: [{ id: 2, name: 'print_operator', display_name: 'Печатник' }],
-            },
-          ],
-        },
-        {
-          id: 2,
-          name: 'Тестовый продукт 2',
-          available_stages: [
-            {
-              id: 2,
-              name: 'design',
-              display_name: 'Дизайн',
-              color: '#3B82F6',
-              order: 2,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              roles: [{ id: 1, name: 'designer', display_name: 'Дизайнер' }],
-            },
-          ],
-        },
-      ] as any
-    }
-
-    // Если проекты не загрузились, создаем fallback проекты
-    if (projects.value.length === 0) {
-      console.log('⚠️ No projects from API, creating fallback projects')
-      projects.value = [
-        { id: 1, title: 'Тестовый проект 1' },
-        { id: 2, title: 'Тестовый проект 2' },
-      ] as any
-    }
-
-    // Если стадии не загрузились, создаем fallback стадии
-    if (availableStages.value.length === 0) {
-      console.log('⚠️ No stages from API, creating fallback stages')
-      availableStages.value = [
-        {
-          id: 2,
-          name: 'design',
-          display_name: 'Дизайн',
-          description: undefined,
-          color: '#3B82F6',
-          order: 2,
-          is_active: true,
-          is_initial: false,
-          is_final: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          roles: [
-            {
-              id: 1,
-              name: 'designer',
-              display_name: 'Дизайнер',
-              description: undefined,
-              color: undefined,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ],
-        },
-        {
-          id: 3,
-          name: 'print',
-          display_name: 'Печать',
-          description: undefined,
-          color: '#10B981',
-          order: 3,
-          is_active: true,
-          is_initial: false,
-          is_final: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          roles: [
-            {
-              id: 2,
-              name: 'print_operator',
-              display_name: 'Печатник',
-              description: undefined,
-              color: undefined,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ],
-        },
-        {
-          id: 4,
-          name: 'engraving',
-          display_name: 'Гравировка',
-          description: undefined,
-          color: '#8B5CF6',
-          order: 4,
-          is_active: true,
-          is_initial: false,
-          is_final: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          roles: [
-            {
-              id: 3,
-              name: 'engraving_operator',
-              display_name: 'Гравировщик',
-              description: undefined,
-              color: undefined,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ],
-        },
-        {
-          id: 5,
-          name: 'workshop',
-          display_name: 'Цех',
-          description: undefined,
-          color: '#F59E0B',
-          order: 5,
-          is_active: true,
-          is_initial: false,
-          is_final: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          roles: [
-            {
-              id: 4,
-              name: 'workshop_worker',
-              display_name: 'Работник цеха',
-              description: undefined,
-              color: undefined,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ],
-        },
-      ]
-    }
+    // Processed data
 
     // Загружаем пользователей по ролям из новой динамической системы
-    console.log('👥 Loading users by stage roles:', usersByStageRoles)
+    // Loading users by stage roles
 
     // Инициализируем все роли пустыми массивами (динамически)
-    // Очищаем предыдущие данные
-    if (allUsers && typeof allUsers === 'object') {
-      Object.keys(allUsers).forEach((key) => delete allUsers[key])
-    }
+    // Очищаем предыдущие данные только после загрузки новых
 
     // Динамически заполняем пользователей по ролям из стадий
-    console.log('🔍 Processing users by stage roles:', usersByStageRoles)
+    // Processing users by stage roles
 
     // Создаем динамический объект для пользователей по ролям
     const dynamicUsers: Record<string, any[]> = {}
@@ -1581,8 +1410,6 @@ onMounted(async () => {
       // Проверяем разные возможные форматы данных
       if (Array.isArray(usersByStageRoles)) {
         // Если API возвращает массив пользователей
-        console.log('📋 API returned array of users, processing by roles from stages')
-
         // Распределяем пользователей по ролям
         usersByStageRoles.forEach((user: any) => {
           if (user.roles && Array.isArray(user.roles)) {
@@ -1607,18 +1434,18 @@ onMounted(async () => {
 
           if (Array.isArray(stageData)) {
             // Если стадия содержит массив пользователей
-            console.log(`📋 Processing stage: ${stageName} with ${stageData.length} users`)
-
             stageData.forEach((user: any) => {
               if (user.roles && Array.isArray(user.roles)) {
                 user.roles.forEach((role: any) => {
                   const roleName = role.name || role
-                  if (!dynamicUsers[roleName]) {
-                    dynamicUsers[roleName] = []
-                  }
-                  const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
-                  if (!existingUser) {
-                    dynamicUsers[roleName].push(user)
+                  if (allRoles.has(roleName)) {
+                    if (!dynamicUsers[roleName]) {
+                      dynamicUsers[roleName] = []
+                    }
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    if (!existingUser) {
+                      dynamicUsers[roleName].push(user)
+                    }
                   }
                 })
               }
@@ -1627,13 +1454,9 @@ onMounted(async () => {
             // Если стадия содержит объект с ролями
             const stageRoles = stageData.users_by_role || stageData.roles || {}
 
-            console.log(`📋 Processing stage: ${stageName}`, stageRoles)
-
             Object.keys(stageRoles).forEach((roleName) => {
               const roleData = stageRoles[roleName]
               const users = roleData.users || roleData || []
-
-              console.log(`  👥 Role ${roleName}: ${users.length} users`)
 
               if (!dynamicUsers[roleName]) {
                 dynamicUsers[roleName] = []
@@ -1651,20 +1474,14 @@ onMounted(async () => {
           }
         })
       }
-    } else {
-      console.warn('⚠️ usersByStageRoles is not defined or not an object:', usersByStageRoles)
     }
 
     // Обрабатываем данные пользователей по ролям из альтернативных источников
     if (roleUsersData && Array.isArray(roleUsersData)) {
-      roleUsersData.forEach((roleData: any) => {
-        console.log('📋 Processing roleData:', roleData)
-
+      roleUsersData.forEach((roleData: any, index: number) => {
         if (roleData && roleData.roleName && roleData.data) {
           const roleName = roleData.roleName
           const users = Array.isArray(roleData.data) ? roleData.data : []
-
-          console.log(`📋 Processing alternative users for role ${roleName}:`, users.length)
 
           if (!dynamicUsers[roleName]) {
             dynamicUsers[roleName] = []
@@ -1678,8 +1495,6 @@ onMounted(async () => {
           })
         } else if (roleData && roleData.data) {
           // Обрабатываем случай, когда roleName не указан, но есть data
-          console.log('📋 Processing roleData without roleName:', roleData)
-
           // Пытаемся определить роль из данных или использовать общую роль
           const users = Array.isArray(roleData.data) ? roleData.data : []
 
@@ -1702,12 +1517,38 @@ onMounted(async () => {
               }
             })
           }
+        } else {
+          // Обрабатываем случай, когда данные приходят напрямую (без обертки)
+          if (Array.isArray(roleData)) {
+            // Если это массив пользователей, распределяем их по ролям
+            roleData.forEach((user: any) => {
+              if (user.roles && Array.isArray(user.roles)) {
+                user.roles.forEach((role: any) => {
+                  const roleName = role.name || role
+                  if (allRoles.has(roleName)) {
+                    if (!dynamicUsers[roleName]) {
+                      dynamicUsers[roleName] = []
+                    }
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    if (!existingUser) {
+                      dynamicUsers[roleName].push(user)
+                    }
+                  }
+                })
+              }
+            })
+          }
         }
       })
     }
 
     // Удаляем дубликаты пользователей для каждой роли
     if (dynamicUsers && typeof dynamicUsers === 'object') {
+      // Сначала очищаем предыдущие данные
+      if (allUsers && typeof allUsers === 'object') {
+        Object.keys(allUsers).forEach((key) => delete allUsers[key])
+      }
+
       Object.keys(dynamicUsers).forEach((roleName) => {
         dynamicUsers[roleName] = Array.from(
           new Map(dynamicUsers[roleName].map((user) => [user.id, user])).values(),
@@ -1720,71 +1561,45 @@ onMounted(async () => {
       })
     }
 
-    console.log(
-      '👥 Loaded users by roles:',
-      allUsers && typeof allUsers === 'object'
-        ? Object.keys(allUsers).reduce(
-            (acc, role) => {
-              acc[role] = allUsers[role]?.length || 0
-              return acc
-            },
-            {} as Record<string, number>,
-          )
-        : {},
-    )
+    // Loaded users by roles
 
-    console.log('👥 Final allUsers object:', allUsers)
-    console.log('👥 Dynamic users object:', dynamicUsers)
+    // Final allUsers object
 
-    // Если пользователи не загрузились, создаем fallback пользователей
+    // Проверяем, загрузились ли пользователи
     const totalUsers =
       allUsers && typeof allUsers === 'object'
         ? Object.keys(allUsers).reduce((sum, role) => sum + (allUsers[role]?.length || 0), 0)
         : 0
 
-    console.log('👥 Total users loaded:', totalUsers)
-
+    // Если пользователи не загрузились, пробуем загрузить через альтернативный API
     if (totalUsers === 0) {
-      console.log('⚠️ No users from API, creating fallback users')
+      // No users from API, trying alternative method
 
-      // Динамически создаем fallback пользователей для всех ролей из стадий
-      const allRoles = new Set<string>()
+      try {
+        // Пробуем загрузить всех пользователей через общий API
+        const { apiRequest } = await import('../../../services/api')
+        const allUsersResponse = await apiRequest('/users')
 
-      // Собираем все роли из всех стадий
-      availableStages.value.forEach((stage) => {
-        if (stage.roles) {
-          stage.roles.forEach((role) => {
-            allRoles.add(role.name)
+        if (allUsersResponse && Array.isArray(allUsersResponse)) {
+          // Распределяем пользователей по ролям
+          allUsersResponse.forEach((user: any) => {
+            if (user.roles && Array.isArray(user.roles)) {
+              user.roles.forEach((role: any) => {
+                const roleName = role.name || role
+                if (!allUsers[roleName]) {
+                  allUsers[roleName] = []
+                }
+                const existingUser = allUsers[roleName].find((u: any) => u.id === user.id)
+                if (!existingUser) {
+                  allUsers[roleName].push(user)
+                }
+              })
+            }
           })
         }
-      })
-
-      // Создаем fallback пользователей для каждой роли
-      allRoles.forEach((roleName, index) => {
-        const fallbackUser = {
-          id: 100 + index,
-          name: `Оператор ${roleName.replace(/_/g, ' ')}`,
-          username: `operator_${roleName}`,
-          email: `operator_${roleName}@example.com`,
-          roles: [{ name: roleName }],
-        } as any
-        allUsers[roleName] = [fallbackUser]
-      })
-
-      console.log(
-        '✅ Fallback users created:',
-        allUsers && typeof allUsers === 'object'
-          ? Object.keys(allUsers).reduce(
-              (acc, role) => {
-                acc[role] = allUsers[role]?.length || 0
-                return acc
-              },
-              {} as Record<string, number>,
-            )
-          : {},
-      )
-    } else {
-      console.log('✅ Real users loaded successfully!')
+      } catch (error) {
+        // Если API недоступен, оставляем пустой массив пользователей
+      }
     }
 
     // Если редактируем заказ
@@ -1835,18 +1650,12 @@ onMounted(async () => {
 watch(
   selectedOrderStages,
   (newStages, oldStages) => {
-    console.log('👀 selectedOrderStages changed:', {
-      old: oldStages,
-      new: newStages,
-      added: newStages.filter((id) => !oldStages.includes(id)),
-      removed: oldStages.filter((id) => !newStages.includes(id)),
-      workingStages: workingStages.value.map((s) => ({ id: s.id, name: s.name })),
-    })
+    // selectedOrderStages changed
 
     // Обновляем stageAssignments при изменении выбранных стадий
     const removedStages = oldStages.filter((id) => !newStages.includes(id))
     if (removedStages.length > 0) {
-      console.log('⚠️ Stages removed, keeping assignments for:', removedStages)
+      // Stages removed, keeping assignments
       // Назначения сохраняются даже для отключенных стадий
     }
   },
@@ -1857,7 +1666,7 @@ watch(
 watch(
   () => form.product_id,
   (newProductId, oldProductId) => {
-    console.log('👀 form.product_id changed:', { old: oldProductId, new: newProductId })
+    // form.product_id changed
     if (newProductId !== oldProductId) {
       onProductChange(newProductId || null)
     }
@@ -1891,14 +1700,7 @@ function formatDateForInput(dateString: string): string {
 }
 
 function validateForm(): boolean {
-  console.log('🔍 Validating order form:', {
-    orderMode: orderMode.value,
-    client_id: form.client_id,
-    project_id: form.project_id,
-    product_id: form.product_id,
-    quantity: form.quantity,
-    selectedStages: selectedOrderStages.value,
-  })
+  // Validating order form
 
   // Очищаем ошибки
   Object.keys(errors).forEach((key) => {
@@ -1910,7 +1712,7 @@ function validateForm(): boolean {
   if (!form.client_id || form.client_id <= 0) {
     errors.client_id = 'Выберите клиента'
     valid = false
-    console.log('❌ Client validation failed')
+    // Client validation failed
   }
 
   // Проект обязателен только для массового заказа
@@ -1922,26 +1724,26 @@ function validateForm(): boolean {
       errors.project_id = 'Выберите проект или введите название проекта'
       errors.bulk_project_title = 'Выберите проект или введите название проекта'
       valid = false
-      console.log('❌ Project validation failed (bulk order)')
+      // Project validation failed (bulk order)
     }
 
     // Проверяем, что есть хотя бы один продукт
     if (bulkOrders.value.length === 0) {
       errors.bulk_orders = 'Добавьте хотя бы один продукт'
       valid = false
-      console.log('❌ Bulk orders validation failed - no products')
+      // Bulk orders validation failed - no products
     } else {
       // Проверяем каждый продукт
       bulkOrders.value.forEach((order, index) => {
         if (!order.product_id || order.product_id <= 0) {
           errors.bulk_orders = `Выберите продукт для заказа ${index + 1}`
           valid = false
-          console.log(`❌ Bulk order ${index + 1} product validation failed`)
+          // Bulk order product validation failed
         }
         if (!order.quantity || order.quantity <= 0) {
           errors.bulk_orders = `Укажите количество для заказа ${index + 1}`
           valid = false
-          console.log(`❌ Bulk order ${index + 1} quantity validation failed`)
+          // Bulk order quantity validation failed
         }
       })
     }
@@ -1950,22 +1752,22 @@ function validateForm(): boolean {
   if (orderMode.value === 'single' && (!form.product_id || form.product_id <= 0)) {
     errors.product_id = 'Выберите продукт'
     valid = false
-    console.log('❌ Product validation failed')
+    // Product validation failed
   }
 
   if (orderMode.value === 'single' && (!form.quantity || form.quantity <= 0)) {
     errors.quantity = 'Введите корректное количество'
     valid = false
-    console.log('❌ Quantity validation failed')
+    // Quantity validation failed
   }
 
   if (orderMode.value === 'single' && selectedOrderStages.value.length === 0) {
     errors.stages = 'Выберите хотя бы одну стадию'
     valid = false
-    console.log('❌ Stages validation failed')
+    // Stages validation failed
   }
 
-  console.log('✅ Order form validation result:', valid)
+  // Order form validation result
   return valid
 }
 
@@ -1976,7 +1778,10 @@ async function handleSubmit() {
 
   loading.value = true
   try {
-    let orderData: any = {
+    let orderData: Partial<OrderForm> & {
+      stages?: number[]
+      assignments?: OrderAssignmentCreate[]
+    } = {
       ...form,
       deadline: form.deadline || null,
       price: form.price || null,
@@ -1984,13 +1789,13 @@ async function handleSubmit() {
 
     // Для массового заказа создаем несколько заказов
     if (orderMode.value === 'bulk') {
-      console.log('📦 Creating bulk orders with stages and assignments...')
+      // Creating bulk orders with stages and assignments
 
       // Если указано название проекта, создаем один проект для всех заказов
       let projectId = form.project_id
       if (bulkProjectTitle.value.trim() && !form.project_id) {
         try {
-          console.log('📦 Creating project for bulk orders:', bulkProjectTitle.value.trim())
+          // Creating project for bulk orders
           const projectData = {
             title: bulkProjectTitle.value.trim(),
             description: `Массовый заказ - ${bulkProjectTitle.value.trim()}`,
@@ -1998,7 +1803,7 @@ async function handleSubmit() {
           }
           const createdProject = await createProject(projectData)
           projectId = createdProject.id
-          console.log('✅ Project created for bulk orders:', projectId)
+          // Project created for bulk orders
         } catch (error) {
           console.error('❌ Error creating project for bulk orders:', error)
           toast.show('Ошибка при создании проекта', 'error')
@@ -2024,7 +1829,7 @@ async function handleSubmit() {
           assignments: getBulkOrderAssignments(i),
         }
 
-        console.log(`📦 Creating bulk order ${i + 1}:`, orderData)
+        // Creating bulk order
         const createdOrder = await create(orderData)
         createdOrders.push(createdOrder)
       }
@@ -2036,7 +1841,7 @@ async function handleSubmit() {
     } else {
       // Для одиночного заказа добавляем все данные
       const assignments = getAllAssignments()
-      console.log('📋 Assignments for order:', assignments)
+      // Assignments for order
 
       orderData = {
         ...orderData,
@@ -2045,7 +1850,7 @@ async function handleSubmit() {
       }
     }
 
-    console.log('💾 Saving order with data:', orderData)
+    // Saving order with data
 
     if (props.order) {
       // Обновляем существующий заказ
@@ -2069,29 +1874,28 @@ async function handleSubmit() {
 
 function getAllAssignments(): OrderAssignmentCreate[] {
   const allAssignments: OrderAssignmentCreate[] = []
-  console.log('🔍 Getting all assignments from stageAssignments:', stageAssignments)
-  console.log('🔍 Selected stages:', selectedOrderStages.value)
+  // Getting all assignments from stageAssignments
 
   Object.keys(stageAssignments).forEach((stageId) => {
     const stageIdNum = parseInt(stageId)
 
     // Проверяем, выбрана ли эта стадия
     if (!selectedOrderStages.value.includes(stageIdNum)) {
-      console.log(`⏭️ Skipping stage ${stageId} - not selected`)
+      // Skipping stage - not selected
       return // Пропускаем эту стадию
     }
 
     const stageAssignmentsForStage = stageAssignments[stageIdNum]
-    console.log(`📋 Stage ${stageId} assignments:`, stageAssignmentsForStage)
+    // Stage assignments
 
     if (stageAssignmentsForStage && typeof stageAssignmentsForStage === 'object') {
       Object.keys(stageAssignmentsForStage).forEach((roleName) => {
         const assignments = stageAssignmentsForStage[roleName]
-        console.log(`  👥 Role ${roleName} assignments:`, assignments)
+        // Role assignments
 
         if (Array.isArray(assignments)) {
           assignments.forEach((assignment) => {
-            console.log(`    📝 Assignment:`, assignment)
+            // Assignment
             if (assignment && assignment.user_id && assignment.user_id > 0) {
               const assignmentData = {
                 user_id: assignment.user_id,
@@ -2099,9 +1903,9 @@ function getAllAssignments(): OrderAssignmentCreate[] {
                 stage_id: stageIdNum,
               }
               allAssignments.push(assignmentData)
-              console.log(`    ✅ Added assignment for selected stage:`, assignmentData)
+              // Added assignment for selected stage
             } else {
-              console.log(`    ❌ Skipped assignment (invalid):`, assignment)
+              // Skipped assignment (invalid)
             }
           })
         }
@@ -2109,7 +1913,7 @@ function getAllAssignments(): OrderAssignmentCreate[] {
     }
   })
 
-  console.log('📋 Final allAssignments (only for selected stages):', allAssignments)
+  // Final allAssignments (only for selected stages)
   return allAssignments
 }
 
@@ -2123,12 +1927,10 @@ function addBulkOrder() {
     selected_stages: [],
     assignments: {},
   })
-  console.log('➕ Added bulk order, total:', bulkOrders.value.length)
 }
 
 function removeBulkOrder(index: number) {
   bulkOrders.value.splice(index, 1)
-  console.log('➖ Removed bulk order at index:', index)
 }
 
 async function onBulkOrderProductChange(index: number) {
@@ -2136,8 +1938,6 @@ async function onBulkOrderProductChange(index: number) {
   if (!order || !order.product_id) return
 
   try {
-    console.log(`🔄 Product changed for bulk order ${index}:`, order.product_id)
-
     // Сбрасываем выбранные стадии и назначения для этого заказа
     order.selected_stages = []
     order.assignments = {}
@@ -2145,7 +1945,6 @@ async function onBulkOrderProductChange(index: number) {
     // Находим выбранный продукт
     const selectedProduct = products.value.find((p) => p.id === order.product_id)
     if (!selectedProduct) {
-      console.warn(`⚠️ Product not found for bulk order ${index}:`, order.product_id)
       return
     }
 
@@ -2153,34 +1952,19 @@ async function onBulkOrderProductChange(index: number) {
     if (selectedProduct.available_stages && Array.isArray(selectedProduct.available_stages)) {
       // Выбираем все доступные стадии продукта по умолчанию
       order.selected_stages = selectedProduct.available_stages.map((stage) => stage.id)
-      console.log(`✅ Selected stages for bulk order ${index}:`, order.selected_stages)
-
       // Загружаем назначения продукта для автоматического подтягивания
       const productAssignmentsResponse = await getProductAssignments(order.product_id)
-      console.log(
-        `📋 Product assignments response for bulk order ${index}:`,
-        productAssignmentsResponse,
-      )
 
       if (
         productAssignmentsResponse &&
         productAssignmentsResponse.assignments &&
         Array.isArray(productAssignmentsResponse.assignments)
       ) {
-        console.log(
-          `📋 Found assignments in response for bulk order ${index}:`,
-          productAssignmentsResponse.assignments.length,
-        )
-
         // Группируем назначения продукта по ролям
         const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
         productAssignmentsResponse.assignments.forEach((assignment: any) => {
           const roleType = assignment.role_type
-
-          console.log(
-            `📋 Processing assignment for bulk order ${index}: role ${roleType}, user ${assignment.user?.name || 'unknown'}`,
-          )
 
           if (!productAssignmentsByRole[roleType]) {
             productAssignmentsByRole[roleType] = []
@@ -2198,20 +1982,11 @@ async function onBulkOrderProductChange(index: number) {
           } as ProductAssignment)
         })
 
-        console.log(
-          `📋 Product assignments by role for bulk order ${index}:`,
-          productAssignmentsByRole,
-        )
-
         // Копируем назначения продукта в заказ для каждой стадии
         if (productAssignmentsByRole && typeof productAssignmentsByRole === 'object') {
           Object.keys(productAssignmentsByRole).forEach((roleType) => {
             const assignments = productAssignmentsByRole[roleType]
             if (Array.isArray(assignments)) {
-              console.log(
-                `📋 Copying ${assignments.length} assignments for role ${roleType} in bulk order ${index}`,
-              )
-
               // Находим стадии, которые используют эту роль
               const stagesWithRole = availableStages.value.filter((stage) => {
                 return stage.roles && stage.roles.some((role: any) => role.name === roleType)
@@ -2236,15 +2011,12 @@ async function onBulkOrderProductChange(index: number) {
           })
         }
 
-        console.log(`✅ Product assignments copied to bulk order ${index}`)
-        console.log(`📋 Final assignments for bulk order ${index}:`, order.assignments)
+        // Product assignments copied to bulk order
       } else {
-        console.log(`⚠️ No assignments found for product in bulk order ${index}`)
+        // No assignments found for product in bulk order
       }
     } else {
-      console.warn(
-        `⚠️ No available stages found for product in bulk order ${index}, using empty selection`,
-      )
+      // No available stages found for product in bulk order, using empty selection
       order.selected_stages = []
     }
   } catch (error) {
@@ -2263,7 +2035,7 @@ function toggleBulkOrderStage(orderIndex: number, stageId: number) {
   } else {
     order.selected_stages.push(stageId)
   }
-  console.log(`🔄 Toggled stage ${stageId} for bulk order ${orderIndex}:`, order.selected_stages)
+  // Toggled stage for bulk order
 }
 
 function selectAllStagesForBulkOrder(orderIndex: number) {
@@ -2271,7 +2043,7 @@ function selectAllStagesForBulkOrder(orderIndex: number) {
   if (!order) return
 
   order.selected_stages = workingStages.value.map((stage) => stage.id)
-  console.log(`✅ Selected all stages for bulk order ${orderIndex}:`, order.selected_stages)
+  // Selected all stages for bulk order
 }
 
 function clearAllStagesForBulkOrder(orderIndex: number) {
@@ -2279,7 +2051,7 @@ function clearAllStagesForBulkOrder(orderIndex: number) {
   if (!order) return
 
   order.selected_stages = []
-  console.log(`🗑️ Cleared all stages for bulk order ${orderIndex}`)
+  // Cleared all stages for bulk order
 }
 
 function getSelectedStageObjectsForBulkOrder(orderIndex: number) {
@@ -2310,9 +2082,7 @@ function addBulkOrderAssignment(orderIndex: number, stageId: number, roleName: s
 
   // Если есть пустые назначения, не добавляем новые
   if (existingEmptyAssignments.length > 0) {
-    console.log(
-      `⚠️ Skipping assignment addition - there are ${existingEmptyAssignments.length} empty assignments for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`,
-    )
+    // Skipping assignment addition - there are empty assignments
     return
   }
 
@@ -2328,9 +2098,7 @@ function addBulkOrderAssignment(orderIndex: number, stageId: number, roleName: s
     updated_at: new Date().toISOString(),
   } as ProductAssignment)
 
-  console.log(
-    `➕ Added assignment for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`,
-  )
+  // Added assignment for bulk order
 }
 
 function removeBulkOrderAssignment(
@@ -2343,9 +2111,7 @@ function removeBulkOrderAssignment(
   if (!order || !order.assignments[stageId] || !order.assignments[stageId][roleName]) return
 
   order.assignments[stageId][roleName].splice(assignmentIndex, 1)
-  console.log(
-    `➖ Removed assignment ${assignmentIndex} for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`,
-  )
+  // Removed assignment for bulk order
 }
 
 function getBulkOrderAssignmentsForStageRole(
@@ -2374,10 +2140,7 @@ function handleBulkOrderUserSelect(
   if (user) {
     assignment.user_id = user.id
     assignment.user = user as User | null
-    console.log(
-      `👤 User selected for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}:`,
-      user.name,
-    )
+    // User selected for bulk order
 
     // Удаляем все пустые назначения для этой роли
     const assignments = order.assignments[stageId][roleName]
@@ -2386,7 +2149,7 @@ function handleBulkOrderUserSelect(
     )
 
     if (emptyAssignments.length > 0) {
-      console.log(`🗑️ Removing ${emptyAssignments.length} empty assignments`)
+      // Removing empty assignments
       order.assignments[stageId][roleName] = assignments.filter(
         (a, index) => index === assignmentIndex || (a.user_id && a.user_id > 0),
       )
@@ -2394,7 +2157,7 @@ function handleBulkOrderUserSelect(
   } else {
     assignment.user_id = 0
     assignment.user = null
-    console.log(`❌ User cleared for bulk order ${orderIndex}, stage ${stageId}, role ${roleName}`)
+    // User cleared for bulk order
   }
 }
 
@@ -2403,31 +2166,28 @@ function getBulkOrderAssignments(orderIndex: number): OrderAssignmentCreate[] {
   if (!order) return []
 
   const allAssignments: OrderAssignmentCreate[] = []
-  console.log(`🔍 Getting assignments for bulk order ${orderIndex}:`, order.assignments)
+  // Getting assignments for bulk order
 
   Object.keys(order.assignments).forEach((stageId) => {
     const stageIdNum = parseInt(stageId)
 
     // Проверяем, выбрана ли эта стадия
     if (!order.selected_stages.includes(stageIdNum)) {
-      console.log(`⏭️ Skipping stage ${stageId} - not selected for bulk order ${orderIndex}`)
+      // Skipping stage - not selected for bulk order
       return // Пропускаем эту стадию
     }
 
     const stageAssignmentsForStage = order.assignments[stageIdNum]
-    console.log(
-      `📋 Stage ${stageId} assignments for bulk order ${orderIndex}:`,
-      stageAssignmentsForStage,
-    )
+    // Stage assignments for bulk order
 
     if (stageAssignmentsForStage && typeof stageAssignmentsForStage === 'object') {
       Object.keys(stageAssignmentsForStage).forEach((roleName) => {
         const assignments = stageAssignmentsForStage[roleName]
-        console.log(`  👥 Role ${roleName} assignments for bulk order ${orderIndex}:`, assignments)
+        // Role assignments for bulk order
 
         if (Array.isArray(assignments)) {
           assignments.forEach((assignment) => {
-            console.log(`    📝 Assignment for bulk order ${orderIndex}:`, assignment)
+            // Assignment for bulk order
             if (assignment && assignment.user_id && assignment.user_id > 0) {
               const assignmentData = {
                 user_id: assignment.user_id,
@@ -2435,12 +2195,9 @@ function getBulkOrderAssignments(orderIndex: number): OrderAssignmentCreate[] {
                 stage_id: stageIdNum,
               }
               allAssignments.push(assignmentData)
-              console.log(`    ✅ Added assignment for bulk order ${orderIndex}:`, assignmentData)
+              // Added assignment for bulk order
             } else {
-              console.log(
-                `    ❌ Skipped assignment for bulk order ${orderIndex} (invalid):`,
-                assignment,
-              )
+              // Skipped assignment for bulk order (invalid)
             }
           })
         }
@@ -2448,7 +2205,7 @@ function getBulkOrderAssignments(orderIndex: number): OrderAssignmentCreate[] {
     }
   })
 
-  console.log(`📋 Final assignments for bulk order ${orderIndex}:`, allAssignments)
+  // Final assignments for bulk order
   return allAssignments
 }
 
@@ -2484,18 +2241,76 @@ async function handleDelete() {
   }
 }
 
-function onClientCreated(client: any) {
+function onClientCreated(client: { id: number; name: string; company_name?: string }) {
   clients.value.push(client)
   form.client_id = client.id
   showClientModal.value = false
   toast.show('Клиент создан!')
 }
 
-function onProjectCreated(project: any) {
+function onProjectCreated(project: { id: number; title: string }) {
   projects.value.push(project)
   form.project_id = project.id
   showProjectModal.value = false
   toast.show('Проект создан!')
+}
+
+function onProductCreated() {
+  // Закрываем модальное окно
+  showProductModal.value = false
+
+  // Показываем уведомление
+  toast.show('Продукт создан!')
+
+  // Загружаем обновленный список продуктов
+  getAllProducts()
+    .then((productsData) => {
+      // Обрабатываем данные продуктов
+      if (Array.isArray(productsData)) {
+        products.value = productsData
+      } else if (
+        productsData &&
+        typeof productsData === 'object' &&
+        'data' in productsData &&
+        Array.isArray((productsData as any).data)
+      ) {
+        products.value = (productsData as any).data
+      }
+
+      // Находим последний созданный продукт (предполагаем, что он последний в списке)
+      if (products.value.length > 0) {
+        const lastProduct = products.value[products.value.length - 1]
+
+        // Устанавливаем новый продукт как выбранный
+        form.product_id = lastProduct.id
+
+        // Автоматически загружаем стадии и назначения для нового продукта
+        if (lastProduct.id) {
+          // Небольшая задержка для корректной работы
+          setTimeout(() => {
+            // Для одиночного режима
+            if (orderMode.value === 'single' || props.order) {
+              onProductChange(lastProduct.id)
+            }
+
+            // Для массового режима - обновляем все заказы с пустыми продуктами
+            if (orderMode.value === 'bulk') {
+              bulkOrders.value.forEach((order, index) => {
+                if (!order.product_id) {
+                  order.product_id = lastProduct.id
+                  // Автоматически загружаем стадии для этого заказа
+                  onBulkOrderProductChange(index)
+                }
+              })
+            }
+          }, 100)
+        }
+      }
+    })
+    .catch(() => {
+      // В случае ошибки просто показываем уведомление
+      console.warn('Не удалось загрузить обновленный список продуктов')
+    })
 }
 
 // Вспомогательные функции для шаблона

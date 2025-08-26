@@ -36,9 +36,7 @@
           </span>
         </div>
         <div class="order-row">
-          <span class="order-value order-status">{{
-            getStageLabel(order.stage?.name || order.stage)
-          }}</span>
+          <span class="order-value order-status">{{ getStageLabel(order.stage) }}</span>
         </div>
       </div>
       <div v-if="order.description" class="order-description">
@@ -54,33 +52,52 @@ import { computed, ref, onMounted } from 'vue'
 import { canViewPrices } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
 
-const stages = ref<any[]>([])
+const stages = ref<Array<{ value: string; label: string; color: string }>>([])
 
 onMounted(async () => {
   try {
     const stagesData = await getAllStages()
 
     if (Array.isArray(stagesData)) {
-      stages.value = stagesData.map((stage: any) => ({
-        value: stage.name,
-        label: stage.display_name || stage.name,
-        color: stage.color,
-      }))
+      stages.value = stagesData.map(
+        (stage: { name: string; display_name?: string; color?: string }) => ({
+          value: stage.name,
+          label: stage.display_name || stage.name,
+          color: stage.color,
+        }),
+      )
     } else if (stagesData && stagesData.data && Array.isArray(stagesData.data)) {
-      stages.value = stagesData.data.map((stage: any) => ({
-        value: stage.name,
-        label: stage.display_name || stage.name,
-        color: stage.color,
-      }))
+      stages.value = stagesData.data.map(
+        (stage: { name: string; display_name?: string; color?: string }) => ({
+          value: stage.name,
+          label: stage.display_name || stage.name,
+          color: stage.color,
+        }),
+      )
     } else {
+      console.warn('Unexpected stages data format:', stagesData)
     }
   } catch (error) {
+    console.warn('Failed to load stages:', error)
   }
 })
 
-const props = defineProps<{ order: any; compact?: boolean; dragging?: boolean }>()
+const props = defineProps<{
+  order: {
+    id: number
+    title?: string
+    price?: number
+    deadline?: string
+    description?: string
+    client?: { company_name?: string }
+    stage?: { name?: string } | string
+    product?: { name?: string }
+  }
+  compact?: boolean
+  dragging?: boolean
+}>()
 const emit = defineEmits<{
-  (e: 'click', order: any): void
+  (e: 'click', order: typeof props.order): void
 }>()
 
 function handleCardClick() {
@@ -95,13 +112,14 @@ function formatDeadline(deadline: string) {
   return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function getStageLabel(stage: string) {
-  const stageData = stages.value.find((s) => s.value === stage)
+function getStageLabel(stage: string | { name?: string }) {
+  const stageName = typeof stage === 'string' ? stage : stage.name || ''
+  const stageData = stages.value.find((s) => s.value === stageName)
   if (stageData && stageData.label) {
     return stageData.label
   }
 
-  switch (stage) {
+  switch (stageName) {
     case 'draft':
       return 'Черновик'
     case 'design':
@@ -139,14 +157,15 @@ const cardBgClass = computed(() => {
   if (!props.order.deadline) return ''
   const now = new Date()
   const deadline = new Date(props.order.deadline)
-  if (deadline < now) return 'kanban-deadline-overdue'
+  if (deadline < now) return 'bitrix-deadline-overdue'
   const diff = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  if (diff < 3) return 'kanban-deadline-soon'
+  if (diff < 3) return 'bitrix-deadline-soon'
   return ''
 })
 
 const stageClass = computed(() => {
-  const stageName = props.order.stage?.name || props.order.stage
+  const stageName =
+    typeof props.order.stage === 'string' ? props.order.stage : props.order.stage?.name || ''
   switch (stageName) {
     case 'draft':
       return 'stage-draft'
@@ -169,8 +188,6 @@ const stageClass = computed(() => {
   }
 })
 </script>
-
-export default { name: 'OrderCard' }
 
 <style scoped>
 .order-card.bitrix-order-card {
@@ -203,7 +220,7 @@ export default { name: 'OrderCard' }
   transform: scale(1.03) translateY(-2px);
   background: #f8fafc;
 }
-.kanban-order-card-wrapper.dragging .order-card.bitrix-order-card {
+.bitrix-card-wrapper.dragging .order-card.bitrix-order-card {
   opacity: 0.7;
   transform: scale(1.04) rotate(-1deg);
   box-shadow:
@@ -232,32 +249,17 @@ export default { name: 'OrderCard' }
   border-radius: 6px 0 0 6px;
   background: #ece6f6;
 }
-.stage-draft.order-card.bitrix-order-card::before {
-  background: #d1d5db;
-}
-.stage-design.order-card.bitrix-order-card::before {
-  background: #3b82f6;
-}
-.stage-print.order-card.bitrix-order-card::before {
-  background: #fbbf24;
-}
-.stage-workshop.order-card.bitrix-order-card::before {
-  background: #8b5cf6;
-}
-.stage-final.order-card.bitrix-order-card::before {
-  background: #22c55e;
-}
-.stage-completed.order-card.bitrix-order-card::before {
-  background: #059669;
-}
-.stage-cancelled.order-card.bitrix-order-card::before {
-  background: #ef4444;
-}
-.stage-engraving.order-card.bitrix-order-card::before {
-  background: #f97316;
-}
+/* Цвета стадий теперь динамические, не переопределяем их */
+.stage-draft.order-card.bitrix-order-card::before,
+.stage-design.order-card.bitrix-order-card::before,
+.stage-print.order-card.bitrix-order-card::before,
+.stage-workshop.order-card.bitrix-order-card::before,
+.stage-final.order-card.bitrix-order-card::before,
+.stage-completed.order-card.bitrix-order-card::before,
+.stage-cancelled.order-card.bitrix-order-card::before,
+.stage-engraving.order-card.bitrix-order-card::before,
 .stage-default.order-card.bitrix-order-card::before {
-  background: #6366f1;
+  /* Цвет будет установлен динамически через inline стили */
 }
 .order-card-content {
   padding: 6px 8px 6px 10px;
@@ -377,10 +379,10 @@ export default { name: 'OrderCard' }
   color: #6366f1;
 }
 
-.kanban-deadline-overdue.order-card.bitrix-order-card {
+.bitrix-deadline-overdue.order-card.bitrix-order-card {
   background: #fee2e2 !important;
 }
-.kanban-deadline-soon.order-card.bitrix-order-card {
+.bitrix-deadline-soon.order-card.bitrix-order-card {
   background: #fef9c3 !important;
 }
 </style>

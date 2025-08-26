@@ -2,10 +2,18 @@
   <aside
     class="border-r border-white border-opacity-20 flex flex-col py-8 shadow-lg bg-gradient-to-b from-blue-600 via-indigo-500 to-indigo-600"
   >
+    <div
+      v-if="logoLoading"
+      class="mx-auto mb-10 max-w-[150px] w-40 h-24 flex items-center justify-center"
+    >
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+    </div>
     <img
-      src="/A-A_logotype (colorful) (1) copy.png"
+      v-else
+      :src="logoUrl"
       alt="Altyn-Arzuw Logo"
       class="mx-auto mb-10 max-w-[150px] w-40 h-auto"
+      @error="handleLogoError"
     />
     <nav class="flex flex-col gap-2 px-4 flex-1">
       <router-link
@@ -167,17 +175,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {
   canViewAllUsers,
   canViewAllClients,
   canViewAuditLogs,
   getNavigationText,
 } from '../../utils/permissions'
+import { useLogo } from '@/composables/useLogo'
 
-const isOpen = ref(true)
+// Используем composable для логотипа
+const { logoDataUrl, isLoading: logoLoading } = useLogo()
 
-function hasRole(user: any, roleName: string) {
-  return user.roles && user.roles.some((r: any) => r.name === roleName)
+// Получаем URL логотипа
+const logoUrl = computed(() => logoDataUrl.value || '/A-A_logotype (colorful) (1) copy.png')
+
+// Обработчик ошибки загрузки логотипа
+const handleLogoError = () => {
+  console.warn('Ошибка загрузки логотипа в сайдбаре, используем fallback')
 }
 </script>

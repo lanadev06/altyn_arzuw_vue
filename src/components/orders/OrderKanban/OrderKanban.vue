@@ -1,12 +1,12 @@
 <template>
-  <div class="kanban-board bitrix-bg flex w-full p-0 min-h-[90vh]">
+  <div class="bitrix-board-new flex w-full p-0 min-h-[90vh]">
     <div
       v-for="(stageObj, idx) in statuses"
       :key="stageObj.key"
-      class="kanban-column bitrix-column flex flex-col max-h-[88vh] p-0 relative flex-1 min-w-0"
+      class="bitrix-column flex flex-col max-h-[88vh] p-0 relative flex-1 min-w-0"
       :class="{
         'with-divider': idx !== statuses.length - 1,
-        'kanban-column--dragover': dragOverStage === stageObj.key,
+        'bitrix-column--dragover': dragOverStage === stageObj.key,
         'first-col': idx === 0,
         'last-col': idx === statuses.length - 1,
       }"
@@ -17,7 +17,7 @@
         :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
       ></div>
       <div
-        class="kanban-column-header bitrix-header flex items-center justify-between px-3 py-2 font-bold relative"
+        class="bitrix-header flex items-center justify-between px-3 py-2 font-bold relative"
         :class="{ 'first-col-header': idx === 0, 'last-col-header': idx === statuses.length - 1 }"
         :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
       >
@@ -41,19 +41,19 @@
         <span class="plus-icon">+</span> Добавить заказ
       </button>
       <div
-        class="kanban-cards flex flex-col gap-0 p-1 overflow-y-auto min-h-[40px] transition-all"
+        class="bitrix-cards flex flex-col gap-0 p-1 overflow-y-auto min-h-[40px] transition-all"
         :id="'col-' + stageObj.key"
         @dragover.prevent
         @drop="onDrop($event, stageObj.key)"
         @dragenter="onDragEnter(stageObj.key)"
         @dragleave="onDragLeave(stageObj.key)"
-        :class="{ 'kanban-cards--dragover': dragOverStage === stageObj.key }"
+        :class="{ 'bitrix-cards--dragover': dragOverStage === stageObj.key }"
       >
         <slot name="add-card" :stage="stageObj.key"></slot>
         <div
           v-for="order in ordersByStage(stageObj.key)"
           :key="order.id"
-          class="kanban-order-card-wrapper bitrix-card-wrapper cursor-move transition"
+          class="bitrix-card-wrapper cursor-move transition"
           :class="{ dragging: draggingOrder && draggingOrder.id === order.id }"
           draggable="true"
           @dragstart="onDragStart(order)"
@@ -83,67 +83,126 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import OrderCard from './OrderCard.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import { canCreateEdit } from '../../../utils/permissions'
-import { API_CONFIG } from '../../../config/api'
-import { getStageColor, getStageColorStyles } from '../../../utils/stageColors'
+
+import { getStageColorStyles } from '../../../utils/stageColors'
 import { stageApi } from '../../../services/stageApi'
 
-const { orders } = OrderController()
+// Интерфейс для заказа
+interface Order {
+  id: number
+  title?: string
+  stage?: { name?: string } | string
+  // Добавьте другие поля по необходимости
+}
 
-const stages = ref<any[]>([])
+// Интерфейс для событий
+interface StatusChangePayload {
+  order: Order
+  newStatus: string
+}
+
+// Вспомогательная функция для получения имени стадии
+function getStageName(stage: { name?: string } | string | undefined): string {
+  if (typeof stage === 'string') return stage
+  return stage?.name || ''
+}
+
+const stages = ref<Array<{ value: string; label: string; color: string }>>([])
+
+// Функция для сохранения цветов в localStorage
+function saveStagesToStorage(stagesData: Array<{ value: string; label: string; color: string }>) {
+  try {
+    localStorage.setItem('kanban-stages-colors', JSON.stringify(stagesData))
+  } catch {
+    // Игнорируем ошибки localStorage
+  }
+}
+
+// Функция для загрузки цветов из localStorage
+function loadStagesFromStorage(): Array<{ value: string; label: string; color: string }> | null {
+  try {
+    const stored = localStorage.getItem('kanban-stages-colors')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
 
 onMounted(async () => {
+  // Сначала пытаемся загрузить цвета из localStorage
+  const cachedStages = loadStagesFromStorage()
+  if (cachedStages && cachedStages.length > 0) {
+    stages.value = cachedStages
+  }
+
+  // Затем загружаем свежие цвета из API
   try {
     const stagesData = await stageApi.getAll()
-    stages.value = stagesData.map((stage: any) => ({
-      value: stage.name,
-      label: stage.display_name || stage.name,
-      color: stage.color,
-    }))
-
-    console.log(
-      '🎯 Available stages in Kanban:',
-      stages.value.map((s) => s.value),
+    const newStages = stagesData.map(
+      (stage: { name: string; display_name?: string; color?: string }) => ({
+        value: stage.name,
+        label: stage.display_name || stage.name,
+        color: stage.color || '#6366f1', // Fallback цвет если API не вернул цвет
+      }),
     )
-  } catch (error) {}
+
+    stages.value = newStages
+    saveStagesToStorage(newStages) // Сохраняем в localStorage
+  } catch {
+    // Если API не работает и нет кэша, используем базовые цвета
+    if (!cachedStages) {
+      stages.value = props.statuses.map((status) => ({
+        value: status.key,
+        label: status.label,
+        color: '#6366f1', // Единый fallback цвет
+      }))
+    }
+  }
 
   OrderController().fetchAllOrdersForKanban()
-  pollingInterval = setInterval(() => {
+  pollingInterval = window.setInterval(() => {
     OrderController().fetchAllOrdersForKanban()
   }, 7000)
 })
 const props = defineProps<{
   statuses: { key: string; label: string }[]
-  orders: any[]
+  orders: Order[]
 }>()
+
+// Локальный ref для заказов, который мы можем обновлять
+const localOrders = ref<Order[]>([])
+
+// Инициализируем локальные заказы при изменении props
+watch(
+  () => props.orders,
+  (newOrders) => {
+    localOrders.value = [...(newOrders || [])]
+  },
+  { immediate: true },
+)
 const emit = defineEmits<{
   (e: 'update:orders'): void
-  (e: 'open-order', payload: any): void
+  (e: 'open-order', payload: { order: Order }): void
   (e: 'add-order', stage: string): void
   (e: 'updated'): void
   (e: 'order-updated', orderId: string): void
+  (e: 'change-status', payload: StatusChangePayload): void
 }>()
 
-function handleOrderCardClick(order: any) {
+function handleOrderCardClick(order: Order) {
   emit('open-order', { order })
 }
 
-const draggingOrder = ref<any>(null)
+const draggingOrder = ref<Order | null>(null)
 const dragOverStage = ref<string | null>(null)
 const toastMsg = ref('')
 const toastType = ref<'success' | 'error'>('success')
-let toastTimeout: any = null
-let pollingInterval: any = null
-
-onMounted(() => {
-  OrderController().fetchAllOrdersForKanban()
-  pollingInterval = setInterval(() => {
-    OrderController().fetchAllOrdersForKanban()
-  }, 7000)
-})
+let toastTimeout: number | null = null
+let pollingInterval: number | null = null
 
 onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
@@ -152,46 +211,31 @@ onUnmounted(() => {
 function showToast(msg: string, type: 'success' | 'error' = 'success') {
   toastMsg.value = msg
   toastType.value = type
-  clearTimeout(toastTimeout)
-  toastTimeout = setTimeout(() => {
+  if (toastTimeout) clearTimeout(toastTimeout)
+  toastTimeout = window.setTimeout(() => {
     toastMsg.value = ''
   }, 2200)
 }
 
 function ordersByStage(stage: string) {
-  console.log('🔍 ordersByStage called for stage:', stage)
-  console.log('📦 Total orders in props.orders:', props.orders?.length || 0)
-  console.log(
-    '📋 All orders stages:',
-    props.orders?.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })) || [],
-  )
-
-  if (!Array.isArray(props.orders)) {
-    console.warn('⚠️ props.orders is not an array:', props.orders)
+  if (!Array.isArray(localOrders.value)) {
     return []
   }
 
-  const filtered = props.orders.filter((order) => {
-    const orderStage = order.stage?.name || order.stage
+  const filtered = localOrders.value.filter((order) => {
+    const orderStage = getStageName(order.stage)
     return orderStage === stage
   })
-
-  console.log(`📋 Stage "${stage}": ${filtered.length} orders`)
-  if (filtered.length > 0) {
-    console.log(
-      `   Orders in ${stage}:`,
-      filtered.map((o) => ({ id: o.id, stage: o.stage?.name || o.stage })),
-    )
-  }
 
   return filtered
 }
 function getStatusColor(key: string) {
   const stageData = stages.value.find((s) => s.value === key)
   if (stageData && stageData.color) {
-    return ''
+    return stageData.color // ✅ Возвращаем цвет из stage
   }
-  return getStageColor(key)
+  // Если API еще не загрузился, используем fallback цвет
+  return '#6366f1'
 }
 
 function getStatusColorStyle(key: string) {
@@ -201,7 +245,7 @@ function getStatusColorStyle(key: string) {
   }
   return {}
 }
-function onDragStart(order: any) {
+function onDragStart(order: Order) {
   draggingOrder.value = order
 }
 function onDragEnd() {
@@ -222,9 +266,9 @@ async function onDrop(event: DragEvent, newStage: string) {
   if (!order) {
     return
   }
-  if ((order.stage?.name || order.stage) === newStage) {
-    return
-  }
+
+  // Сохраняем исходную стадию для возможного отката
+  const originalStage = getStageName(order.stage)
 
   try {
     // Подготавливаем дополнительные данные для отмененных заказов
@@ -236,62 +280,47 @@ async function onDrop(event: DragEvent, newStage: string) {
       }
     }
 
-    // Передаем стадию и дополнительные данные
-    await OrderController().updateStage(order.id, newStage, additionalData)
-    await OrderController().fetchAllOrdersForKanban()
-    showToast('Статус обновлён: ' + newStage, 'success')
-    emit('update:orders')
-    emit('updated')
-    emit('order-updated', order.id)
-  } catch (err: any) {
-    const msg = err?.message || 'Ошибка смены стадии'
+    // Немедленно обновляем локальное состояние для мгновенного отображения
+    const orderIndex = localOrders.value.findIndex((o) => o.id === order.id)
+    if (orderIndex !== -1) {
+      // Создаем копию заказа с новой стадией
+      const updatedOrder = { ...localOrders.value[orderIndex] }
+      updatedOrder.stage = newStage
 
-    if (
-      msg.includes('дизайнер') ||
-      msg.includes('печатник') ||
-      msg.includes('цех') ||
-      msg.includes('назначен')
-    ) {
-      showToast('Назначьте сотрудника для перехода на этот этап', 'error')
-      emit('open-order', {
-        order,
-        highlightAssignments: true,
-        message: `Необходимо назначить сотрудника на этап "${getStatusLabel(newStage)}"`,
-      })
-    } else {
-      showToast(msg, 'error')
+      // Обновляем локальный массив заказов
+      localOrders.value[orderIndex] = updatedOrder
+      localOrders.value = [...localOrders.value]
     }
-  }
-}
 
-function getStatusLabel(stage: string): string {
-  switch (stage) {
-    case 'draft':
-      return 'Черновик'
-    case 'design':
-      return 'Дизайн'
-    case 'print':
-      return 'Печать'
-    case 'engraving':
-      return 'Гравировка'
-    case 'workshop':
-      return 'Цех'
-    case 'die_cutting':
-      return 'Высечка'
-    case 'final':
-      return 'Финал'
-    case 'completed':
-      return 'Завершен'
-    case 'cancelled':
-      return 'Отменен'
-    default:
-      return stage
+    // Передаем стадию и дополнительные данные на сервер
+    await OrderController().updateStage(order.id, newStage, additionalData)
+
+    showToast('Статус обновлён: ' + newStage, 'success')
+
+    // Эмитим событие change-status для OrdersView
+    emit('change-status', { order, newStatus: newStage })
+  } catch (err: unknown) {
+    const msg = (err as Error)?.message || 'Ошибка смены стадии'
+
+    // При ошибке откатываем заказ к исходной стадии
+    const orderIndex = localOrders.value.findIndex((o) => o.id === order.id)
+    if (orderIndex !== -1) {
+      const revertedOrder = { ...localOrders.value[orderIndex] }
+      revertedOrder.stage = originalStage
+
+      // Возвращаем заказ в исходную стадию
+      localOrders.value[orderIndex] = revertedOrder
+      localOrders.value = [...localOrders.value]
+    }
+
+    // Показываем ошибку
+    showToast(msg, 'error')
   }
 }
 </script>
 
 <style scoped>
-.kanban-board.bitrix-bg {
+.bitrix-board-new {
   background: transparent;
   min-height: 90vh;
   border-radius: 0;
@@ -324,7 +353,6 @@ function getStatusLabel(stage: string): string {
 .bitrix-column.last-col {
   border-radius: 0 10px 0 0;
 }
-.kanban-order-card-wrapper,
 .bitrix-card-wrapper {
   display: block;
   width: 100%;
@@ -337,7 +365,7 @@ function getStatusLabel(stage: string): string {
   width: 100%;
   margin-bottom: -5px;
 }
-.kanban-column--dragover {
+.bitrix-column--dragover {
   box-shadow:
     0 0 0 2px #6366f1aa,
     0 2px 8px #0002;
@@ -413,7 +441,7 @@ function getStatusLabel(stage: string): string {
   font-weight: 700;
   margin-right: 2px;
 }
-.kanban-cards {
+.bitrix-cards {
   display: block;
   max-height: calc(90vh - 60px);
   min-height: 40px;
@@ -421,13 +449,13 @@ function getStatusLabel(stage: string): string {
   transition: background 0.12s;
   background: transparent;
 }
-.kanban-order-card-wrapper {
+.bitrix-card-wrapper {
   transition:
     box-shadow 0.18s,
     transform 0.18s,
     background 0.18s;
 }
-.kanban-order-card-wrapper.dragging {
+.bitrix-card-wrapper.dragging {
   opacity: 0.7;
   transform: scale(1.04) rotate(-1deg);
   box-shadow:
@@ -435,7 +463,7 @@ function getStatusLabel(stage: string): string {
     0 2px 8px #0002;
   z-index: 10;
 }
-.kanban-cards--dragover {
+.bitrix-cards--dragover {
   background: #e0e7ff44 !important;
   border-radius: 8px;
   box-shadow: 0 0 0 2px #a5b4fc55;
@@ -469,7 +497,7 @@ function getStatusLabel(stage: string): string {
   gap: 1px;
   font-size: 0.97em;
 }
-.kanban-column-header.bitrix-header {
+.bitrix-header {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -480,7 +508,7 @@ function getStatusLabel(stage: string): string {
   z-index: 2;
 }
 @media (max-width: 900px) {
-  .kanban-board.bitrix-bg {
+  .bitrix-board-new {
     overflow-x: auto;
     flex-wrap: nowrap !important;
     min-width: 0;
@@ -490,7 +518,6 @@ function getStatusLabel(stage: string): string {
     max-width: 340px;
     flex: 0 0 80vw;
   }
-  .kanban-order-card-wrapper,
   .bitrix-card-wrapper {
     min-width: 0;
     max-width: 100%;

@@ -25,6 +25,7 @@ export function useProductController() {
     sortByParam = 'id',
     sortOrderParam = 'desc',
     per_page = 30,
+    forceRefresh = false,
   ) {
     sortBy.value = sortByParam
     sortOrder.value = sortOrderParam
@@ -37,6 +38,7 @@ export function useProductController() {
         per_page: String(per_page),
         sort_by: sortBy.value,
         sort_order: sortOrder.value,
+        forceRefresh,
       })
       pagination.data = res.data
       pagination.current_page = res.current_page

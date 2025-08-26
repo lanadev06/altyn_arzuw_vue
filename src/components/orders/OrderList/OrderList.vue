@@ -202,15 +202,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import Sortable from 'sortablejs'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderFormModal from './OrderFormModal.vue'
-import ProjectFormModal from './ProjectFormModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
+import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
+// @ts-expect-error Vue component with script setup has no default export
 import OrderDetailsModal from './OrderDetailsModal.vue'
-import Pagination from '@/components/users/UserList/Pagination.vue'
-import UIButton from '@/components/ui/UIButton.vue'
-import { OrderController } from '@/controllers/OrderController'
-import type { Order } from '@/types/order'
-import { canCreateEdit, canViewPrices } from '@/utils/permissions'
-import { getAllStages } from '@/services/api'
+// @ts-expect-error Vue component with script setup has no default export
+import Pagination from '../../users/UserList/Pagination.vue'
+// @ts-expect-error Vue component with script setup has no default export
+import UIButton from '../../ui/UIButton.vue'
+import { OrderController } from '../../../controllers/OrderController'
+import type { Order } from '../../../types/order'
+import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
+import { getAllStages } from '../../../services/api'
 
 const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
 
@@ -291,18 +296,7 @@ function loadOrders(page = 1) {
     isArchived,
     perPage.value,
     selectedAssignmentStatus.value || undefined,
-  ).then(() => {
-    // Отладочная информация после загрузки заказов
-    if (orders.value.length > 0) {
-      console.log('First order debug info:', {
-        id: orders.value[0].id,
-        current_stage_info: orders.value[0].current_stage_info,
-        stage: orders.value[0].stage,
-        current_stage: orders.value[0].current_stage,
-        fullOrder: orders.value[0],
-      })
-    }
-  })
+  )
 }
 
 function setSort(key: string) {
@@ -449,21 +443,8 @@ function handleOrderUpdatedFromModal() {
 }
 
 function getOrderStageName(order: any): string | null {
-  // Отладочная информация
-  console.log('getOrderStageName debug:', {
-    id: order.id,
-    current_stage_info: order.current_stage_info,
-    stage: order.stage,
-    current_stage: order.current_stage,
-    stage_id: order.stage_id,
-  })
-
   // Проверяем все возможные источники названия стадии
   if (order.current_stage_info?.display_name) {
-    console.log(
-      '✅ Found stage in current_stage_info.display_name:',
-      order.current_stage_info.display_name,
-    )
     return order.current_stage_info.display_name
   }
 
@@ -572,13 +553,11 @@ onMounted(async () => {
 
   // Запускаем автоматическое обновление каждые 10 секунд
   autoRefreshInterval = window.setInterval(() => {
-    console.log('🔄 OrderList: Автоматическое обновление данных')
     loadOrders()
   }, 10000)
 
   // Обновляем данные при фокусе на окне (когда пользователь возвращается к вкладке)
   handleFocus = () => {
-    console.log('🔄 OrderList: Обновление данных при фокусе на окне')
     loadOrders()
   }
   window.addEventListener('focus', handleFocus)

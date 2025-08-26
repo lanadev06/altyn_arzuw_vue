@@ -202,7 +202,6 @@ function toggleDropdown() {
 async function fetchNotifications() {
   loading.value = true
   try {
-    console.log('🔔 Fetching notifications...')
     const res = await fetch(`${API_CONFIG.BASE_URL}/notifications`, {
       headers: {
         Accept: 'application/json',
@@ -218,10 +217,8 @@ async function fetchNotifications() {
     }
 
     const data = await res.json()
-    console.log('🔔 Notifications response:', data)
     notifications.value = Array.isArray(data) ? data : data.data || []
     const newUnreadCount = notifications.value.filter((n) => !n.read_at).length
-    console.log('🔔 Unread count:', newUnreadCount)
 
     // Открываем dropdown при любом увеличении количества непрочитанных уведомлений
     if (newUnreadCount > previousUnreadCount) {

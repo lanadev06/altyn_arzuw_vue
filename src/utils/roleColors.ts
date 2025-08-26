@@ -46,7 +46,7 @@ export function getRoleColorClasses(
   roleName: string,
   roleData?: any,
   stagesData?: any[],
-  isActive: boolean = true,
+  isActive = true,
 ): string {
   const color = getRoleColor(roleName, roleData, stagesData)
 
@@ -86,7 +86,7 @@ export function getRoleColorStyles(
   roleName: string,
   roleData?: any,
   stagesData?: any[],
-  isActive: boolean = true,
+  isActive = true,
 ): Record<string, string> {
   const color = getRoleColor(roleName, roleData, stagesData)
 

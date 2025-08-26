@@ -160,7 +160,7 @@ export function safeProcessActivityData(data: unknown[]): unknown[] {
  * @param date - дата в любом формате
  * @param format - формат даты (по умолчанию 'ru-RU')
  */
-export function safeFormatDate(date: unknown, format: string = 'ru-RU'): string {
+export function safeFormatDate(date: unknown, format = 'ru-RU'): string {
   if (!date) return '-'
 
   try {

@@ -156,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed, onUnmounted } from 'vue'
+import { ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import ClientFormModal from './ClientFormModal.vue'
@@ -207,27 +207,6 @@ function changePerPage() {
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
-const hasCustomSettings = computed(() => {
-  const savedColumns = localStorage.getItem('clientList_columns')
-  const savedSortBy = localStorage.getItem('clientList_sortBy')
-  const savedSortOrder = localStorage.getItem('clientList_sortOrder')
-
-  return savedColumns || savedSortBy !== 'id' || savedSortOrder !== 'asc'
-})
-
-function resetSettings() {
-  columns.value = [...defaultColumns]
-  localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
-
-  setSort('id', props.search)
-
-  perPage.value = 30
-  localStorage.setItem('clientList_perPage', perPage.value.toString())
-
-  currentPage.value = 1
-  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
-}
-
 function goToPage(page: number) {
   if (!pagination || page < 1 || page > pagination.last_page) {
     return
@@ -242,7 +221,7 @@ function editClient(client: Client) {
   showEditModal.value = true
 }
 
-async function handleCreateClient(newClient: Client) {
+async function handleCreateClient() {
   showCreateModal.value = false
   currentPage.value = 1
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
@@ -264,9 +243,6 @@ async function handleDeleteClient(clientId: number) {
   try {
     console.log('🗑️ Starting client deletion for ID:', clientId)
 
-    // Сохраняем текущее состояние списка
-    const currentClients = [...(pagination?.data || [])]
-
     await remove(clientId)
     console.log('✅ Client deletion completed successfully')
 
@@ -277,24 +253,42 @@ async function handleDeleteClient(clientId: number) {
       currentPage.value--
     }
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('❌ Ошибка удаления клиента:', clientId, err)
     console.error('❌ Error details:', {
-      message: err.message,
-      status: err.status,
-      response: err.response,
+      message: err instanceof Error ? err.message : 'Unknown error',
+      status:
+        err && typeof err === 'object' && 'status' in err
+          ? (err as { status: number }).status
+          : undefined,
+      response:
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response: unknown }).response
+          : undefined,
     })
 
     // Если ошибка 404 (клиент не найден), не показываем ошибку пользователю
     // так как клиент уже мог быть удален
-    if (err.status === 404) {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'status' in err &&
+      (err as { status: number }).status === 404
+    ) {
       console.log('ℹ️ Client not found (404) - may have been already deleted')
 
       // Проверяем, есть ли специальный код ошибки или сообщение об ошибке
       if (
-        err?.response?.data?.error_code === 'CLIENT_NOT_FOUND' ||
-        err?.message?.includes('No query results for model') ||
-        err?.data?.error_code === 'CLIENT_NOT_FOUND'
+        err &&
+        typeof err === 'object' &&
+        'response' in err &&
+        err.response &&
+        typeof err.response === 'object' &&
+        'data' in err.response &&
+        err.response.data &&
+        typeof err.response.data === 'object' &&
+        'error_code' in err.response.data &&
+        (err.response.data as { error_code: string }).error_code === 'CLIENT_NOT_FOUND'
       ) {
         console.log('ℹ️ Client was already deleted or not found, refreshing list...')
         // Обновляем список, чтобы убрать несуществующего клиента
@@ -304,8 +298,18 @@ async function handleDeleteClient(clientId: number) {
     }
 
     let message = 'Произошла неизвестная ошибка при удалении клиента'
-    if (err?.response?.data?.message) {
-      message = err.response.data.message
+    if (
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      err.response &&
+      typeof err.response === 'object' &&
+      'data' in err.response &&
+      err.response.data &&
+      typeof err.response.data === 'object' &&
+      'message' in err.response.data
+    ) {
+      message = String((err.response.data as { message: string }).message)
     } else if (err instanceof Error && err.message) {
       message = `Ошибка удаления клиента: ${err.message}`
     }
@@ -334,7 +338,7 @@ watch(
   },
 )
 
-let pollingInterval: any = null
+let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   await nextTick()

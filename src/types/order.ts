@@ -20,9 +20,6 @@ export interface StageUpdateForm {
   reason?: string
   reason_status?: string
   work_type?: string
-  designer_id?: number
-  print_operator_id?: number
-  workshop_worker_id?: number
 }
 
 export interface BulkOrderAssignmentData {

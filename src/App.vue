@@ -15,7 +15,6 @@
 import { onMounted, onUnmounted } from 'vue'
 import Toast from './components/ui/Toast.vue'
 import { toast } from './stores/toast'
-import { handle401Error } from './utils/auth'
 
 // Глобальный обработчик unhandledrejection для перехвата 401 ошибок
 const handleUnhandledRejection = (event: PromiseRejectionEvent) => {

@@ -68,7 +68,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = localStorage.getItem('auth_token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
-    console.log('🔑 Sending request with token:', token.substring(0, 20) + '...')
   } else {
     console.warn('⚠️ No auth token found in localStorage')
   }
@@ -529,6 +528,7 @@ export async function getProducts({
   sort_by = 'id',
   sort_order = 'desc',
   per_page = '30',
+  forceRefresh = false,
 } = {}): Promise<PaginatedResponse<Product>> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
@@ -536,6 +536,7 @@ export async function getProducts({
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
+  if (forceRefresh) params.push(`_t=${Date.now()}`) // Принудительное обновление кэша
   const query = params.length ? `?${params.join('&')}` : ''
 
   const url = `${API_CONFIG.BASE_URL}/products${query}`
@@ -549,12 +550,6 @@ export async function getProducts({
   })
 
   if (!res.ok) {
-    const errorText = await res.text()
-    console.log('Ошибка загрузки товаров:', {
-      status: res.status,
-      statusText: res.statusText,
-      response: errorText,
-    })
     throw new Error(`Ошибка загрузки товаров: ${res.status} ${res.statusText}`)
   }
 
@@ -594,12 +589,6 @@ export async function updateProduct(id: number, data: ProductForm): Promise<Prod
   })
 
   if (!res.ok) {
-    const errorText = await res.text()
-    console.log('Ошибка обновления товара:', {
-      status: res.status,
-      statusText: res.statusText,
-      response: errorText,
-    })
     throw new Error('Ошибка обновления товара')
   }
 
@@ -829,7 +818,6 @@ export async function getAllOrdersForAdmin({
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
   if (assignment_status) params.append('assignment_status', assignment_status)
 
-  console.log('🔑 Admin API request:', `/orders?${params.toString()}`)
   return await apiRequest(`/orders?${params.toString()}`)
 }
 

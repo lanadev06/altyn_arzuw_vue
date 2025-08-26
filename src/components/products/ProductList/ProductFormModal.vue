@@ -171,13 +171,13 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-import Modal from '@/components/ui/Modal.vue'
-import UIInput from '@/components/ui/UIInput.vue'
-import UIButton from '@/components/ui/UIButton.vue'
+import Modal from '../../ui/Modal.vue'
+import UIInput from '../../ui/UIInput.vue'
+import UIButton from '../../ui/UIButton.vue'
 import AssignmentManager from './AssignmentManager.vue'
-import type { Product, ProductAssignment, ProductForm } from '@/types/product'
-import type { Stage } from '@/types/stage'
-import type { User } from '@/types/user'
+import type { Product, ProductAssignment, ProductForm } from '../../../types/product'
+import type { Stage } from '../../../types/stage'
+import type { User } from '../../../types/user'
 import {
   getAllStages,
   getAllUsersByStageRoles,
@@ -187,12 +187,12 @@ import {
   updateProductStages,
   getUsersByRole,
   getByRole,
-} from '@/services/api'
-import productController from '@/controllers/productControllerInstance'
-import { toast } from '@/stores/toast'
+} from '../../../services/api'
+import productController from '../../../controllers/productControllerInstance'
+import { toast } from '../../../stores/toast'
 
 const props = defineProps<{ product?: Product | null }>()
-const emit = defineEmits(['close', 'submit', 'delete'])
+const emit = defineEmits(['close', 'submit', 'delete', 'saved'])
 
 const { update, remove, create } = productController
 
@@ -218,16 +218,14 @@ const form = reactive({
 // Отслеживаем изменения формы
 watch(
   () => form.name,
-  (newName) => {
-    console.log('Form name changed:', newName)
-  },
+  (newName) => {},
 )
 
 // Вычисляемое свойство для получения только рабочих стадий (исключаем служебные)
 const workingStages = computed(() => {
   const serviceStages = ['draft', 'completed', 'cancelled', 'final']
   const filtered = availableStages.value.filter((stage) => !serviceStages.includes(stage.name))
-  console.log('workingStages computed:', filtered)
+
   return filtered
 })
 
@@ -313,7 +311,6 @@ function toggleStage(stageId: number) {
   // Проверяем, что стадия существует в доступных стадиях
   const stageExists = workingStages.value.some((stage) => stage.id === stageId)
   if (!stageExists) {
-    console.log('Stage not found in workingStages')
     return
   }
 
@@ -326,8 +323,13 @@ function toggleStage(stageId: number) {
     // Добавляем стадию в выбранные
     selectedStages.value.push(stageId)
 
-    // Инициализируем пустые назначения для новой стадии
-    initStageRole(stageId, '')
+    // Инициализируем пустые назначения для всех ролей стадии
+    const stage = availableStages.value.find((s) => s.id === stageId)
+    if (stage && stage.roles) {
+      stage.roles.forEach((role) => {
+        initStageRole(stageId, role.name)
+      })
+    }
   }
 }
 
@@ -339,9 +341,13 @@ function selectAllStages() {
 
   selectedStages.value = workingStages.value.map((stage) => stage.id)
 
-  // Инициализируем назначения для всех стадий
+  // Инициализируем назначения для всех стадий и ролей
   workingStages.value.forEach((stage) => {
-    initStageRole(stage.id, '')
+    if (stage.roles) {
+      stage.roles.forEach((role) => {
+        initStageRole(stage.id, role.name)
+      })
+    }
   })
 }
 
@@ -423,8 +429,6 @@ onMounted(async () => {
           color: '#3B82F6',
           order: 2,
           is_active: true,
-          is_initial: false,
-          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [
@@ -447,8 +451,6 @@ onMounted(async () => {
           color: '#10B981',
           order: 3,
           is_active: true,
-          is_initial: false,
-          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [
@@ -471,8 +473,6 @@ onMounted(async () => {
           color: '#8B5CF6',
           order: 4,
           is_active: true,
-          is_initial: false,
-          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [
@@ -495,8 +495,6 @@ onMounted(async () => {
           color: '#F59E0B',
           order: 5,
           is_active: true,
-          is_initial: false,
-          is_final: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           roles: [
@@ -712,7 +710,6 @@ onMounted(async () => {
           .filter((stageId) => availableStages.value.some((stage) => stage.id === stageId))
 
         selectedStages.value = validStageIds
-        console.log('Loaded valid stage IDs:', validStageIds)
 
         // Если были удалены невалидные стадии, показываем предупреждение
         const removedStages = props.product.available_stages
@@ -859,27 +856,13 @@ onMounted(async () => {
                 const roleName = role.name
                 let users: User[] = []
 
-                // Динамически получаем пользователей для любой роли из продукта
-                // Используем динамический доступ к свойствам продукта
-                const rolePropertyName = `${roleName}s` // добавляем 's' для множественного числа
-                if (props.product && (props.product as any)[rolePropertyName]) {
-                  users = (props.product as any)[rolePropertyName] || []
-                } else {
-                  // Fallback для старых имен ролей
-                  const roleMapping: Record<string, string> = {
-                    designer: 'designers',
-                    print_operator: 'print_operators',
-                    engraving_operator: 'engraving_operators',
-                    workshop_worker: 'workshop_workers',
-                  }
-                  const fallbackProperty = roleMapping[roleName]
-                  if (
-                    fallbackProperty &&
-                    props.product &&
-                    (props.product as any)[fallbackProperty]
-                  ) {
-                    users = (props.product as any)[fallbackProperty] || []
-                  }
+                // Получаем пользователей для роли из назначений продукта
+                if (props.product && props.product.assignments) {
+                  users =
+                    props.product.assignments
+                      .filter((a) => a.role_type === roleName && a.is_active)
+                      .map((a) => a.user)
+                      .filter(Boolean) || []
                 }
 
                 // Создаем назначения для этой стадии и роли
@@ -934,23 +917,13 @@ onMounted(async () => {
               const roleName = role.name
               let users: User[] = []
 
-              // Динамически получаем пользователей для любой роли из продукта
-              // Используем динамический доступ к свойствам продукта
-              const rolePropertyName = `${roleName}s` // добавляем 's' для множественного числа
-              if (props.product && (props.product as any)[rolePropertyName]) {
-                users = (props.product as any)[rolePropertyName] || []
-              } else {
-                // Fallback для старых имен ролей
-                const roleMapping: Record<string, string> = {
-                  designer: 'designers',
-                  print_operator: 'print_operators',
-                  engraving_operator: 'engraving_operators',
-                  workshop_worker: 'workshop_workers',
-                }
-                const fallbackProperty = roleMapping[roleName]
-                if (fallbackProperty && props.product && (props.product as any)[fallbackProperty]) {
-                  users = (props.product as any)[fallbackProperty] || []
-                }
+              // Получаем пользователей для роли из назначений продукта
+              if (props.product && props.product.assignments) {
+                users =
+                  props.product.assignments
+                    .filter((a) => a.role_type === roleName && a.is_active)
+                    .map((a) => a.user)
+                    .filter(Boolean) || []
               }
 
               // Создаем назначения для этой стадии и роли
@@ -1014,7 +987,6 @@ watch(
     const removedStages = oldStages?.filter((id) => !newStages.includes(id)) || []
     if (removedStages.length > 0) {
       // Назначения сохраняются даже для отключенных стадий
-      console.log('Removed stages:', removedStages)
     }
   },
   { deep: true, immediate: true },
@@ -1065,7 +1037,7 @@ async function handleSubmit() {
 
     if (props.product?.id) {
       // Обновляем существующий продукт
-      console.log('🔧 UPDATING PRODUCT:', props.product.id, 'stages:', stagesData)
+
       await update(props.product.id, productData)
       productId = props.product.id
     } else {
@@ -1103,6 +1075,7 @@ async function handleSubmit() {
     // Собираем все назначения по стадиям с валидацией ролей
     Object.keys(stageAssignments).forEach((stageId) => {
       const stageAssignmentsForStage = stageAssignments[parseInt(stageId)]
+
       Object.keys(stageAssignmentsForStage).forEach((roleName) => {
         // Проверяем, что роль является допустимой
         if (!validRoles.has(roleName)) {
@@ -1110,13 +1083,16 @@ async function handleSubmit() {
           return
         }
 
-        stageAssignmentsForStage[roleName].forEach((assignment) => {
-          if (assignment.user_id && assignment.user_id > 0) {
+        const roleAssignments = stageAssignmentsForStage[roleName]
+
+        roleAssignments.forEach((assignment) => {
+          // Проверяем, что назначение имеет пользователя (user_id может быть null согласно типу)
+          if (assignment.user && assignment.user.id) {
             allAssignments.push({
               id: Date.now() + Math.random(),
               role_type: roleName as string,
               user: assignment.user,
-              user_id: assignment.user_id,
+              user_id: assignment.user.id, // Используем ID из user объекта
               is_active: true,
               product_id: productId,
               created_at: new Date().toISOString(),
@@ -1172,7 +1148,7 @@ async function handleSubmit() {
         console.log('🔍 AVAILABLE STAGE IDs:', availableStageIds)
 
         const newSelectedStages = availableStageIds.filter((stageId: number) => {
-          const stage = availableStages.value.find((s) => s.id === stageId)
+          const stage = availableStages.value.find((s: any) => s.id === stageId)
           if (!stage) return false
 
           // Исключаем служебные стадии

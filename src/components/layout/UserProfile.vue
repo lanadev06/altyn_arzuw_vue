@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import { API_CONFIG } from '@/config/api'
+import { API_CONFIG } from '../../config/api'
 
 const props = defineProps({
   user: {
@@ -119,7 +119,7 @@ const isDropdownOpen = ref(false)
 const rootRef = ref<HTMLElement>()
 const userImageUrl = ref('')
 
-const getUserImageUrl = (user: any) => {
+const getUserImageUrl = (user: { image_url?: string; image?: string }) => {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
   if (user.image) return `${API_CONFIG.BASE_URL.replace('/api', '')}/storage/${user.image}`

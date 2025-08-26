@@ -1,9 +1,17 @@
 <template>
   <div class="login-form">
+    <div
+      v-if="logoLoading"
+      class="mx-auto mb-6 max-w-xs w-48 h-32 flex items-center justify-center"
+    >
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
     <img
-      src="/A-A_logotype (colorful) (1) copy.png"
+      v-else
+      :src="logoUrl"
       alt="Altyn-Arzuw Logo"
       class="mx-auto mb-6 max-w-xs w-48 h-auto"
+      @error="handleLogoError"
     />
     <div class="text-center mb-8">
       <h2 class="text-3xl font-bold text-gray-900 mb-2">Добро пожаловать</h2>
@@ -71,9 +79,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIButton from '@/components/ui/UIButton.vue'
+import { useLogo } from '@/composables/useLogo'
 
 interface LoginFormData {
   username: string
@@ -89,6 +98,9 @@ const emit = defineEmits<{
   submit: [data: LoginFormData]
 }>()
 
+// Используем composable для логотипа
+const { logoDataUrl, isLoading: logoLoading } = useLogo()
+
 const loading = ref(false)
 const generalError = ref('')
 const errors = reactive<FormErrors>({
@@ -99,6 +111,14 @@ const form = reactive<LoginFormData>({
   username: '',
   password: '',
 })
+
+// Получаем URL логотипа
+const logoUrl = computed(() => logoDataUrl.value || '/logo.png')
+
+// Обработчик ошибки загрузки логотипа
+const handleLogoError = () => {
+  console.warn('Ошибка загрузки логотипа, используем fallback')
+}
 
 const validateForm = (): boolean => {
   errors.username = ''

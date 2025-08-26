@@ -102,7 +102,7 @@
             <UIInputNoError
               v-if="contact.type === 'phone'"
               :model-value="contact.value ?? ''"
-              @update:model-value="(value) => handleContactValueChange(value, idx)"
+              @update:model-value="(value) => handleContactValueChange(String(value || ''), idx)"
               placeholder="Значение"
               :error="errors.contactErrors[idx]"
               required
@@ -388,7 +388,7 @@ async function removeContactHandler(idx: number) {
   if (props.client?.id && contact.id) {
     try {
       await removeContact(props.client.id, contact.id)
-    } catch (e) {}
+    } catch {}
   }
   form.contacts.splice(idx, 1)
   errors.contactErrors.splice(idx, 1)
@@ -446,24 +446,38 @@ async function handleSubmit() {
         name: form.name,
         company_name: form.company_name || undefined,
         contacts: form.contacts.map((contact) => ({
+          id: contact.id || 0,
+          client_id: clientId || 0,
+          name: contact.type || 'phone',
+          phone: contact.type === 'phone' ? contact.value || '' : '',
+          email: contact.type === 'email' ? contact.value || '' : '',
           type: contact.type || 'phone',
           value: contact.value || '',
-          client_id: clientId || 0,
-        })) as any,
+          is_primary: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })),
       }
-      await update(clientId, clientData as any)
+      await update(clientId, clientData)
       toast.show('Клиент успешно обновлён!')
     } else {
       const clientData: Partial<Client> = {
         name: form.name,
         company_name: form.company_name || undefined,
         contacts: form.contacts.map((contact) => ({
+          id: 0,
+          client_id: 0,
+          name: contact.type || 'phone',
+          phone: contact.type === 'phone' ? contact.value || '' : '',
+          email: contact.type === 'email' ? contact.value || '' : '',
           type: contact.type || 'phone',
           value: contact.value || '',
-          client_id: 0,
-        })) as any,
+          is_primary: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })),
       }
-      const created = await create(clientData as any)
+      const created = await create(clientData)
       clientId = created.id
       toast.show('Клиент успешно добавлен!')
     }
@@ -475,14 +489,18 @@ async function handleSubmit() {
             value: contact.value,
           })
           contact.id = createdContact.id
-        } catch (e) {}
+        } catch {
+          // Игнорируем ошибку при создании контакта
+        }
       } else if (contact.id) {
         try {
           await updateContact(clientId, contact.id, {
             type: contact.type || 'phone',
             value: contact.value || '',
           })
-        } catch (e) {}
+        } catch {
+          // Игнорируем ошибку при обновлении контакта
+        }
       }
     }
     emit('submit', { id: clientId, ...form })
@@ -497,39 +515,17 @@ function handleContactTypeChange(event: Event, idx: number) {
   updateContactField(idx, 'type', target?.value || '')
 }
 
-function handleContactValueChange(value: any, idx: number) {
+function handleContactValueChange(value: string | number | null, idx: number) {
   const contact = form.contacts[idx]
+  const stringValue = String(value || '')
 
-  if (contact.type === 'phone' && value && value.trim()) {
-    const formattedValue = formatPhoneNumber(value)
+  if (contact.type === 'phone' && stringValue && stringValue.trim()) {
+    const formattedValue = formatPhoneNumber(stringValue)
     updateContactField(idx, 'value', formattedValue)
     errors.contacts = ''
     errors.contactErrors[idx] = ''
   } else {
-    updateContactField(idx, 'value', String(value || ''))
-  }
-}
-
-function validateName() {
-  if (!form.name.trim()) {
-    errors.name = 'Имя обязательно'
-  } else {
-    errors.name = ''
-  }
-}
-
-function handleContactBlur(idx: number) {
-  const contact = form.contacts[idx]
-
-  if (contact.type === 'phone' && contact.value && contact.value.trim()) {
-    const phoneError = validatePhoneNumber(contact.value)
-    if (phoneError) {
-      errors.contacts = phoneError
-      errors.contactErrors[idx] = phoneError
-    } else {
-      errors.contacts = ''
-      errors.contactErrors[idx] = ''
-    }
+    updateContactField(idx, 'value', stringValue)
   }
 }
 
@@ -541,10 +537,20 @@ async function handleDelete() {
       toast.show('Клиент удалён!')
       emit('delete', clientId)
       emit('close')
-    } catch (err: any) {
+    } catch (err: unknown) {
       let message = 'Произошла неизвестная ошибка при удалении клиента'
-      if (err?.response?.data?.message) {
-        message = err.response.data.message
+      if (
+        err &&
+        typeof err === 'object' &&
+        'response' in err &&
+        err.response &&
+        typeof err.response === 'object' &&
+        'data' in err.response &&
+        err.response.data &&
+        typeof err.response.data === 'object' &&
+        'message' in err.response.data
+      ) {
+        message = String(err.response.data.message)
       } else if (err instanceof Error && err.message) {
         message = `Ошибка удаления клиента: ${err.message}`
       }

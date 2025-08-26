@@ -34,24 +34,12 @@ export interface ProductForm {
   description?: string
   price?: number
   has_engraving: boolean
-  designer_id?: number
-  print_operator_id?: number
-  workshop_worker_id?: number
-  engraving_operator_id?: number
   stages?: Array<{
     stage_id: number
     is_available: boolean
   }>
-  // Legacy fields for backward compatibility
-  has_design_stage?: boolean
-  has_print_stage?: boolean
-  has_engraving_stage?: boolean
-  has_workshop_stage?: boolean
   // Multiple assignments
-  designers?: ProductAssignment[]
-  print_operators?: ProductAssignment[]
-  engraving_operators?: ProductAssignment[]
-  workshop_workers?: ProductAssignment[]
+  assignments?: ProductAssignment[]
   // Stages system
   available_stages?: Stage[]
   // Index signature for dynamic access

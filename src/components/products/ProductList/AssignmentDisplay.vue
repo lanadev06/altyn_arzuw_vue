@@ -6,7 +6,7 @@
     <div v-else class="space-y-1">
       <div
         v-for="assignment in activeAssignments"
-        :key="assignment.id || assignment.user?.id"
+        :key="assignment.id"
         class="flex items-center gap-2 text-sm"
       >
         <span class="font-medium text-gray-700">
@@ -19,11 +19,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ProductAssignment } from '@/types/product'
-import type { User } from '@/types/user'
+import type { ProductAssignment } from '../../../types/api'
 
 interface Props {
-  assignments?: ProductAssignment[] | User[] // Поддержка обоих форматов
+  assignments?: ProductAssignment[]
   emptyMessage?: string
   roleType?: string // Для фильтрации по типу роли
 }
@@ -32,35 +31,18 @@ const props = withDefaults(defineProps<Props>(), {
   assignments: () => [],
 })
 
-// Нормализуем assignments к единому формату ProductAssignment
-const normalizedAssignments = computed(() => {
+// Показываем все активные назначения
+const activeAssignments = computed(() => {
   if (!props.assignments) return []
 
-  return props.assignments.map((item) => {
-    // Если это уже ProductAssignment (из assignments поля)
-    if ('role_type' in item && 'user' in item) {
-      return item as ProductAssignment
+  return props.assignments.filter((assignment) => {
+    // Фильтруем по типу роли, если указан
+    if (props.roleType && assignment.role_type !== props.roleType) {
+      return false
     }
 
-    // Если это User (из старых полей designers, print_operators и т.д.)
-    const user = item as User
-    return {
-      id: 0,
-      role_type: props.roleType || '',
-      user: user,
-      user_id: user.id,
-      is_active: true,
-    } as ProductAssignment
+    // Показываем только активные назначения с пользователем
+    return assignment.is_active && assignment.user
   })
-})
-
-// Показываем ВСЕ назначения (и активные, и неактивные)
-const activeAssignments = computed(() => {
-  const assignments = normalizedAssignments.value.filter((assignment) => {
-    // Показываем все назначения, которые имеют пользователя
-    return assignment.user
-  })
-
-  return assignments
 })
 </script>

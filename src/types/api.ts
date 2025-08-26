@@ -43,8 +43,6 @@ export interface Role {
   description?: string
   order?: number // Make optional to match API response
   is_active?: boolean // Make optional to match API response
-  is_initial?: boolean // Make optional to match API response
-  is_final?: boolean // Make optional to match API response
   color?: string // Make optional to match API response
   created_at: string
   updated_at: string
@@ -61,7 +59,7 @@ export interface Order {
   quantity: number
   deadline?: string
   price?: number
-  stage?: string
+  stage?: string | { id: number; name: string; display_name?: string }
   work_type?: string
   stages?: number[]
   assignments?: OrderAssignment[]
@@ -188,8 +186,6 @@ export interface Stage {
   description?: string
   order: number
   is_active: boolean
-  is_initial: boolean
-  is_final: boolean
   color: string
   created_at: string
   updated_at: string
