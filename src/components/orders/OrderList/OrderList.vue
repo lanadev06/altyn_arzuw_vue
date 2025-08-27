@@ -253,7 +253,7 @@ const detailsOrderId = ref<number | null>(null)
 // Add search variable to the component
 const search = ref('')
 const currentPage = ref(1)
-const selectedStage = ref<string | null>(null)
+const selectedStage = ref<string>('')
 const selectedArchive = ref('')
 const isArchived = ref<boolean>(false)
 const selectedAssignmentStatus = ref<string | null>(null)
@@ -329,6 +329,7 @@ function resetSettings() {
   localStorage.setItem(ORDER_KEY, sortOrder.value)
   perPage.value = 30
   localStorage.setItem('orderList_perPage', perPage.value.toString())
+  selectedStage.value = ''
   loadOrders(1)
 }
 

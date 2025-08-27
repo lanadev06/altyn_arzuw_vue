@@ -308,8 +308,7 @@ const handleCreateRole = async (roleData: {
     await RoleController.create(roleData)
     emit('close-create-modal')
     await fetchRoles()
-  } catch (err: unknown) {
-  }
+  } catch (err: unknown) {}
 }
 
 const handleUpdateRole = async (roleData: {
@@ -323,13 +322,11 @@ const handleUpdateRole = async (roleData: {
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
-  } catch (err: unknown) {
-  }
+  } catch (err: unknown) {}
 }
 
 const handleDeleteRole = async (roleId: number) => {
   try {
-
     // Проверяем права доступа
     if (!canDelete()) {
       alert('У вас нет прав для удаления ролей')

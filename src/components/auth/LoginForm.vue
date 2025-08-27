@@ -113,11 +113,12 @@ const form = reactive<LoginFormData>({
 })
 
 // Получаем URL логотипа
-const logoUrl = computed(() => logoDataUrl.value || '/logo.png')
+const logoUrl = ref(logoDataUrl.value || `/logo.png?v=${Date.now()}`)
 
 // Обработчик ошибки загрузки логотипа
 const handleLogoError = () => {
-  console.warn('Ошибка загрузки логотипа, используем fallback')
+  // При ошибке загрузки основного логотипа, используем fallback
+  logoUrl.value = `/logo.png?v=${Date.now()}`
 }
 
 const validateForm = (): boolean => {

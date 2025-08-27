@@ -15,7 +15,7 @@
     </div>
 
     <!-- Индикатор загрузки -->
-    <div v-if="loading" class="flex items-center justify-center h-64">
+    <div v-if="loading" class="flex items-center justify-center h-80">
       <div class="flex flex-col items-center space-y-3">
         <div
           class="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600"
@@ -26,8 +26,8 @@
 
     <!-- График -->
     <div v-else class="relative">
-      <div class="relative h-64">
-        <svg class="w-full h-full" viewBox="0 0 800 250" preserveAspectRatio="none">
+      <div class="relative h-80">
+        <svg class="w-full h-full" viewBox="0 0 900 320" preserveAspectRatio="none">
           <!-- Градиент для заливки -->
           <defs>
             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -38,42 +38,42 @@
 
           <!-- Сетка -->
           <g class="grid-lines">
-            <line x1="60" y1="40" x2="60" y2="200" stroke="#e5e7eb" stroke-width="1" />
-            <line x1="60" y1="200" x2="740" y2="200" stroke="#e5e7eb" stroke-width="1" />
+            <line x1="80" y1="50" x2="80" y2="250" stroke="#e5e7eb" stroke-width="1" />
+            <line x1="80" y1="250" x2="820" y2="250" stroke="#e5e7eb" stroke-width="1" />
 
             <!-- Горизонтальные линии сетки -->
             <line
-              x1="60"
-              y1="40"
-              x2="740"
-              y2="40"
+              x1="80"
+              y1="50"
+              x2="820"
+              y2="50"
               stroke="#f3f4f6"
               stroke-width="1"
               stroke-dasharray="2,4"
             />
             <line
-              x1="60"
-              y1="80"
-              x2="740"
-              y2="80"
+              x1="80"
+              y1="100"
+              x2="820"
+              y2="100"
               stroke="#f3f4f6"
               stroke-width="1"
               stroke-dasharray="2,4"
             />
             <line
-              x1="60"
-              y1="120"
-              x2="740"
-              y2="120"
+              x1="80"
+              y1="150"
+              x2="820"
+              y2="150"
               stroke="#f3f4f6"
               stroke-width="1"
               stroke-dasharray="2,4"
             />
             <line
-              x1="60"
-              y1="160"
-              x2="740"
-              y2="160"
+              x1="80"
+              y1="200"
+              x2="820"
+              y2="200"
               stroke="#f3f4f6"
               stroke-width="1"
               stroke-dasharray="2,4"
@@ -82,11 +82,21 @@
 
           <!-- Подписи осей Y -->
           <g class="y-labels">
-            <text x="55" y="45" text-anchor="end" class="text-xs fill-gray-400">5M</text>
-            <text x="55" y="85" text-anchor="end" class="text-xs fill-gray-400">4M</text>
-            <text x="55" y="125" text-anchor="end" class="text-xs fill-gray-400">3M</text>
-            <text x="55" y="165" text-anchor="end" class="text-xs fill-gray-400">2M</text>
-            <text x="55" y="205" text-anchor="end" class="text-xs fill-gray-400">0</text>
+            <text x="75" y="55" text-anchor="end" class="text-sm fill-gray-500 font-medium">
+              5M
+            </text>
+            <text x="75" y="105" text-anchor="end" class="text-sm fill-gray-500 font-medium">
+              4M
+            </text>
+            <text x="75" y="155" text-anchor="end" class="text-sm fill-gray-500 font-medium">
+              3M
+            </text>
+            <text x="75" y="205" text-anchor="end" class="text-sm fill-gray-500 font-medium">
+              2M
+            </text>
+            <text x="75" y="255" text-anchor="end" class="text-sm fill-gray-500 font-medium">
+              0
+            </text>
           </g>
 
           <!-- График -->
@@ -116,7 +126,7 @@
                 r="0"
                 fill="#3b82f6"
                 stroke="white"
-                stroke-width="2"
+                stroke-width="3"
                 class="data-point"
                 @mouseenter="showTooltip(point, $event)"
                 @mouseleave="hideTooltip"
@@ -130,9 +140,9 @@
                 v-for="(point, index) in chartPoints"
                 :key="`label-${index}`"
                 :x="point.x"
-                :y="220"
+                :y="280"
                 text-anchor="middle"
-                class="text-xs fill-gray-500"
+                class="text-sm fill-gray-600 font-medium"
                 opacity="0"
               >
                 {{ point.month_name }}
@@ -148,13 +158,13 @@
             left: tooltip.x + 'px',
             top: tooltip.y + 'px',
           }"
-          class="fixed z-50 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transform -translate-x-1/2 -translate-y-full pointer-events-none"
+          class="fixed z-50 px-4 py-3 bg-gray-900 text-white text-sm rounded-xl shadow-2xl transform -translate-x-1/2 -translate-y-full pointer-events-none border border-gray-700"
         >
-          <div class="font-semibold">{{ tooltip.month_name }}</div>
-          <div>{{ tooltip.revenue_formatted }} TMT</div>
-          <div class="text-xs text-gray-300 mt-1">Общая выручка</div>
+          <div class="font-bold text-blue-300">{{ tooltip.month_name }}</div>
+          <div class="text-lg font-semibold mt-1">{{ tooltip.revenue_formatted }} TMT</div>
+          <div class="text-xs text-gray-300 mt-2">Общая выручка</div>
           <div
-            class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"
+            class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-6 border-r-6 border-t-6 border-transparent border-t-gray-900"
           ></div>
         </div>
       </div>
@@ -230,11 +240,12 @@ const chartPoints = computed((): ChartPoint[] => {
   if (!revenueData.value.monthly_data.length) return []
 
   const maxRevenue = Math.max(...revenueData.value.monthly_data.map((d) => d.revenue))
-  const scale = maxRevenue > 0 ? 160 / maxRevenue : 1
+  const scale = maxRevenue > 0 ? 200 / maxRevenue : 1
 
   return revenueData.value.monthly_data.map((data, index) => {
-    const x = 60 + (index * 680) / (revenueData.value.monthly_data.length - 1)
-    const y = 200 - data.revenue * scale
+    // Увеличиваем пространство между точками для лучшей читаемости
+    const x = 80 + (index * 740) / (revenueData.value.monthly_data.length - 1)
+    const y = 250 - data.revenue * scale
 
     return {
       x,
@@ -257,18 +268,18 @@ const areaPath = computed(() => {
   if (chartPoints.value.length < 2) return ''
 
   const points = chartPoints.value.map((point) => `${point.x},${point.y}`).join(' L ')
-  return `M ${points} L ${chartPoints.value[chartPoints.value.length - 1].x},200 L ${chartPoints.value[0].x},200 Z`
+  return `M ${points} L ${chartPoints.value[chartPoints.value.length - 1].x},250 L ${chartPoints.value[0].x},250 Z`
 })
 
 const showTooltip = (point: ChartPoint, event: MouseEvent) => {
   const rect = (event.target as Element).closest('svg')?.getBoundingClientRect()
   if (rect) {
-    const x = rect.left + point.x * (rect.width / 800)
-    const y = rect.top + point.y * (rect.height / 250) - 50
+    const x = rect.left + point.x * (rect.width / 900)
+    const y = rect.top + point.y * (rect.height / 320) - 60
 
     // Проверяем границы экрана
-    const tooltipWidth = 120
-    const tooltipHeight = 60
+    const tooltipWidth = 140
+    const tooltipHeight = 80
 
     let finalX = x
     let finalY = y
@@ -280,7 +291,7 @@ const showTooltip = (point: ChartPoint, event: MouseEvent) => {
       finalX = tooltipWidth / 2 + 10
     }
     if (y - tooltipHeight < 0) {
-      finalY = rect.top + point.y * (rect.height / 250) + 20
+      finalY = rect.top + point.y * (rect.height / 320) + 30
     }
 
     tooltip.value = {
@@ -311,7 +322,7 @@ const animateChart = async () => {
     line.style.strokeDashoffset = length.toString()
 
     setTimeout(() => {
-      line.style.transition = 'stroke-dashoffset 1s ease-in-out'
+      line.style.transition = 'stroke-dashoffset 1.2s ease-in-out'
       line.style.strokeDashoffset = '0'
       line.style.opacity = '1'
     }, 100)
@@ -321,9 +332,9 @@ const animateChart = async () => {
   const area = document.querySelector('.area-fill') as SVGPathElement
   if (area) {
     setTimeout(() => {
-      area.style.transition = 'opacity 0.8s ease-in-out'
+      area.style.transition = 'opacity 1s ease-in-out'
       area.style.opacity = '1'
-    }, 300)
+    }, 400)
   }
 
   // Анимация точек
@@ -331,10 +342,10 @@ const animateChart = async () => {
   points.forEach((point, index) => {
     setTimeout(
       () => {
-        ;(point as SVGElement).style.transition = 'r 0.3s ease-out'
-        ;(point as SVGElement).setAttribute('r', '4')
+        ;(point as SVGElement).style.transition = 'r 0.4s ease-out'
+        ;(point as SVGElement).setAttribute('r', '5')
       },
-      600 + index * 80,
+      700 + index * 100,
     )
   })
 
@@ -343,10 +354,10 @@ const animateChart = async () => {
   labels.forEach((label, index) => {
     setTimeout(
       () => {
-        ;(label as SVGElement).style.transition = 'opacity 0.5s ease-in-out'
+        ;(label as SVGElement).style.transition = 'opacity 0.6s ease-in-out'
         ;(label as SVGElement).style.opacity = '1'
       },
-      800 + index * 80,
+      900 + index * 100,
     )
   })
 }
@@ -391,25 +402,32 @@ onMounted(() => {
 
 <style scoped>
 .chart-line {
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity 0.6s ease-in-out;
 }
 
 .area-fill {
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity 0.8s ease-in-out;
 }
 
 .data-point {
-  transition: r 0.3s ease-out;
+  transition: r 0.4s ease-out;
 }
 
 .month-labels text {
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity 0.6s ease-in-out;
 }
 
 /* Hover эффекты */
 .data-point:hover {
-  r: 6 !important;
+  r: 7 !important;
   fill: #1d4ed8;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3));
+}
+
+/* Улучшенные стили для SVG текста */
+svg text {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 </style>
