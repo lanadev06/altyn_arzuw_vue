@@ -752,7 +752,6 @@ onMounted(async () => {
         }
       } catch (error) {
         // Продолжаем с данными из available_stages
-        console.log('Ошибка загрузки стадий продукта:', error)
       }
 
       // Загружаем назначения через API для получения полной структуры
@@ -1105,18 +1104,7 @@ async function handleSubmit() {
 
     if (allAssignments.length > 0) {
       try {
-        // Логируем назначения для отладки
-        console.log(
-          'Отправляем назначения:',
-          allAssignments.map((a) => ({
-            user_id: a.user_id,
-            role_type: a.role_type,
-            user_name: a.user?.name,
-          })),
-        )
-
         const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
-        console.log('Результат сохранения назначений:', result)
       } catch (error) {
         console.error('Ошибка при сохранении назначений:', error)
 
@@ -1133,19 +1121,15 @@ async function handleSubmit() {
         toast.show(errorMessage, 'error')
         // Не прерываем сохранение продукта, только показываем ошибку
       }
-    } else {
-      console.log('Нет назначений для сохранения')
     }
 
     // Проверяем, что стадии действительно сохранились
     try {
       const savedStages: any = await getProductStages(productId)
-      console.log('🔍 SAVED STAGES RESPONSE:', savedStages)
 
       if (savedStages?.product_stages) {
         const availableStages = savedStages.product_stages.filter((ps: any) => ps.is_available)
         const availableStageIds = availableStages.map((ps: any) => ps.stage_id)
-        console.log('🔍 AVAILABLE STAGE IDs:', availableStageIds)
 
         const newSelectedStages = availableStageIds.filter((stageId: number) => {
           const stage = availableStages.value.find((s: any) => s.id === stageId)
@@ -1160,9 +1144,7 @@ async function handleSubmit() {
           return true
         })
 
-        console.log('🔍 NEW SELECTED STAGES:', newSelectedStages)
         selectedStages.value = newSelectedStages
-        console.log('🔍 FINAL SELECTED STAGES:', selectedStages.value)
       }
     } catch (verifyError) {
       // Игнорируем ошибки проверки
