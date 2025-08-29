@@ -360,11 +360,12 @@ onMounted(async () => {
   try {
     stagesLoading.value = true
 
-    // Сначала загружаем стадии, чтобы получить список ролей
+    // Сначала загружаем стадии, чтобы получить список ролей (с кэшированием)
     let stagesResult
     try {
       stagesResult = await getAllStages()
     } catch (error) {
+      console.warn('Ошибка загрузки стадий:', error)
       stagesResult = { data: [] }
     }
 
@@ -391,6 +392,7 @@ onMounted(async () => {
     // Загружаем пользователей по ролям стадий и альтернативные источники
     let usersByStageRoles, roleUsersData
     try {
+      // Загружаем пользователей по ролям стадий (с кэшированием)
       const stageRolesResult = await getAllUsersByStageRoles()
 
       const roleUsersPromises = Array.from(allRoles).map(async (roleName) => {

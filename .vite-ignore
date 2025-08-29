@@ -1,0 +1,4 @@
+# Игнорируем файлы для стабильности HMR
+node_modules/.vite
+dist
+*.log

@@ -18,6 +18,8 @@
           >
             ✕
           </button>
+          
+
 
           <!-- Прогресс бар стадий -->
           <div class="flex gap-1 items-center justify-center px-0 pt-8 pb-4 w-full">
@@ -155,6 +157,19 @@
 
               <!-- Временная шкала -->
               <OrderTimeline :status-logs="statusLogs" :stages="stagesWithRoles" :roles="roles" />
+              
+              <!-- Кнопка удаления заказа -->
+              <div class="mt-4 flex justify-end">
+                <button
+                  @click="deleteOrderHandler"
+                  class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  title="Удалить заказ"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -181,17 +196,13 @@ import {
   updateOrderAssignmentStatus,
   deleteOrderAssignment,
   getRoles,
+  deleteOrder,
 } from '../../../services/api'
 import { OrderController } from '../../../controllers/OrderController'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderInfo from '../OrderDetails/OrderInfo.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderProject from '../OrderDetails/OrderProject.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderComments from '../OrderDetails/OrderComments.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderAssignments from '../OrderDetails/OrderAssignments.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderTimeline from '../OrderDetails/OrderTimeline.vue'
 import type {
   OrderInfo as OrderInfoType,
@@ -339,6 +350,11 @@ async function fetchAll() {
     // Не критично
   }
 
+  await loadComments()
+}
+
+// Отдельная функция для загрузки комментариев
+async function loadComments() {
   try {
     const rawComments = await getOrderComments(props.orderId)
     comments.value = (rawComments as OrderComment[]).map((c: OrderComment) => ({
@@ -490,7 +506,8 @@ async function addComment(text: string) {
   try {
     await postOrderComment(props.orderId as number, text)
     toast.show('Комментарий добавлен!')
-    await fetchAll()
+    // Обновляем только комментарии, а не все данные
+    await loadComments()
   } catch {
     toast.show('Ошибка добавления комментария', 'error')
   }
@@ -499,7 +516,8 @@ async function addComment(text: string) {
 async function deleteComment(commentId: number) {
   if (confirm('Удалить комментарий?')) {
     await deleteOrderComment(props.orderId as number, commentId)
-    await fetchAll()
+    // Обновляем только комментарии, а не все данные
+    await loadComments()
   }
 }
 
@@ -667,7 +685,7 @@ async function updateAssignmentStatus(assignment: Assignment) {
     }
 
     emit('updated')
-    toast.show('Статус назначения обновлён!', 'success')
+    toast.show('Назначение обновлено!', 'success')
   } catch (error) {
     // При ошибке возвращаем старый статус
     const assignmentIndex = assignments.value.findIndex((a) => a.id === assignment.id)
@@ -676,7 +694,7 @@ async function updateAssignmentStatus(assignment: Assignment) {
     }
 
     console.error('Error updating assignment status:', error)
-    toast.show('Ошибка обновления статуса', 'error')
+    toast.show('Ошибка обновления назначения', 'error')
   }
 }
 
@@ -692,9 +710,7 @@ async function deleteAssignment(assignment: Assignment) {
     await deleteOrderAssignment(assignment.id)
 
     // Загружаем актуальные данные с сервера
-    setTimeout(async () => {
-      await fetchAll()
-    }, 300)
+    fetchAll()
   } catch {
     // При ошибке возвращаем назначение обратно
     assignments.value.push(assignment)
@@ -707,11 +723,18 @@ async function changeStatus(newStatus: string) {
 
   try {
     await updateStage(order.value.id, newStatus)
-    toast.show('Статус заказа обновлён!')
+    
+    // Сразу обновляем локальное состояние
+    if (order.value) {
+      order.value.stage = newStatus
+    }
+    
+    // Получаем display_name стадии
+    const stageDisplayName = getStatusText(newStatus)
+    toast.show('Стадия заказа обновлена: ' + stageDisplayName)
 
-    setTimeout(async () => {
-      await fetchAll()
-    }, 200)
+    // Обновляем данные в фоне (без задержки)
+    fetchAll()
 
     emit('updated')
   } catch (err: unknown) {
@@ -881,12 +904,27 @@ function onOverlayClick() {
   emit('close')
 }
 
+// Функция удаления заказа
+async function deleteOrderHandler() {
+  if (!order.value) return
+  
+  try {
+    await deleteOrder(order.value.id)
+    
+    toast.show('Заказ удален!', 'success')
+    emit('close')
+    emit('updated')
+  } catch (error) {
+    toast.show('Ошибка удаления заказа', 'error')
+  }
+}
+
 // Lifecycle hooks
 onMounted(() => {
   fetchAll()
   pollingInterval = window.setInterval(() => {
     fetchAll()
-  }, 7000)
+  }, 20000) // Увеличиваем до 20 секунд
 })
 
 onUnmounted(() => {

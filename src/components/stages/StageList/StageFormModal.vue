@@ -319,8 +319,6 @@ const handleSubmit = async () => {
 const handleDelete = async () => {
   if (!props.stage?.id) return
 
-  if (!confirm('Вы уверены, что хотите удалить эту стадию?')) return
-
   deleting.value = true
   try {
     emit('delete', props.stage.id)

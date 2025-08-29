@@ -188,11 +188,11 @@ import { useLogo } from '@/composables/useLogo'
 const { logoDataUrl, isLoading: logoLoading } = useLogo()
 
 // Получаем URL логотипа
-const logoUrl = ref(logoDataUrl.value || `/logo.png?v=${Date.now()}`)
+const logoUrl = ref(logoDataUrl.value || '/logo.png')
 
 // Обработчик ошибки загрузки логотипа
 const handleLogoError = () => {
   // При ошибке загрузки основного логотипа, используем fallback
-  logoUrl.value = `/logo.png?v=${Date.now()}`
+  logoUrl.value = '/logo.png'
 }
 </script>

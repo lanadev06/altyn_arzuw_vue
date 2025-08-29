@@ -61,17 +61,11 @@
 import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
-// @ts-expect-error Vue component with script setup has no default export
 import Layout from '../components/layout/Layout.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderList from '../components/orders/OrderList/OrderList.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders } from '../utils/permissions'
 import { getAllStages } from '../services/api'
@@ -258,7 +252,7 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     // Обновляем заказы для таблицы
     orderListRef.value?.loadOrders()
   } catch (error: any) {
-    let errorMessage = 'Ошибка обновления статуса'
+    let errorMessage = 'Ошибка обновления стадии'
     if (error.message && error.message.includes('422')) {
       try {
         const jsonMatch = error.message.match(/\{.*\}/)
@@ -272,7 +266,7 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     } else {
       errorMessage = error.message
     }
-    alert(`Ошибка обновления статуса: ${errorMessage}`)
+    alert(`Ошибка обновления стадии: ${errorMessage}`)
   }
 }
 </script>

@@ -202,15 +202,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import Sortable from 'sortablejs'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderFormModal from './OrderFormModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderDetailsModal from './OrderDetailsModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import Pagination from '../../users/UserList/Pagination.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import UIButton from '../../ui/UIButton.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import type { Order } from '../../../types/order'
@@ -552,10 +547,10 @@ onMounted(async () => {
   // Загружаем заказы
   loadOrders()
 
-  // Запускаем автоматическое обновление каждые 10 секунд
+  // Запускаем автоматическое обновление каждые 30 секунд
   autoRefreshInterval = window.setInterval(() => {
     loadOrders()
-  }, 10000)
+  }, 30000) // Увеличиваем до 30 секунд
 
   // Обновляем данные при фокусе на окне (когда пользователь возвращается к вкладке)
   handleFocus = () => {

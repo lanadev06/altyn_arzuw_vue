@@ -246,6 +246,9 @@ async function handleDeleteClient(clientId: number) {
     await remove(clientId)
     console.log('✅ Client deletion completed successfully')
 
+    // Показываем уведомление об успешном удалении
+    toast.show('Клиент успешно удален!', 'success')
+
     // Обновляем UI только после успешного удаления
     showEditModal.value = false
     editingClient.value = null
@@ -255,63 +258,25 @@ async function handleDeleteClient(clientId: number) {
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
   } catch (err: unknown) {
     console.error('❌ Ошибка удаления клиента:', clientId, err)
-    console.error('❌ Error details:', {
-      message: err instanceof Error ? err.message : 'Unknown error',
-      status:
-        err && typeof err === 'object' && 'status' in err
-          ? (err as { status: number }).status
-          : undefined,
-      response:
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response: unknown }).response
-          : undefined,
-    })
-
-    // Если ошибка 404 (клиент не найден), не показываем ошибку пользователю
-    // так как клиент уже мог быть удален
+    
+    // Если ошибка 404 (клиент не найден), считаем это успешным удалением
     if (
       err &&
       typeof err === 'object' &&
       'status' in err &&
       (err as { status: number }).status === 404
     ) {
-      console.log('ℹ️ Client not found (404) - may have been already deleted')
-
-      // Проверяем, есть ли специальный код ошибки или сообщение об ошибке
-      if (
-        err &&
-        typeof err === 'object' &&
-        'response' in err &&
-        err.response &&
-        typeof err.response === 'object' &&
-        'data' in err.response &&
-        err.response.data &&
-        typeof err.response.data === 'object' &&
-        'error_code' in err.response.data &&
-        (err.response.data as { error_code: string }).error_code === 'CLIENT_NOT_FOUND'
-      ) {
-        console.log('ℹ️ Client was already deleted or not found, refreshing list...')
-        // Обновляем список, чтобы убрать несуществующего клиента
-        await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
-        return
-      }
+      console.log('ℹ️ Client not found (404) - already deleted, showing success message')
+      toast.show('Клиент успешно удален!', 'success')
+      // Обновляем список
+      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+      return
     }
 
-    let message = 'Произошла неизвестная ошибка при удалении клиента'
-    if (
-      err &&
-      typeof err === 'object' &&
-      'response' in err &&
-      err.response &&
-      typeof err.response === 'object' &&
-      'data' in err.response &&
-      err.response.data &&
-      typeof err.response.data === 'object' &&
-      'message' in err.response.data
-    ) {
-      message = String((err.response.data as { message: string }).message)
-    } else if (err instanceof Error && err.message) {
-      message = `Ошибка удаления клиента: ${err.message}`
+    // Для других ошибок показываем сообщение об ошибке
+    let message = 'Ошибка удаления клиента'
+    if (err instanceof Error) {
+      message = err.message
     }
 
     toast.show(message, 'error')
@@ -359,7 +324,7 @@ onMounted(async () => {
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   pollingInterval = setInterval(() => {
     fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
-  }, 7000)
+  }, 30000) // Увеличиваем до 30 секунд
 })
 
 watch(perPage, (newVal) => {

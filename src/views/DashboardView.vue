@@ -254,15 +254,10 @@
 </template>
 
 <script setup lang="ts">
-// @ts-expect-error Vue component with script setup has no default export
 import Layout from '../components/layout/Layout.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import QuickActions from '../components/dashboard/QuickActions.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import RecentActivity from '../components/dashboard/RecentActivity.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import RevenueChart from '../components/dashboard/RevenueChart.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
 import { ref, onMounted, computed } from 'vue'

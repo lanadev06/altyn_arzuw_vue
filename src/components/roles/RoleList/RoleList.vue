@@ -329,18 +329,19 @@ const handleDeleteRole = async (roleId: number) => {
   try {
     // Проверяем права доступа
     if (!canDelete()) {
-      alert('У вас нет прав для удаления ролей')
+      toast.show('У вас нет прав для удаления ролей', 'error')
       return
     }
 
     // Проверяем токен авторизации
     const token = localStorage.getItem('auth_token')
     if (!token) {
-      alert('Необходима авторизация для удаления роли')
+      toast.show('Необходима авторизация для удаления роли', 'error')
       return
     }
 
     await RoleController.delete(roleId)
+    toast.show('Роль успешно удалена!', 'success')
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()

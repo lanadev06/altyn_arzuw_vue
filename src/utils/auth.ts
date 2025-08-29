@@ -1,6 +1,7 @@
 // Authentication utility functions
 
 import type { User } from '../types/api'
+import { clearCacheOnLogout } from './cacheUtils'
 
 /**
  * Check if user is authenticated
@@ -25,6 +26,7 @@ export function getCurrentUser() {
 export function clearAuth(): void {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('user')
+  clearCacheOnLogout() // Очищаем кэш при выходе
 }
 
 /**

@@ -337,18 +337,19 @@ const handleDeleteStage = async (stageId: number) => {
   try {
     // Проверяем права доступа
     if (!canDelete()) {
-      alert('У вас нет прав для удаления стадий')
+      toast.show('У вас нет прав для удаления стадий', 'error')
       return
     }
 
     // Проверяем токен авторизации
     const token = localStorage.getItem('auth_token')
     if (!token) {
-      alert('Необходима авторизация для удаления стадии')
+      toast.show('Необходима авторизация для удаления стадии', 'error')
       return
     }
 
     await StageController.delete(stageId)
+    toast.show('Стадия успешно удалена!', 'success')
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()

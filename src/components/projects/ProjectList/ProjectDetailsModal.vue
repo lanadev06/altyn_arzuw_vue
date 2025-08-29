@@ -16,6 +16,8 @@
           >
             ✕
           </button>
+          
+
           <div class="flex-1 flex flex-row h-full min-h-0">
             <!-- Левая часть: детали проекта -->
             <div
@@ -419,6 +421,19 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- Кнопка удаления проекта -->
+              <div class="mt-4 flex justify-end">
+                <button
+                  @click="deleteProjectHandler"
+                  class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  title="Удалить проект"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -436,6 +451,8 @@ import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import { canCreateEdit, canViewPrices, getCurrentUser } from '@/utils/permissions'
 import { getUserImageUrl } from '@/utils/user'
+import { deleteProject } from '@/services/api'
+import { toast } from '@/stores/toast'
 
 interface Client {
   id: number
@@ -536,6 +553,21 @@ watch(
 
 function onOverlayClick(e: MouseEvent) {
   if (e.target === e.currentTarget) emit('close')
+}
+
+// Функция удаления проекта
+async function deleteProjectHandler() {
+  if (!props.project) return
+  
+  try {
+    await deleteProject(props.project.id)
+    
+    toast.show('Проект удален!', 'success')
+    emit('close')
+    emit('update-project', null) // Уведомляем родительский компонент об удалении
+  } catch (error) {
+    toast.show('Ошибка удаления проекта', 'error')
+  }
 }
 
 type ProjectField = keyof Project | 'client_id' | 'total_price' | 'payment_amount'

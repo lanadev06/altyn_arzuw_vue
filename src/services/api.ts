@@ -1,5 +1,8 @@
 import { API_CONFIG, API_ENDPOINTS, ERROR_MESSAGES } from '../config/api'
 import { handle401Error } from '../utils/auth'
+import { frontendCache, CacheKeys, CacheTTL } from './cacheService'
+import { requestDeduplication } from './requestDeduplication'
+import { invalidateCache } from '../utils/cacheUtils'
 import type {
   PaginatedResponse,
   User,
@@ -167,6 +170,46 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     }
     throw new Error(ERROR_MESSAGES.NETWORK_ERROR)
   }
+}
+
+// Кэшированная версия apiRequest для GET запросов
+async function cachedApiRequest<T>(
+  endpoint: string, 
+  options: RequestInit = {},
+  cacheKey?: string,
+  ttl?: number
+): Promise<T> {
+  // Только для GET запросов используем кэш
+  if (options.method && options.method !== 'GET') {
+    return apiRequest<T>(endpoint, options)
+  }
+
+  const key = cacheKey || frontendCache.createCacheKey(endpoint, options)
+  
+  // Проверяем кэш
+  const cachedData = frontendCache.get<T>(key)
+  if (cachedData) {
+    console.log(`📦 Cache hit for ${endpoint}`)
+    return cachedData
+  }
+
+  // Создаем ключ для дедупликации
+  const dedupeKey = requestDeduplication.createKey(
+    options.method || 'GET',
+    endpoint,
+    options
+  )
+
+  // Выполняем запрос с дедупликацией
+  const result = await requestDeduplication.deduplicate(dedupeKey, () => 
+    apiRequest<T>(endpoint, options)
+  )
+
+  // Сохраняем в кэш
+  frontendCache.set(key, result, ttl)
+  console.log(`💾 Cached response for ${endpoint}`)
+
+  return result
 }
 
 // API функции для аутентификации с Laravel
@@ -564,17 +607,15 @@ export async function getProducts({
 }
 
 export async function createProduct(data: ProductForm): Promise<Product> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/products`, {
+  const res = await apiRequest('/products', {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
     body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Ошибка создания товара')
-  return (await res.json()).data
+  }) as any
+  
+  // Инвалидируем кэш продуктов
+  invalidateCache.products()
+  
+  return res.data
 }
 
 export async function updateProduct(id: number, data: ProductForm): Promise<Product> {
@@ -684,47 +725,23 @@ export async function getByRole(role: string): Promise<{ data: User[] }> {
 }
 
 export async function getAllClients(): Promise<any[]> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/clients/all`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки клиентов')
-  return await res.json()
+  const res = await cachedApiRequest('/clients/all', {}, CacheKeys.CLIENTS, CacheTTL.LONG)
+  return Array.isArray(res) ? res : []
 }
 
 export async function getAllProducts(): Promise<any[]> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/products/all`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки продуктов')
-  return await res.json()
+  const res = await cachedApiRequest('/products/all', {}, CacheKeys.PRODUCTS, CacheTTL.LONG)
+  return Array.isArray(res) ? res : []
 }
 
 export async function getAllUsers(): Promise<any[]> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/users/all`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки пользователей')
-  return await res.json()
+  const res = await cachedApiRequest('/users/all', {}, CacheKeys.USERS, CacheTTL.LONG)
+  return Array.isArray(res) ? res : []
 }
 
 export async function getAllProjects(): Promise<any[]> {
-  const res = await fetch(`${API_CONFIG.BASE_URL}/projects/all`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки проектов')
-  return await res.json()
+  const res = await cachedApiRequest('/projects/all', {}, CacheKeys.PROJECTS, CacheTTL.LONG)
+  return Array.isArray(res) ? res : []
 }
 
 // --- Заказы ---
@@ -781,7 +798,7 @@ export async function getAllOrders({
     search,
     sort_by,
     sort_order,
-    per_page: '10000', // Очень большое число для получения всех заказов
+    per_page: '1000', // Оптимизированное количество для снижения нагрузки
   })
   if (stage) params.append('stage', stage)
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
@@ -810,7 +827,7 @@ export async function getAllOrdersForAdmin({
     search,
     sort_by,
     sort_order,
-    per_page: '10000', // Очень большое число для получения всех заказов
+    per_page: '1000', // Оптимизированное количество для снижения нагрузки
     force_refresh: 'true', // Принудительная очистка кэша
     admin_view: 'true', // Специальный флаг для админа
   })
@@ -839,15 +856,15 @@ export async function deleteOrder(id: number): Promise<void> {
   await apiRequest(`/orders/${id}`, { method: 'DELETE' })
 }
 export async function getOrderDetails(orderId: number) {
-  return await apiRequest(`/orders/${orderId}`)
+  return await cachedApiRequest(`/orders/${orderId}`, {}, `order_details_${orderId}`, CacheTTL.SHORT)
 }
 
 export async function getOrderStatusLogs(orderId: number) {
-  return await apiRequest(`/orders/${orderId}/status-logs`)
+  return await cachedApiRequest(`/orders/${orderId}/status-logs`, {}, `order_status_logs_${orderId}`, CacheTTL.SHORT)
 }
 
 export async function getOrderComments(orderId: number) {
-  return await apiRequest(`/comments?order_id=${orderId}`)
+  return await cachedApiRequest(`/comments?order_id=${orderId}`, {}, `order_comments_${orderId}`, CacheTTL.SHORT)
 }
 
 export async function postOrderComment(orderId: number, text: string) {
@@ -999,7 +1016,7 @@ export async function updateUser(id: number, data: UpdateUserData): Promise<User
 export async function getRoles(): Promise<
   Array<{ id: number; name: string; display_name?: string }>
 > {
-  const res = (await apiRequest('/roles')) as { data?: any[] } | any[]
+  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)) as { data?: any[] } | any[]
   return (res as any).data || res // поддержка разных форматов ответа
 }
 
@@ -1010,7 +1027,7 @@ export { getAllRoles as getRolesNew }
 
 // --- Стадии (Stages) ---
 export async function getAllStages(): Promise<any> {
-  const res = await apiRequest('/stages')
+  const res = await cachedApiRequest('/stages', {}, CacheKeys.STAGES, CacheTTL.LONG)
   return res
 }
 
@@ -1057,13 +1074,13 @@ export async function getUsersByStageRoles(stageId: number): Promise<any> {
 
 // Получить всех пользователей по ролям всех стадий
 export async function getAllUsersByStageRoles(): Promise<any> {
-  const res = await apiRequest('/stages/users-by-roles/all')
+  const res = await cachedApiRequest('/stages/users-by-roles/all', {}, CacheKeys.USERS_BY_STAGE_ROLES, CacheTTL.LONG)
   return res
 }
 
 // --- Роли (Roles) ---
 export async function getAllRoles(): Promise<any> {
-  const res = await apiRequest('/roles')
+  const res = await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)
   return res
 }
 

@@ -330,8 +330,8 @@ function translateStatusInText(text: string): string {
 
 onMounted(() => {
   fetchNotifications()
-  // Проверяем уведомления каждые 10 секунд для более быстрого реагирования
-  pollInterval = setInterval(fetchNotifications, 10000)
+  // Проверяем уведомления каждые 30 секунд для снижения нагрузки
+  pollInterval = setInterval(fetchNotifications, 30000) // Увеличиваем до 30 секунд
 
   // Добавляем обработчик клика вне dropdown'а
   document.addEventListener('click', handleClickOutside)

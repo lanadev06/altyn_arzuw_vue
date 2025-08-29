@@ -166,7 +166,7 @@ onMounted(async () => {
   OrderController().fetchAllOrdersForKanban()
   pollingInterval = window.setInterval(() => {
     OrderController().fetchAllOrdersForKanban()
-  }, 7000)
+  }, 25000) // Увеличиваем до 25 секунд
 })
 const props = defineProps<{
   statuses: { key: string; label: string }[]
@@ -295,7 +295,10 @@ async function onDrop(event: DragEvent, newStage: string) {
     // Передаем стадию и дополнительные данные на сервер
     await OrderController().updateStage(order.id, newStage, additionalData)
 
-    showToast('Статус обновлён: ' + newStage, 'success')
+    // Получаем display_name стадии
+    const stageData = stages.value.find((s) => s.value === newStage)
+    const stageDisplayName = stageData?.label || newStage
+    showToast('Стадия обновлена: ' + stageDisplayName, 'success')
 
     // Эмитим событие change-status для OrdersView
     emit('change-status', { order, newStatus: newStage })

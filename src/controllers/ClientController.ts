@@ -125,7 +125,16 @@ export function useClientController() {
     loading.value = true
     try {
       await deleteClient(id)
-      await fetchClients(pagination.current_page)
+      // Обновляем список клиентов после успешного удаления
+      try {
+        await fetchClients(pagination.current_page)
+      } catch (fetchError) {
+        // Если не удалось загрузить обновленный список, просто очищаем текущие данные
+        console.warn('Could not refresh client list after deletion:', fetchError)
+        // Удаляем клиента из локального списка
+        pagination.data = pagination.data.filter(client => client.id !== id)
+        pagination.total = Math.max(0, pagination.total - 1)
+      }
     } finally {
       loading.value = false
     }

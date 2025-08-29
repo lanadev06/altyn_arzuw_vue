@@ -1,7 +1,7 @@
 import { ref, onMounted } from 'vue'
 
 const LOGO_KEY = 'altyn_arzuw_logo'
-const LOGO_URL = '/logo.png?v=' + Date.now()
+const LOGO_URL = '/logo.png' // Убираем Date.now() для стабильного кэширования
 
 // Глобальные переменные для предотвращения повторной загрузки
 let globalLogoDataUrl = ''
@@ -14,7 +14,19 @@ export function useLogo() {
   if (!globalLogoDataUrl && !isInitialized) {
     const cached = localStorage.getItem(LOGO_KEY)
     if (cached) {
-      globalLogoDataUrl = cached
+      try {
+        // Пытаемся распарсить как JSON (новая версия)
+        const logoData = JSON.parse(cached)
+        if (logoData.dataUrl) {
+          globalLogoDataUrl = logoData.dataUrl
+        } else {
+          // Fallback для старого формата
+          globalLogoDataUrl = cached
+        }
+      } catch {
+        // Fallback для старого формата (просто строка)
+        globalLogoDataUrl = cached
+      }
       globalIsLoading = false
       isInitialized = true
     }
@@ -35,10 +47,25 @@ export function useLogo() {
       // Проверяем, есть ли уже логотип в localStorage
       const cached = localStorage.getItem(LOGO_KEY)
       if (cached) {
-        globalLogoDataUrl = cached
+        try {
+          // Пытаемся распарсить как JSON (новая версия)
+          const logoData = JSON.parse(cached)
+          if (logoData.dataUrl) {
+            globalLogoDataUrl = logoData.dataUrl
+            logoDataUrl.value = logoData.dataUrl
+          } else {
+            // Fallback для старого формата
+            globalLogoDataUrl = cached
+            logoDataUrl.value = cached
+          }
+        } catch {
+          // Fallback для старого формата (просто строка)
+          globalLogoDataUrl = cached
+          logoDataUrl.value = cached
+        }
         globalIsLoading = false
-        logoDataUrl.value = cached
         isLoading.value = false
+        isInitialized = true
         return
       }
 
@@ -49,9 +76,16 @@ export function useLogo() {
 
       globalIsLoading = true
       isLoading.value = true
+      globalError = ''
+      error.value = ''
 
       // Если нет в кэше, загружаем и сохраняем
-      const response = await fetch(LOGO_URL)
+      const response = await fetch(LOGO_URL, {
+        cache: 'force-cache', // Принудительное использование кэша браузера
+        headers: {
+          'Cache-Control': 'max-age=86400' // Кэш на 24 часа
+        }
+      })
 
       if (!response.ok) {
         throw new Error(`Не удалось загрузить логотип: ${response.status} ${response.statusText}`)
@@ -66,9 +100,14 @@ export function useLogo() {
         globalLogoDataUrl = dataUrl
         logoDataUrl.value = dataUrl
 
-        // Сохраняем в localStorage
+        // Сохраняем в localStorage с меткой времени
         try {
-          localStorage.setItem(LOGO_KEY, dataUrl)
+          const logoData = {
+            dataUrl,
+            timestamp: Date.now(),
+            version: '1.0'
+          }
+          localStorage.setItem(LOGO_KEY, JSON.stringify(logoData))
         } catch (e) {
           console.warn('Не удалось сохранить логотип в localStorage:', e)
         }

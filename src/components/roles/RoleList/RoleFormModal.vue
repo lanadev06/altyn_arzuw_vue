@@ -186,8 +186,6 @@ const handleSubmit = async () => {
 const handleDelete = async () => {
   if (!props.role?.id) return
 
-  if (!confirm('Вы уверены, что хотите удалить эту роль?')) return
-
   deleting.value = true
   try {
     emit('delete', props.role.id)

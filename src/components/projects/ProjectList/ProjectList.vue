@@ -358,6 +358,14 @@ function closeProjectDetails() {
 }
 async function onUpdateProject(updatedProject: any) {
   await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  
+  // Если проект удален (updatedProject === null), закрываем модальное окно
+  if (updatedProject === null) {
+    closeProjectDetails()
+    return
+  }
+  
+  // Если проект обновлен, обновляем данные в модальном окне
   if (selectedProject.value && updatedProject && updatedProject.id === selectedProject.value.id) {
     selectedProject.value = { ...selectedProject.value, ...updatedProject }
   }

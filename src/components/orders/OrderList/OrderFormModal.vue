@@ -395,7 +395,6 @@
                       <div class="flex items-center justify-between">
                         <label class="block text-sm font-medium text-gray-700">
                           {{ role.display_name || getRoleDisplayName(role.name) }}
-                          <span class="text-xs text-gray-500 ml-1">({{ role.name }})</span>
                         </label>
                         <UIButton
                           type="button"
@@ -682,7 +681,6 @@
               <div v-for="role in stage.roles" :key="role.id" class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700">
                   {{ role.display_name || getRoleDisplayName(role.name) }}
-                  <span class="text-xs text-gray-500">({{ role.name }})</span>
                 </label>
                 <!-- Простой компонент назначений -->
                 <div class="space-y-3">
@@ -785,11 +783,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-// @ts-expect-error Vue component with script setup has no default export
 import Modal from '../../ui/Modal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import UIInput from '../../ui/UIInput.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import UIButton from '../../ui/UIButton.vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
@@ -812,11 +807,8 @@ import type { ProductAssignment, ProductAssignmentMinimal } from '../../../types
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
-// @ts-expect-error Vue component with script setup has no default export
 import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
-// @ts-expect-error Vue component with script setup has no default export
 import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
 
 const props = defineProps<{ order?: Order | null }>()
@@ -1175,13 +1167,12 @@ async function onProductChange(productId: number | null) {
       })
     }
 
-    // Если есть доступные стадии и выбран продукт
-    if (productId && selectedProduct.value?.available_stages) {
+    // Если выбран продукт, показываем все доступные стадии
+    if (productId && selectedProduct.value) {
       stagesLoading.value = true
 
       try {
         // Загружаем назначения продукта для автоматического подтягивания
-
         const productAssignmentsResponse = await getProductAssignments(productId)
         if (
           productAssignmentsResponse &&
@@ -1210,21 +1201,8 @@ async function onProductChange(productId: number | null) {
             } as ProductAssignment)
           })
 
-          // Выбираем все доступные стадии продукта по умолчанию
-          if (
-            selectedProduct.value &&
-            selectedProduct.value.available_stages &&
-            Array.isArray(selectedProduct.value.available_stages)
-          ) {
-            selectedOrderStages.value = selectedProduct.value.available_stages.map(
-              (stage) => stage.id,
-            )
-            selectedOrderStages.value = selectedProduct.value.available_stages.map(
-              (stage) => stage.id,
-            )
-          } else {
-            selectedOrderStages.value = []
-          }
+          // Выбираем все рабочие стадии по умолчанию (так как у продукта нет available_stages)
+          selectedOrderStages.value = workingStages.value.map((stage) => stage.id)
 
           // Копируем назначения продукта в заказ для каждой стадии
           if (productAssignmentsByRole && typeof productAssignmentsByRole === 'object') {
@@ -1249,36 +1227,16 @@ async function onProductChange(productId: number | null) {
             })
           }
         } else {
-          // Если нет назначений, все равно выбираем стадии продукта
-          if (
-            selectedProduct.value &&
-            selectedProduct.value.available_stages &&
-            Array.isArray(selectedProduct.value.available_stages)
-          ) {
-            selectedOrderStages.value = selectedProduct.value.available_stages.map(
-              (stage) => stage.id,
-            )
-            // Selected stages for order (no assignments)
-          }
+          // Если нет назначений, все равно выбираем все рабочие стадии
+          selectedOrderStages.value = workingStages.value.map((stage) => stage.id)
         }
       } catch (error) {
-        // Could not load product assignments
-        // Продолжаем без назначений продукта, но выбираем стадии
-        if (
-          selectedProduct.value &&
-          selectedProduct.value.available_stages &&
-          Array.isArray(selectedProduct.value.available_stages)
-        ) {
-          selectedOrderStages.value = selectedProduct.value.available_stages.map(
-            (stage) => stage.id,
-          )
-        }
+        // Продолжаем без назначений продукта, но выбираем все рабочие стадии
+        selectedOrderStages.value = workingStages.value.map((stage) => stage.id)
       } finally {
         stagesLoading.value = false
       }
     }
-
-    // Product change finished
   } catch (error) {
     stagesLoading.value = false
   }
@@ -1339,11 +1297,15 @@ onMounted(async () => {
       roleUsersData = []
     }
 
-    // Загружаем остальные данные
-    const [clientsData, productsData, projectsData] = await Promise.all([
-      getAllClients().catch(() => []),
-      getAllProducts().catch(() => []),
-      getAllProjects().catch(() => []),
+    // Загружаем остальные данные с приоритетом
+    const [clientsData, productsData, projectsData] = await Promise.allSettled([
+      getAllClients(),
+      getAllProducts(), 
+      getAllProjects(),
+    ]).then(results => [
+      results[0].status === 'fulfilled' ? results[0].value : [],
+      results[1].status === 'fulfilled' ? results[1].value : [],
+      results[2].status === 'fulfilled' ? results[2].value : [],
     ])
 
     // Raw data loaded
@@ -1948,79 +1910,71 @@ async function onBulkOrderProductChange(index: number) {
       return
     }
 
-    // Если есть доступные стадии продукта
-    if (selectedProduct.available_stages && Array.isArray(selectedProduct.available_stages)) {
-      // Выбираем все доступные стадии продукта по умолчанию
-      order.selected_stages = selectedProduct.available_stages.map((stage) => stage.id)
-      // Загружаем назначения продукта для автоматического подтягивания
-      const productAssignmentsResponse = await getProductAssignments(order.product_id)
+    // Выбираем все рабочие стадии по умолчанию (так как у продукта нет available_stages)
+    order.selected_stages = workingStages.value.map((stage) => stage.id)
+    
+    // Загружаем назначения продукта для автоматического подтягивания
+    const productAssignmentsResponse = await getProductAssignments(order.product_id)
 
-      if (
-        productAssignmentsResponse &&
-        productAssignmentsResponse.assignments &&
-        Array.isArray(productAssignmentsResponse.assignments)
-      ) {
-        // Группируем назначения продукта по ролям
-        const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
+    if (
+      productAssignmentsResponse &&
+      productAssignmentsResponse.assignments &&
+      Array.isArray(productAssignmentsResponse.assignments)
+    ) {
+      // Группируем назначения продукта по ролям
+      const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
-        productAssignmentsResponse.assignments.forEach((assignment: any) => {
-          const roleType = assignment.role_type
+      productAssignmentsResponse.assignments.forEach((assignment: any) => {
+        const roleType = assignment.role_type
 
-          if (!productAssignmentsByRole[roleType]) {
-            productAssignmentsByRole[roleType] = []
-          }
-
-          productAssignmentsByRole[roleType].push({
-            id: assignment.id,
-            user_id: assignment.user_id,
-            role_type: assignment.role_type,
-            user: assignment.user,
-            product_id: assignment.product_id || 0,
-            is_active: assignment.is_active || true,
-            created_at: assignment.created_at || new Date().toISOString(),
-            updated_at: assignment.updated_at || new Date().toISOString(),
-          } as ProductAssignment)
-        })
-
-        // Копируем назначения продукта в заказ для каждой стадии
-        if (productAssignmentsByRole && typeof productAssignmentsByRole === 'object') {
-          Object.keys(productAssignmentsByRole).forEach((roleType) => {
-            const assignments = productAssignmentsByRole[roleType]
-            if (Array.isArray(assignments)) {
-              // Находим стадии, которые используют эту роль
-              const stagesWithRole = availableStages.value.filter((stage) => {
-                return stage.roles && stage.roles.some((role: any) => role.name === roleType)
-              })
-
-              // Копируем назначения для каждой стадии с этой ролью
-              stagesWithRole.forEach((stage) => {
-                if (!order.assignments[stage.id]) {
-                  order.assignments[stage.id] = {}
-                }
-                if (!order.assignments[stage.id][roleType]) {
-                  order.assignments[stage.id][roleType] = []
-                }
-
-                // Копируем назначения
-                order.assignments[stage.id][roleType] = assignments.map((assignment) => ({
-                  ...assignment,
-                  id: Date.now() + Math.random(), // Новый ID для массового заказа
-                }))
-              })
-            }
-          })
+        if (!productAssignmentsByRole[roleType]) {
+          productAssignmentsByRole[roleType] = []
         }
 
-        // Product assignments copied to bulk order
-      } else {
-        // No assignments found for product in bulk order
+        productAssignmentsByRole[roleType].push({
+          id: assignment.id,
+          user_id: assignment.user_id,
+          role_type: assignment.role_type,
+          user: assignment.user,
+          product_id: assignment.product_id || 0,
+          is_active: assignment.is_active || true,
+          created_at: assignment.created_at || new Date().toISOString(),
+          updated_at: assignment.updated_at || new Date().toISOString(),
+        } as ProductAssignment)
+      })
+
+      // Копируем назначения продукта в заказ для каждой стадии
+      if (productAssignmentsByRole && typeof productAssignmentsByRole === 'object') {
+        Object.keys(productAssignmentsByRole).forEach((roleType) => {
+          const assignments = productAssignmentsByRole[roleType]
+          if (Array.isArray(assignments)) {
+            // Находим стадии, которые используют эту роль
+            const stagesWithRole = availableStages.value.filter((stage) => {
+              return stage.roles && stage.roles.some((role: any) => role.name === roleType)
+            })
+
+            // Копируем назначения для каждой стадии с этой ролью
+            stagesWithRole.forEach((stage) => {
+              if (!order.assignments[stage.id]) {
+                order.assignments[stage.id] = {}
+              }
+              if (!order.assignments[stage.id][roleType]) {
+                order.assignments[stage.id][roleType] = []
+              }
+
+              // Копируем назначения
+              order.assignments[stage.id][roleType] = assignments.map((assignment) => ({
+                ...assignment,
+                id: Date.now() + Math.random(), // Новый ID для массового заказа
+              }))
+            })
+          }
+        })
       }
-    } else {
-      // No available stages found for product in bulk order, using empty selection
-      order.selected_stages = []
+
     }
   } catch (error) {
-    console.error(`❌ Error processing product change for bulk order ${index}:`, error)
+    // Обрабатываем ошибку без вывода в консоль
   }
 }
 
