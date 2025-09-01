@@ -45,4 +45,8 @@ const activeAssignments = computed(() => {
     return assignment.is_active && assignment.user
   })
 })
+
+defineOptions({
+  name: 'AssignmentDisplay'
+})
 </script>

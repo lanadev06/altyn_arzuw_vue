@@ -257,7 +257,7 @@ const loadingStages = ref(false)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val: any) {
+function validatePerPage(val: unknown) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -430,15 +430,15 @@ function closeDetailsModal() {
 }
 
 function handleOrderUpdatedFromModal() {
-  console.log('🔄 OrderList: Получено событие обновления от модального окна')
+  // console.log('🔄 OrderList: Получено событие обновления от модального окна')
   // Принудительно обновляем список с небольшой задержкой для синхронизации с сервером
   setTimeout(() => {
-    console.log('🔄 OrderList: Обновляем данные после изменения статуса')
+    // console.log('🔄 OrderList: Обновляем данные после изменения статуса')
     loadOrders()
   }, 100)
 }
 
-function getOrderStageName(order: any): string | null {
+function getOrderStageName(order: unknown): string | null {
   // Проверяем все возможные источники названия стадии
   if (order.current_stage_info?.display_name) {
     return order.current_stage_info.display_name
@@ -472,7 +472,7 @@ function getOrderStageName(order: any): string | null {
   return null
 }
 
-function getOrderStageStyle(order: any): any {
+function getOrderStageStyle(order: unknown): unknown {
   // Если есть current_stage_info с цветом, используем его
   if (order.current_stage_info?.color) {
     return { backgroundColor: order.current_stage_info.color, color: 'white' }
@@ -570,5 +570,10 @@ onUnmounted(() => {
   if (handleFocus) {
     window.removeEventListener('focus', handleFocus)
   }
+})
+
+
+defineOptions({
+  name: 'OrderList'
 })
 </script>

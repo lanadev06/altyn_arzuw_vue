@@ -4,7 +4,7 @@
     <div class="flex-1 flex flex-col min-h-screen">
       <Navbar class="fixed top-0 left-48 right-0 z-30" @search="onSearch" @logout="handleLogout" />
       <main
-        class="flex-1 flex flex-col h-[calc(100vh-4rem)] min-h-0 mt-16 overflow-auto p-5 pl-52 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700"
+        class="flex-1 flex flex-col h-[calc(100vh-4rem)] min-h-0 mt-16 overflow-auto p-5 pl-52 bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500"
       >
         <slot :search="search" />
       </main>

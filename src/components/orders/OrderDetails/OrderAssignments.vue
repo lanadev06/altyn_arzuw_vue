@@ -376,6 +376,11 @@ watch(
   },
   { deep: true },
 )
+
+
+defineOptions({
+  name: 'OrderAssignments'
+})
 </script>
 
 <style scoped>

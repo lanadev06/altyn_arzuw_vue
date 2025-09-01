@@ -33,7 +33,7 @@ export function ProjectController() {
       pagination.total = res.total || 0
       pagination.per_page = res.per_page || 30
       projects.value = res.data || []
-    } catch (e: any) {
+    } catch (e: unknown) {
       error.value = e.message || 'Ошибка загрузки проектов'
     } finally {
       loading.value = false

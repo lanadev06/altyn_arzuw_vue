@@ -278,4 +278,9 @@ function reasonStatusText(status: string) {
     }[status] || status
   )
 }
+
+
+defineOptions({
+  name: 'OrderProject'
+})
 </script>

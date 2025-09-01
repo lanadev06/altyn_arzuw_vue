@@ -341,7 +341,7 @@ function formatDate(date: string | null | undefined) {
   })
 }
 
-function getUserImageUrl(user: any) {
+function getUserImageUrl(user: unknown) {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
   if (user.image) return `${API_CONFIG.BASE_URL.replace('/api', '')}/storage/${user.image}`
@@ -365,7 +365,7 @@ function getSortByParam(sortKey: string): string {
   return sortKey
 }
 
-const editUser = (user: any) => {
+const editUser = (user: unknown) => {
   editingUser.value = user
   showEditModal.value = true
 }
@@ -388,7 +388,7 @@ async function toggleUserActive(userId: number) {
   } catch (e) {}
 }
 
-const handleCreateUser = async (userData: any) => {
+const handleCreateUser = async (userData: unknown) => {
   try {
     await create(userData)
     emit('close-create-modal')
@@ -405,16 +405,16 @@ const handleCreateUser = async (userData: any) => {
   } catch (err) {}
 }
 
-const handleUpdateUser = async (userData: any) => {
+const handleUpdateUser = async (userData: unknown) => {
   try {
     if (!editingUser.value) return
-    console.log(
-      'updateUser id:',
-      editingUser.value.id,
-      typeof editingUser.value.id,
-      editingUser.value,
-    )
-    console.log('Sending userData to API:', userData) // Отладка
+    // console.log(
+    //   'updateUser id:',
+    //   editingUser.value.id,
+    //   typeof editingUser.value.id,
+    //   editingUser.value,
+    // )
+    // console.log('Sending userData to API:', userData) // Отладка
     if (typeof editingUser.value.id !== 'number') {
       alert('Ошибка: id пользователя не число! ' + editingUser.value.id)
       return
@@ -451,7 +451,7 @@ const handleDeleteUser = async (userId: number) => {
       props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
     )
     toast.show('Пользователь успешно удален!', 'success')
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении пользователя'
 
@@ -484,7 +484,7 @@ function goToPage(page: number) {
   )
 }
 
-function validatePerPage(val: any) {
+function validatePerPage(val: unknown) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -542,5 +542,10 @@ watch([sortBy, sortOrder], () => {
     props.role,
     props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
   )
+})
+
+
+defineOptions({
+  name: 'UserList'
 })
 </script>

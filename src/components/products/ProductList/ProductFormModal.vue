@@ -20,6 +20,55 @@
         />
       </div>
 
+      <!-- Категории -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Категории
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label
+            v-for="category in availableCategories"
+            :key="category.id"
+            class="flex items-center p-3 bg-white rounded-lg border border-gray-200 transition-all duration-200 cursor-pointer hover:bg-gray-50 hover:border-gray-300 transform hover:scale-[1.02]"
+            :class="
+              selectedCategories.includes(category.id)
+                ? 'border-blue-500 bg-blue-50 shadow-sm scale-[1.02]'
+                : ''
+            "
+            @click="toggleCategory(category.id)"
+          >
+            <div
+              class="mr-2 w-4 h-4 border-2 rounded flex items-center justify-center transition-colors"
+              :class="
+                selectedCategories.includes(category.id)
+                  ? 'border-blue-500 bg-blue-500'
+                  : 'border-gray-300 bg-white'
+              "
+            >
+              <svg
+                v-if="selectedCategories.includes(category.id)"
+                class="w-3 h-3 text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <span class="font-medium text-gray-900">{{ category.name }}</span>
+          </label>
+        </div>
+        <p class="text-sm text-gray-500 mt-2">
+          Выберите категории для этого товара
+          <span v-if="selectedCategories.length > 0" class="text-blue-600 font-medium">
+            (выбрано: {{ selectedCategories.length }})
+          </span>
+        </p>
+      </div>
+
       <!-- Динамические стадии -->
       <div v-if="availableStages.length > 0" class="relative">
         <div
@@ -159,7 +208,7 @@
           {{ product ? 'Сохранить' : 'Создать' }}
         </UIButton>
 
-        <UIButton v-if="product" type="button" variant="danger" @click="handleDelete">
+        <UIButton v-if="product && canDelete()" type="button" variant="danger" @click="handleDelete">
           Удалить
         </UIButton>
 
@@ -178,6 +227,7 @@ import AssignmentManager from './AssignmentManager.vue'
 import type { Product, ProductAssignment, ProductForm } from '../../../types/product'
 import type { Stage } from '../../../types/stage'
 import type { User } from '../../../types/user'
+import type { Category } from '../../../types/category'
 import {
   getAllStages,
   getAllUsersByStageRoles,
@@ -187,9 +237,11 @@ import {
   updateProductStages,
   getUsersByRole,
   getByRole,
+  getAllCategories,
 } from '../../../services/api'
 import productController from '../../../controllers/productControllerInstance'
 import { toast } from '../../../stores/toast'
+import { canDelete } from '../../../utils/permissions'
 
 const props = defineProps<{ product?: Product | null }>()
 const emit = defineEmits(['close', 'submit', 'delete', 'saved'])
@@ -201,6 +253,10 @@ const stagesLoading = ref(false)
 const availableStages = ref<Stage[]>([])
 const selectedStages = ref<number[]>([])
 const allUsers = reactive<Record<string, User[]>>({})
+
+// Категории
+const availableCategories = ref<Category[]>([])
+const selectedCategories = ref<number[]>([])
 
 // Структура для хранения назначений по стадиям и ролям
 const stageAssignments = reactive<Record<number, Record<string, ProductAssignment[]>>>({})
@@ -356,6 +412,19 @@ function clearAllStages() {
   // НЕ удаляем назначения - они должны сохраняться
 }
 
+// Функции для работы с категориями
+function toggleCategory(categoryId: number) {
+  const index = selectedCategories.value.indexOf(categoryId)
+  
+  if (index > -1) {
+    // Удаляем категорию из выбранных
+    selectedCategories.value.splice(index, 1)
+  } else {
+    // Добавляем категорию в выбранные
+    selectedCategories.value.push(categoryId)
+  }
+}
+
 onMounted(async () => {
   try {
     stagesLoading.value = true
@@ -374,15 +443,15 @@ onMounted(async () => {
     if (stagesResult && Array.isArray(stagesResult)) {
       stagesResult.forEach((stage) => {
         if (stage.roles) {
-          stage.roles.forEach((role: any) => {
+          stage.roles.forEach((role: unknown) => {
             allRoles.add(role.name)
           })
         }
       })
     } else if (stagesResult && stagesResult.data && Array.isArray(stagesResult.data)) {
-      stagesResult.data.forEach((stage: any) => {
+      stagesResult.data.forEach((stage: unknown) => {
         if (stage.roles) {
-          stage.roles.forEach((role: any) => {
+          stage.roles.forEach((role: unknown) => {
             allRoles.add(role.name)
           })
         }
@@ -419,6 +488,15 @@ onMounted(async () => {
     }
 
     availableStages.value = stagesResult.data || stagesResult || []
+
+    // Загружаем категории
+    try {
+      const categoriesResult = await getAllCategories()
+      availableCategories.value = categoriesResult || []
+    } catch (error) {
+      console.warn('Ошибка загрузки категорий:', error)
+      availableCategories.value = []
+    }
 
     // Если стадии не загрузились, создаем fallback стадии
     if (availableStages.value.length === 0) {
@@ -544,9 +622,9 @@ onMounted(async () => {
         })
 
         // Распределяем пользователей по ролям
-        usersByStageRoles.forEach((user: any) => {
+        usersByStageRoles.forEach((user: unknown) => {
           if (user.roles && Array.isArray(user.roles)) {
-            user.roles.forEach((role: any) => {
+            user.roles.forEach((role: unknown) => {
               const roleName = role.name || role
               if (allRoles.has(roleName)) {
                 if (!dynamicUsers[roleName]) {
@@ -568,9 +646,9 @@ onMounted(async () => {
           if (Array.isArray(stageData)) {
             // Если стадия содержит массив пользователей
 
-            stageData.forEach((user: any) => {
+            stageData.forEach((user: unknown) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: any) => {
+                user.roles.forEach((role: unknown) => {
                   const roleName = role.name || role
                   if (!dynamicUsers[roleName]) {
                     dynamicUsers[roleName] = []
@@ -705,6 +783,11 @@ onMounted(async () => {
     if (props.product) {
       form.name = props.product.name || ''
 
+      // Загружаем категории продукта
+      if (props.product.categories && props.product.categories.length > 0) {
+        selectedCategories.value = props.product.categories.map(category => category.id)
+      }
+
       if (props.product.available_stages && props.product.available_stages.length > 0) {
         // Фильтруем стадии, оставляя только те, которые есть в availableStages
         const validStageIds = props.product.available_stages
@@ -728,15 +811,15 @@ onMounted(async () => {
 
       // Дополнительно загружаем все стадии продукта (включая недоступные) для правильного отображения
       try {
-        const productStagesResponse: any = await getProductStages(props.product.id)
+        const productStagesResponse: unknown = await getProductStages(props.product.id)
 
         if (productStagesResponse && productStagesResponse.product_stages) {
           // Получаем все стадии продукта (включая недоступные)
           const allProductStages = productStagesResponse.product_stages
 
           // Фильтруем только доступные стадии для selectedStages
-          const availableProductStages = allProductStages.filter((ps: any) => ps.is_available)
-          const availableStageIds = availableProductStages.map((ps: any) => ps.stage_id)
+          const availableProductStages = allProductStages.filter((ps: unknown) => ps.is_available)
+          const availableStageIds = availableProductStages.map((ps: unknown) => ps.stage_id)
 
           // Обновляем selectedStages только доступными стадиями, исключая служебные
           selectedStages.value = availableStageIds.filter((stageId: number) => {
@@ -764,7 +847,7 @@ onMounted(async () => {
           // Группируем назначения по стадиям и ролям
           const assignmentsByStageRole: Record<number, Record<string, ProductAssignment[]>> = {}
 
-          assignmentsResponse.assignments.forEach((assignment: any) => {
+          assignmentsResponse.assignments.forEach((assignment: unknown) => {
             const stageId = assignment.stage_id
             const roleType = assignment.role_type
 
@@ -811,10 +894,10 @@ onMounted(async () => {
           // Это нужно для ролей типа die_cutting_operator, которые могут быть назначены
           // но не включены в стадии продукта
           const allAssignments = assignmentsResponse.assignments || []
-          const uniqueRoles = new Set(allAssignments.map((a: any) => a.role_type))
+          const uniqueRoles = new Set(allAssignments.map((a: unknown) => a.role_type))
 
           uniqueRoles.forEach((roleType) => {
-            const roleAssignments = allAssignments.filter((a: any) => a.role_type === roleType)
+            const roleAssignments = allAssignments.filter((a: unknown) => a.role_type === roleType)
 
             // Находим стадию для этой роли (если есть)
             const stageForRole = availableStages.value.find((stage) =>
@@ -1032,6 +1115,7 @@ async function handleSubmit() {
     const productData = {
       name: form.name,
       stages: stagesData,
+      categories: selectedCategories.value,
     } as unknown as ProductForm
 
     let productId: number
@@ -1127,14 +1211,14 @@ async function handleSubmit() {
 
     // Проверяем, что стадии действительно сохранились
     try {
-      const savedStages: any = await getProductStages(productId)
+      const savedStages: unknown = await getProductStages(productId)
 
       if (savedStages?.product_stages) {
-        const availableStages = savedStages.product_stages.filter((ps: any) => ps.is_available)
-        const availableStageIds = availableStages.map((ps: any) => ps.stage_id)
+        const availableStages = savedStages.product_stages.filter((ps: unknown) => ps.is_available)
+        const availableStageIds = availableStages.map((ps: unknown) => ps.stage_id)
 
         const newSelectedStages = availableStageIds.filter((stageId: number) => {
-          const stage = availableStages.value.find((s: any) => s.id === stageId)
+          const stage = availableStages.value.find((s: unknown) => s.id === stageId)
           if (!stage) return false
 
           // Исключаем служебные стадии
@@ -1191,7 +1275,7 @@ async function handleDelete() {
     toast.show('Товар успешно удален!', 'success')
     emit('delete', props.product.id)
     emit('close')
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 
@@ -1211,6 +1295,11 @@ async function handleDelete() {
     toast.show(message, 'error')
   }
 }
+
+
+defineOptions({
+  name: 'ProductFormModal'
+})
 </script>
 
 <style>

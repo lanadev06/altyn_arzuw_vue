@@ -42,13 +42,13 @@
                   {{ props.project?.title || '' }}
                 </div>
                 <div
-                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+                  class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4"
                 >
                   <div
                     class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
                   >
                     <svg
-                      class="w-6 h-6 text-purple-600 transition-transform duration-300 group-hover:scale-110"
+                      class="w-6 h-6 text-purple-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -220,13 +220,13 @@
             <div class="w-1/2 flex flex-col gap-4 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
               <!-- Комментарии -->
               <div
-                class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col transition-all duration-300 hover:shadow-lg hover:scale-[1.02] mt-8"
+                class="bg-white rounded-xl shadow p-6 mb-4 border border-blue-100 flex flex-col mt-8"
               >
                 <div
                   class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
                 >
                   <svg
-                    class="w-6 h-6 text-blue-600 transition-transform duration-300 group-hover:scale-110"
+                    class="w-6 h-6 text-blue-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -344,14 +344,14 @@
                     <button
                       @click="addComment"
                       type="button"
-                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition-all duration-200 transform hover:scale-105 active:scale-95"
+                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition-colors duration-200"
                     >
                       ОТПРАВИТЬ
                     </button>
                     <button
                       @click="cancelComment"
                       type="button"
-                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition-all duration-200 transform hover:scale-105 active:scale-95"
+                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition-colors duration-200"
                     >
                       ОТМЕНА
                     </button>
@@ -360,13 +360,13 @@
               </div>
               <!-- Связанные заказы -->
               <div
-                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4"
               >
                 <div
                   class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
                 >
                   <svg
-                    class="w-6 h-6 text-orange-600 transition-transform duration-300 group-hover:scale-110"
+                    class="w-6 h-6 text-orange-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -423,10 +423,10 @@
               </div>
               
               <!-- Кнопка удаления проекта -->
-              <div class="mt-4 flex justify-end">
+              <div v-if="canDelete()" class="mt-4 flex justify-end">
                 <button
                   @click="deleteProjectHandler"
-                  class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-colors duration-200"
                   title="Удалить проект"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -449,7 +449,7 @@ import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
-import { canCreateEdit, canViewPrices, getCurrentUser } from '@/utils/permissions'
+import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils/permissions'
 import { getUserImageUrl } from '@/utils/user'
 import { deleteProject } from '@/services/api'
 import { toast } from '@/stores/toast'
@@ -493,11 +493,11 @@ const emit = defineEmits([
   'open-order',
 ])
 
-function getClientId(client: any): number | undefined {
+function getClientId(client: unknown): number | undefined {
   return (client as any)?.id
 }
 
-function getUserImageUrlLocal(user: any): string | undefined {
+function getUserImageUrlLocal(user: unknown): string | undefined {
   return (user as any)?.image_url
 }
 
@@ -526,7 +526,7 @@ const selectedClientIdProxy = computed({
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const clientIdReduce = (client: any) => client.id
+const clientIdReduce = (client: unknown) => client.id
 
 onMounted(async () => {
   // Загрузить всех клиентов для селекта
@@ -576,27 +576,31 @@ async function updateProjectField(field: ProjectField, value: unknown) {
   // PATCH-запрос на /api/projects/{id}
   const payload: Record<string, unknown> = {}
   payload[field] = value
-  const res = await fetch(`/api/projects/${props.project.id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-    body: JSON.stringify(payload),
-  })
-  if (res.ok) {
-    // После успешного PATCH — получить свежий проект с сервера
-    const fresh = await fetch(`/api/projects/${props.project.id}`, {
+  
+  try {
+    const res = await fetch(`/api/projects/${props.project.id}`, {
+      method: 'PATCH',
       headers: {
+        'Content-Type': 'application/json',
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
       },
+      body: JSON.stringify(payload),
     })
-    if (fresh.ok) {
-      const freshProject = await fresh.json()
-      emit('update-project', freshProject)
+    
+    if (res.ok) {
+      // Update local project data immediately
+      if (props.project) {
+        (props.project as any)[field] = value
+      }
+      
+      // Emit update to parent component
+      emit('update-project', props.project)
+    } else {
+      toast.show('Ошибка обновления проекта', 'error')
     }
+  } catch (error) {
+    toast.show('Ошибка обновления проекта', 'error')
   }
 }
 
@@ -771,7 +775,7 @@ function getRoleLabel(role: string) {
 // Исправление getUserImageUrl (ожидает Promise)
 // Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки
 const userImageUrls = ref<Record<string, string>>({})
-async function loadUserImageUrl(user: any) {
+async function loadUserImageUrl(user: unknown) {
   if (!user || !user.name) return
   if (!userImageUrls.value[user.name]) {
     try {
@@ -789,4 +793,9 @@ watch(
   },
   { immediate: true, deep: true },
 )
+
+
+defineOptions({
+  name: 'ProjectDetailsModal'
+})
 </script>

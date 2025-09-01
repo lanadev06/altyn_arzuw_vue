@@ -156,4 +156,9 @@ onMounted(() => {
   loadRoleUsers()
   loadAvailableUsers()
 })
+
+
+defineOptions({
+  name: 'RoleUsersModal'
+})
 </script>

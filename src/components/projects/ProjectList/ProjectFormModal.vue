@@ -167,7 +167,7 @@
           {{ project ? 'Сохранить изменения' : 'Создать проект' }}
         </UIButton>
         <UIButton
-          v-if="project"
+          v-if="project && canDelete()"
           type="button"
           variant="danger"
           @click="handleDelete"
@@ -204,7 +204,7 @@ import type { Client } from '@/types/client'
 import projectController from '@/controllers/projectControllerInstance'
 import { getAllClients } from '@/services/api'
 import { toast } from '@/stores/toast'
-import { canViewPrices } from '@/utils/permissions'
+import { canViewPrices, canDelete } from '@/utils/permissions'
 
 const props = defineProps<{ project?: Project | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -364,6 +364,11 @@ function handleDelete() {
     })
   }
 }
+
+
+defineOptions({
+  name: 'ProjectFormModal'
+})
 </script>
 
 <style>

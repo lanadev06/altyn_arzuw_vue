@@ -67,8 +67,7 @@
               @click="openProjectDetails(project)"
               style="height: 44px"
             >
-              <template v-for="col in columns" :key="col.key">
-                <td
+              <td v-for="col in columns" :key="col.key"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'client' ? 'max-w-[220px]' : '',
@@ -110,7 +109,6 @@
                     {{ (project as Record<string, any>)[col.key] }}
                   </template>
                 </td>
-              </template>
             </tr>
 
             <tr v-if="loading">
@@ -232,7 +230,7 @@ const currentPage = ref(1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const showDetailsModal = ref(false)
-function getSelectedProject(): any {
+function getSelectedProject(): unknown {
   return selectedProject.value
 }
 
@@ -346,7 +344,7 @@ async function openProjectDetails(project: Project) {
   })
   const json = assignRes.ok ? await assignRes.json() : { data: [] }
   const allAssignments = Array.isArray(json) ? json : json.data || []
-  selectedProjectAssignments.value = allAssignments.filter((a: any) =>
+  selectedProjectAssignments.value = allAssignments.filter((a: unknown) =>
     selectedProjectOrders.value.some((order) => order.id === a.order_id),
   )
 
@@ -356,7 +354,7 @@ function closeProjectDetails() {
   showDetailsModal.value = false
   selectedProject.value = null
 }
-async function onUpdateProject(updatedProject: any) {
+async function onUpdateProject(updatedProject: unknown) {
   await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
   
   // Если проект удален (updatedProject === null), закрываем модальное окно
@@ -384,8 +382,8 @@ async function onDeleteComment(commentId: number) {
   } catch (error) {
   }
 }
-function onEditComment(payload: any) {}
-function onOpenOrder(order: any) {
+function onEditComment(payload: unknown) {}
+function onOpenOrder(order: unknown) {
   selectedOrderId.value = order.id
   showOrderModal.value = true
 }
@@ -393,7 +391,7 @@ function closeOrderModal() {
   showOrderModal.value = false
   selectedOrderId.value = null
 }
-async function onOrderCreated(order: any) {
+async function onOrderCreated(order: unknown) {
   if (!selectedProject.value) return
   const res = await fetch(`/api/projects/${selectedProject.value.id}`, {
     headers: {
@@ -473,7 +471,7 @@ watch(
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val: any) {
+function validatePerPage(val: unknown) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -518,5 +516,10 @@ onMounted(async () => {
   } catch (e) {
     allClients.value = []
   }
+})
+
+
+defineOptions({
+  name: 'ProjectList'
 })
 </script>

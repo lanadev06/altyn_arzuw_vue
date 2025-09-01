@@ -22,4 +22,9 @@ import {
 } from '@tabler/icons-vue'
 
 defineProps<{ type: string }>()
+
+
+defineOptions({
+  name: 'ContactTypeIcon'
+})
 </script>

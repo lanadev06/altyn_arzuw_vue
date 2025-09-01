@@ -7,7 +7,7 @@ const DEFAULT_ADMIN_COLORS: Record<string, string> = {
 }
 
 // Получить цвет роли на основе связанных стадий
-export function getRoleColor(roleName: string, roleData?: any, stagesData?: any[]): string {
+export function getRoleColor(roleName: string, roleData?: unknown, stagesData?: unknown[]): string {
   // Администратор и менеджер всегда используют дефолтные цвета
   if (DEFAULT_ADMIN_COLORS[roleName]) {
     return DEFAULT_ADMIN_COLORS[roleName]
@@ -29,7 +29,7 @@ export function getRoleColor(roleName: string, roleData?: any, stagesData?: any[
   // Если есть данные стадий, ищем стадию с этой ролью
   if (stagesData && stagesData.length > 0) {
     for (const stage of stagesData) {
-      if (stage.roles && stage.roles.some((r: any) => r.name === roleName)) {
+      if (stage.roles && stage.roles.some((r: unknown) => r.name === roleName)) {
         if (stage.color) {
           return stage.color
         }
@@ -44,8 +44,8 @@ export function getRoleColor(roleName: string, roleData?: any, stagesData?: any[
 // Получить CSS классы для роли
 export function getRoleColorClasses(
   roleName: string,
-  roleData?: any,
-  stagesData?: any[],
+  roleData?: unknown,
+  stagesData?: unknown[],
   isActive = true,
 ): string {
   const color = getRoleColor(roleName, roleData, stagesData)
@@ -84,8 +84,8 @@ export function getRoleColorClasses(
 // Получить стили для роли (inline стили для кастомных цветов)
 export function getRoleColorStyles(
   roleName: string,
-  roleData?: any,
-  stagesData?: any[],
+  roleData?: unknown,
+  stagesData?: unknown[],
   isActive = true,
 ): Record<string, string> {
   const color = getRoleColor(roleName, roleData, stagesData)

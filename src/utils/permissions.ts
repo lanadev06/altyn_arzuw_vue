@@ -72,7 +72,17 @@ export function isStaff(): boolean {
   return user.roles.length > 0
 }
 
-// Проверить, может ли пользователь создавать/редактировать записи
+// Проверить, может ли пользователь создавать записи
+export function canCreate(): boolean {
+  return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь редактировать записи
+export function canEdit(): boolean {
+  return isAdmin()
+}
+
+// Проверить, может ли пользователь создавать/редактировать записи (для обратной совместимости)
 export function canCreateEdit(): boolean {
   return isAdminOrManager()
 }
@@ -110,6 +120,21 @@ export function canViewAllProducts(): boolean {
 // Проверить, может ли пользователь просматривать аудит-логи
 export function canViewAuditLogs(): boolean {
   return isAdmin()
+}
+
+// Проверить, может ли пользователь просматривать стадии
+export function canViewStages(): boolean {
+  return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь просматривать роли
+export function canViewRoles(): boolean {
+  return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь просматривать категории
+export function canViewCategories(): boolean {
+  return isAdminOrManager()
 }
 
 // Проверить, может ли пользователь просматривать цены

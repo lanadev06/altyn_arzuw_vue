@@ -71,8 +71,7 @@
               @click="editStage(stage)"
               style="height: 44px"
             >
-              <template v-for="col in columns" :key="col.key">
-                <td
+              <td v-for="col in columns" :key="col.key"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'id' ? 'max-w-[100px]' : '',
@@ -117,8 +116,7 @@
                     <span class="text-gray-600 text-base">{{ formatDate(stage.updated_at) }}</span>
                   </template>
                 </td>
-              </template>
-            </tr>
+              </tr>
 
             <tr v-if="loading">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
@@ -411,5 +409,10 @@ watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('stageList_perPage', perPage.value.toString())
   goToPage(1)
+})
+
+
+defineOptions({
+  name: 'StageList'
 })
 </script>

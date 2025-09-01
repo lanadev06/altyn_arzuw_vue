@@ -196,4 +196,9 @@ onMounted(async () => {
     activities.value = []
   }
 })
+
+
+defineOptions({
+  name: 'RecentActivity'
+})
 </script>

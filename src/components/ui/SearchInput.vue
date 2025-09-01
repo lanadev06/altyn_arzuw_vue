@@ -21,4 +21,9 @@ function handleInput(e: Event) {
   emit('update:modelValue', value)
   emit('input', value)
 }
+
+
+defineOptions({
+  name: 'SearchInput'
+})
 </script>

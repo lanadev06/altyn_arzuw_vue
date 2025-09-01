@@ -163,4 +163,9 @@ defineExpose({
   setError,
   form,
 })
+
+
+defineOptions({
+  name: 'LoginForm'
+})
 </script>

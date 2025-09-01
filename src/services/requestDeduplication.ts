@@ -25,7 +25,7 @@ class RequestDeduplicationService {
     if (existingRequest) {
       // Проверяем, не устарел ли запрос
       if (Date.now() - existingRequest.timestamp < this.REQUEST_TIMEOUT) {
-        console.log(`🔄 Request deduplication: reusing pending request for ${key}`)
+        // console.log(`🔄 Request deduplication: reusing pending request for ${key}`)
         return existingRequest.promise
       } else {
         // Удаляем устаревший запрос
@@ -54,7 +54,7 @@ class RequestDeduplicationService {
   /**
    * Создать ключ для дедупликации
    */
-  createKey(method: string, url: string, params?: any): string {
+  createKey(method: string, url: string, params?: unknown): string {
     const baseKey = `${method.toUpperCase()}_${url}`
     
     if (!params) {

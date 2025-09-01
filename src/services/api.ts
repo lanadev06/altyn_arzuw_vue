@@ -16,6 +16,7 @@ import type {
   UpdateUserData,
   ApiRequestConfig,
 } from '../types/api'
+import type { Category } from '../types/category'
 
 // Development mode flag
 const DEV_MODE = false // Отключаем DEV_MODE для тестирования
@@ -189,7 +190,7 @@ async function cachedApiRequest<T>(
   // Проверяем кэш
   const cachedData = frontendCache.get<T>(key)
   if (cachedData) {
-    console.log(`📦 Cache hit for ${endpoint}`)
+    // console.log(`📦 Cache hit for ${endpoint}`)
     return cachedData
   }
 
@@ -207,7 +208,7 @@ async function cachedApiRequest<T>(
 
   // Сохраняем в кэш
   frontendCache.set(key, result, ttl)
-  console.log(`💾 Cached response for ${endpoint}`)
+  // console.log(`💾 Cached response for ${endpoint}`)
 
   return result
 }
@@ -410,7 +411,7 @@ export async function updateClient(id: number, data: Partial<Client>): Promise<C
 }
 
 export async function deleteClient(id: number): Promise<void> {
-  console.log('🗑️ Deleting client with ID:', id)
+  // console.log('🗑️ Deleting client with ID:', id)
 
   const res = await fetch(`${API_CONFIG.BASE_URL}/clients/${id}`, {
     method: 'DELETE',
@@ -420,7 +421,7 @@ export async function deleteClient(id: number): Promise<void> {
     },
   })
 
-  console.log('📡 Delete response status:', res.status, res.statusText)
+  // console.log('📡 Delete response status:', res.status, res.statusText)
 
   if (!res.ok) {
     let errorMessage = 'Ошибка удаления клиента'
@@ -428,12 +429,12 @@ export async function deleteClient(id: number): Promise<void> {
 
     try {
       errorData = await res.json()
-      console.log('❌ Error response data:', errorData)
+      // console.log('❌ Error response data:', errorData)
       if (errorData.message) {
         errorMessage = errorData.message
       }
     } catch (e) {
-      console.log('❌ Could not parse error response')
+      // console.log('❌ Could not parse error response')
     }
 
     const error = new Error(errorMessage)
@@ -443,7 +444,7 @@ export async function deleteClient(id: number): Promise<void> {
     throw error
   }
 
-  console.log('✅ Client deleted successfully')
+  // console.log('✅ Client deleted successfully')
 }
 
 // Создать контакт клиента
@@ -713,11 +714,11 @@ export async function getByRole(role: string): Promise<{ data: User[] }> {
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.log('Ошибка загрузки пользователей по роли:', {
-      status: res.status,
-      statusText: res.statusText,
-      response: errorText,
-    })
+    // console.log('Ошибка загрузки пользователей по роли:', {
+    //   status: res.status,
+    //   statusText: res.statusText,
+    //   response: errorText,
+    // })
     throw new Error(`Ошибка загрузки пользователей по роли: ${res.status} ${res.statusText}`)
   }
 
@@ -1016,7 +1017,7 @@ export async function updateUser(id: number, data: UpdateUserData): Promise<User
 export async function getRoles(): Promise<
   Array<{ id: number; name: string; display_name?: string }>
 > {
-  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)) as { data?: any[] } | any[]
+  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)) as { data?: unknown[] } | any[]
   return (res as any).data || res // поддержка разных форматов ответа
 }
 
@@ -1031,7 +1032,7 @@ export async function getAllStages(): Promise<any> {
   return res
 }
 
-export async function createStage(data: any): Promise<any> {
+export async function createStage(data: unknown): Promise<any> {
   const res = await apiRequest('/stages', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1039,7 +1040,7 @@ export async function createStage(data: any): Promise<any> {
   return res
 }
 
-export async function updateStage(id: number, data: any): Promise<any> {
+export async function updateStage(id: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/stages/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -1090,7 +1091,7 @@ export async function getRolesWithStages(): Promise<any> {
   return res
 }
 
-export async function createRole(data: any): Promise<any> {
+export async function createRole(data: unknown): Promise<any> {
   const res = await apiRequest('/roles', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1098,7 +1099,7 @@ export async function createRole(data: any): Promise<any> {
   return res
 }
 
-export async function updateRole(id: number, data: any): Promise<any> {
+export async function updateRole(id: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/roles/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -1150,7 +1151,7 @@ export async function getProductAssignments(productId: number): Promise<any> {
   return res
 }
 
-export async function createProductAssignment(productId: number, data: any): Promise<any> {
+export async function createProductAssignment(productId: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1161,7 +1162,7 @@ export async function createProductAssignment(productId: number, data: any): Pro
 export async function updateProductAssignment(
   productId: number,
   assignmentId: number,
-  data: any,
+  data: unknown,
 ): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments/${assignmentId}`, {
     method: 'PUT',
@@ -1179,7 +1180,7 @@ export async function deleteProductAssignment(
   })
 }
 
-export async function bulkAssignProductUsers(productId: number, data: any): Promise<any> {
+export async function bulkAssignProductUsers(productId: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments/bulk`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1193,7 +1194,7 @@ export async function getAvailableUsersForProduct(productId: number): Promise<an
 }
 
 // --- Назначения заказов (Order Assignments) ---
-export async function assignOrderToUser(orderId: number, data: any): Promise<any> {
+export async function assignOrderToUser(orderId: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/orders/${orderId}/assign`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1201,7 +1202,7 @@ export async function assignOrderToUser(orderId: number, data: any): Promise<any
   return res
 }
 
-export async function bulkAssignOrders(orderId: number, data: any): Promise<any> {
+export async function bulkAssignOrders(orderId: number, data: unknown): Promise<any> {
   const res = await apiRequest(`/orders/${orderId}/bulk-assign`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1237,7 +1238,7 @@ export async function deleteOrderAssignment(assignmentId: number): Promise<void>
 }
 
 // Массовые операции с назначениями
-export async function bulkAssignGlobal(data: any): Promise<any> {
+export async function bulkAssignGlobal(data: unknown): Promise<any> {
   const res = await apiRequest('/assignments/bulk-assign', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1245,7 +1246,7 @@ export async function bulkAssignGlobal(data: any): Promise<any> {
   return res
 }
 
-export async function bulkReassignOrders(data: any): Promise<any> {
+export async function bulkReassignOrders(data: unknown): Promise<any> {
   const res = await apiRequest('/assignments/bulk-reassign', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1253,10 +1254,80 @@ export async function bulkReassignOrders(data: any): Promise<any> {
   return res
 }
 
-export async function bulkUpdateAssignments(data: any): Promise<any> {
+export async function bulkUpdateAssignments(data: unknown): Promise<any> {
   const res = await apiRequest('/assignments/bulk-update', {
     method: 'POST',
     body: JSON.stringify(data),
   })
   return res
+}
+
+// --- Категории ---
+export async function getCategories({
+  page = '1',
+  search = '',
+  sort_by = 'name',
+  sort_order = 'asc',
+  per_page = '30',
+  forceRefresh = false,
+} = {}): Promise<PaginatedResponse<Category>> {
+  const params = []
+  if (search) params.push(`search=${encodeURIComponent(search)}`)
+  if (page) params.push(`page=${page}`)
+  if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
+  if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
+  if (per_page) params.push(`per_page=${per_page}`)
+  if (forceRefresh) params.push(`_t=${Date.now()}`)
+  const query = params.length ? `?${params.join('&')}` : ''
+
+  const url = `${API_CONFIG.BASE_URL}/categories${query}`
+  const token = localStorage.getItem('auth_token')
+
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!res.ok) {
+    throw new Error(`Ошибка загрузки категорий: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  return data
+}
+
+export async function getAllCategories(): Promise<any[]> {
+  const res = await cachedApiRequest('/categories/all', {}, CacheKeys.CATEGORIES, CacheTTL.LONG)
+  // API возвращает {data: [...]}, поэтому извлекаем data
+  const categories = (res as any)?.data || res
+  return Array.isArray(categories) ? categories : []
+}
+
+export async function createCategory(data: unknown): Promise<any> {
+  const res = await apiRequest('/categories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function updateCategory(id: number, data: unknown): Promise<any> {
+  const res = await apiRequest(`/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return res
+}
+
+export async function deleteCategory(id: number): Promise<void> {
+  await apiRequest(`/categories/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function getCategoryProducts(categoryId: number): Promise<any[]> {
+  const res = await apiRequest(`/categories/${categoryId}/products`) as any
+  return res.data || []
 }

@@ -176,7 +176,8 @@ export const CacheKeys = {
   ROLES: 'roles',
   STATS: 'stats',
   NOTIFICATIONS: 'notifications',
-  USERS_BY_STAGE_ROLES: 'users_by_stage_roles'
+  USERS_BY_STAGE_ROLES: 'users_by_stage_roles',
+  CATEGORIES: 'categories'
 } as const
 
 // TTL константы (в миллисекундах)

@@ -75,7 +75,7 @@
           v-model="form.roles"
           :options="roleOptions"
           label="label"
-          :reduce="(option: any) => option.value"
+          :reduce="(option: unknown) => option.value"
           placeholder="Выберите роли"
           :clearable="true"
           :searchable="true"
@@ -100,10 +100,10 @@
       </div>
 
       <div class="flex gap-3 pt-4">
-        <UIButton type="submit" :loading="loading" class="flex-1">
+        <UIButton v-if="!user || canEdit()" type="submit" :loading="loading" class="flex-1">
           {{ user ? 'Сохранить' : 'Создать' }}
         </UIButton>
-        <UIButton v-if="user" type="button" variant="danger" @click="handleDelete" class="flex-1">
+        <UIButton v-if="user && canDelete()" type="button" variant="danger" @click="handleDelete" class="flex-1">
           Удалить
         </UIButton>
         <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="flex-1">
@@ -123,9 +123,10 @@ import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import { toast } from '@/stores/toast'
 import { getRoles } from '@/services/api'
+import { canDelete, canEdit } from '@/utils/permissions'
 
 const props = defineProps<{
-  user?: any
+  user?: unknown
 }>()
 
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -163,7 +164,7 @@ watch(
       form.name = newUser.name || ''
       form.username = newUser.username || ''
       form.phone = newUser.phone || ''
-      form.roles = newUser.roles ? newUser.roles.map((r: any) => Number(r.id)) : []
+      form.roles = newUser.roles ? newUser.roles.map((r: unknown) => Number(r.id)) : []
     } else {
       form.name = ''
       form.username = ''
@@ -236,27 +237,27 @@ const handlePhoneChange = (event: Event) => {
   const target = event.target as HTMLInputElement
   const value = target.value
 
-  console.log('handlePhoneChange called with:', value) // Для отладки
+  // console.log('handlePhoneChange called with:', value) // Для отладки
 
   // Если значение пустая строка, очищаем поле
   if (!value || value.trim() === '') {
-    console.log('Clearing phone field') // Для отладки
+    // console.log('Clearing phone field') // Для отладки
     form.phone = ''
     return
   }
 
   // Если значение не пустое, форматируем его
-  console.log('Formatting phone:', value) // Для отладки
+  // console.log('Formatting phone:', value) // Для отладки
   const formatted = formatPhoneNumber(value)
-  console.log('Formatted result:', formatted) // Для отладки
+  // console.log('Formatted result:', formatted) // Для отладки
   form.phone = formatted
 }
 
 // Функция для принудительной очистки телефона
 const clearPhone = () => {
-  console.log('clearPhone called') // Для отладки
+  // console.log('clearPhone called') // Для отладки
   form.phone = ''
-  console.log('Phone cleared, new value:', form.phone) // Для отладки
+  // console.log('Phone cleared, new value:', form.phone) // Для отладки
 }
 
 const handleImageChange = (event: Event) => {
@@ -352,7 +353,7 @@ const handleSubmit = async () => {
   if (!validateForm()) return
   loading.value = true
   try {
-    const dataToSend: any = {
+    const dataToSend: unknown = {
       name: form.name,
       username: form.username,
       phone: form.phone && form.phone.trim() ? form.phone.trim() : null,
@@ -373,16 +374,16 @@ const handleSubmit = async () => {
     const eventData = { ...dataToSend }
 
     // Отладочная информация
-    console.log('Sending user data:', {
-      phone: form.phone,
-      phoneTrimmed: form.phone && form.phone.trim(),
-      phoneFinal: eventData.phone,
-    })
+    // console.log('Sending user data:', {
+    //   phone: form.phone,
+    //   phoneTrimmed: form.phone && form.phone.trim(),
+    //   phoneFinal: eventData.phone,
+    // })
 
     // Тест сериализации
     try {
       const serialized = JSON.stringify(eventData)
-      console.log('Serialized data:', serialized)
+      // console.log('Serialized data:', serialized)
     } catch (e) {
       console.error('Serialization error:', e)
     }
@@ -404,7 +405,7 @@ const handleDelete = async () => {
   try {
     await emit('delete', props.user.id)
     toast.show('Пользователь удалён!', 'success')
-  } catch (err: any) {
+  } catch (err: unknown) {
     let message = 'Произошла неизвестная ошибка при удалении пользователя'
     if (err?.response?.data?.message) {
       message = err.response.data.message
@@ -414,6 +415,11 @@ const handleDelete = async () => {
     toast.show(message, 'error')
   }
 }
+
+
+defineOptions({
+  name: 'UserFormModal'
+})
 </script>
 
 <style scoped>

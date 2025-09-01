@@ -23,6 +23,7 @@
           </div>
           <div class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative">
             <button
+              v-if="isAdmin()"
               @click="$emit('delete-comment', comment.id)"
               title="Удалить"
               class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400"
@@ -106,6 +107,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { isAdmin } from '../../../utils/permissions'
 import type { User as ApiUser } from '../../../types/api'
 import type { OrderComment, Role, User } from '../../../types/orderDetails'
 
@@ -219,4 +221,9 @@ watch(
   },
   { immediate: true, deep: true },
 )
+
+
+defineOptions({
+  name: 'OrderComments'
+})
 </script>

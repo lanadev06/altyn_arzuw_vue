@@ -42,6 +42,8 @@ export interface ProductForm {
   assignments?: ProductAssignment[]
   // Stages system
   available_stages?: Stage[]
+  // Categories
+  categories?: number[]
   // Index signature for dynamic access
   [key: string]: unknown
 }

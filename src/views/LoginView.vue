@@ -1,6 +1,6 @@
 <template>
   <div
-    class="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 relative overflow-hidden"
+    class="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500 relative overflow-hidden"
   >
     <div class="absolute inset-0 bg-black opacity-10"></div>
     <div class="absolute top-10 left-10 w-20 h-20 bg-white opacity-10 rounded-full"></div>

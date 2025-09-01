@@ -1,4 +1,3 @@
-import { ref } from 'vue'
 import { useOrderController } from '@/controllers/OrderController'
 
 export function useOrderListLoadOrders() {

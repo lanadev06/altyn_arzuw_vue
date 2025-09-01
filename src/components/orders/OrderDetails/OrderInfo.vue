@@ -246,4 +246,8 @@ function formatArchiveDate(dateStr: string) {
     minute: '2-digit',
   })
 }
+
+defineOptions({
+  name: 'OrderInfo'
+})
 </script>

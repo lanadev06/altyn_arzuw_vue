@@ -398,6 +398,11 @@ const loadRevenueData = async (year: number) => {
 onMounted(() => {
   loadRevenueData(currentYear)
 })
+
+
+defineOptions({
+  name: 'RevenueChart'
+})
 </script>
 
 <style scoped>

@@ -154,7 +154,7 @@
         >
           {{ client ? 'Сохранить изменения' : 'Создать клиента' }}
         </UIButton>
-        <UIButton v-if="client" type="button" variant="danger" @click="handleDelete" class="px-6">
+        <UIButton v-if="client && canDelete()" type="button" variant="danger" @click="handleDelete" class="px-6">
           Удалить
         </UIButton>
         <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="px-6">
@@ -175,6 +175,7 @@ import type { Client, ClientContact } from '@/types/client'
 import clientController from '@/controllers/clientControllerInstance'
 import ContactTypeIcon from '@/components/clients/ClientList/ContactTypeIcon.vue'
 import { toast } from '@/stores/toast'
+import { canDelete } from '@/utils/permissions'
 
 const { createContact, updateContact, removeContact, create, update, remove } = clientController
 
@@ -558,6 +559,11 @@ async function handleDelete() {
     }
   }
 }
+
+
+defineOptions({
+  name: 'ClientFormModal'
+})
 </script>
 
 <style scoped>

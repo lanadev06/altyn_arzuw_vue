@@ -187,6 +187,11 @@ const stageClass = computed(() => {
       return 'stage-default'
   }
 })
+
+
+defineOptions({
+  name: 'OrderCard'
+})
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ClientsView from '@/views/ClientsView.vue'
 import { isAuthenticated, validateAuth } from '@/utils/auth'
-import { canViewAllUsers, canViewAllClients, canViewAuditLogs } from '@/utils/permissions'
+import { canViewAllUsers, canViewAllClients, canViewAuditLogs, canViewStages, canViewRoles } from '@/utils/permissions'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -66,6 +66,12 @@ const router = createRouter({
       component: () => import('../views/RolesView.vue'),
       meta: { title: 'Управление ролями', requiresAuth: true },
     },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: () => import('../views/CategoriesView.vue'),
+      meta: { title: 'Категории', requiresAuth: true },
+    },
   ],
 })
 
@@ -94,6 +100,10 @@ router.beforeEach((to, from, next) => {
   } else if (to.name === 'clients' && !canViewAllClients()) {
     next({ name: 'dashboard' })
   } else if (to.name === 'audit-logs' && !canViewAuditLogs()) {
+    next({ name: 'dashboard' })
+  } else if (to.name === 'stages' && !canViewStages()) {
+    next({ name: 'dashboard' })
+  } else if (to.name === 'roles' && !canViewRoles()) {
     next({ name: 'dashboard' })
   }
   // Allow access to all other routes

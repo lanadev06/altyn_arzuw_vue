@@ -152,7 +152,7 @@
 
       <!-- Кнопки -->
       <div class="flex gap-3 pt-4 border-t border-gray-200">
-        <UIButton type="submit" :loading="loading" class="flex-1">
+        <UIButton v-if="!stage || canEdit()" type="submit" :loading="loading" class="flex-1">
           {{ stage ? 'Сохранить' : 'Создать' }}
         </UIButton>
         <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
@@ -179,7 +179,7 @@ import type { Stage } from '../../../types/stage'
 import type { Role } from '../../../types/role'
 import { getAvailableRoles } from '../../../services/api'
 import { AVAILABLE_COLORS } from '../../../utils/stageColors'
-import { canDelete } from '../../../utils/permissions'
+import { canDelete, canEdit } from '../../../utils/permissions'
 
 const props = defineProps<{
   stage?: Stage | null
@@ -187,7 +187,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  submit: [data: any]
+  submit: [data: unknown]
   delete: [id: number]
 }>()
 
@@ -330,5 +330,10 @@ const handleDelete = async () => {
 onMounted(() => {
   initializeForm()
   loadAvailableRoles()
+})
+
+
+defineOptions({
+  name: 'StageFormModal'
 })
 </script>

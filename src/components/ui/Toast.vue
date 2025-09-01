@@ -21,6 +21,11 @@ const props = defineProps({
     default: 'success',
   },
 })
+
+
+defineOptions({
+  name: 'Toast'
+})
 </script>
 
 <style scoped>

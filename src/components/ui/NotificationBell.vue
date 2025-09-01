@@ -182,14 +182,14 @@ function handleClickOutside(event: Event) {
   }
 }
 
-const props = defineProps<{ user: any }>()
+const props = defineProps<{ user: unknown }>()
 
 const dropdownOpen = ref(false)
 const notifications = ref<any[]>([])
 const unreadCount = ref(0)
 const loading = ref(false)
 const hasNewNotifications = ref(false)
-let pollInterval: any = null
+let pollInterval: unknown = null
 let previousUnreadCount = 0
 
 function toggleDropdown() {
@@ -255,7 +255,7 @@ async function markAllRead() {
   fetchNotifications()
 }
 
-async function handleClick(notif: any) {
+async function handleClick(notif: unknown) {
   if (!notif.read_at) {
     await fetch(`${API_CONFIG.BASE_URL}/notifications/${notif.id}/read`, {
       method: 'POST',
@@ -363,6 +363,11 @@ onUnmounted(() => {
       fetchNotifications()
     }
   })
+})
+
+
+defineOptions({
+  name: 'NotificationBell'
 })
 </script>
 

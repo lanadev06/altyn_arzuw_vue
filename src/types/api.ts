@@ -1,4 +1,5 @@
 // Базовые интерфейсы для API ответов
+import type { Category } from './category'
 
 export interface ApiResponse<T = unknown> {
   data: T
@@ -146,6 +147,7 @@ export interface Product {
   print_operators?: ProductAssignment[] // For compatibility with components
   engraving_operators?: ProductAssignment[] // For compatibility with components
   workshop_workers?: ProductAssignment[] // For compatibility with components
+  categories?: Category[] // Categories for the product
 }
 
 export interface ProductAssignment {

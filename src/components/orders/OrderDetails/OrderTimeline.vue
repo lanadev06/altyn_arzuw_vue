@@ -92,4 +92,9 @@ function getRoleBadgeStyle(role: string) {
     color: '#374151',
   }
 }
+
+
+defineOptions({
+  name: 'OrderTimeline'
+})
 </script>

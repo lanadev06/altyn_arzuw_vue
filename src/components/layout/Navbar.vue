@@ -1,6 +1,6 @@
 <template>
   <nav
-    class="h-16 bg-white bg-opacity-10 backdrop-blur-sm border-b border-white border-opacity-20 flex items-center justify-between px-6 bg-gradient-to-r from-blue-600 via-purple-700 to-purple-600"
+    class="h-16 bg-white bg-opacity-10 backdrop-blur-sm border-b border-white border-opacity-20 flex items-center justify-between px-6 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"
   >
     <div class="flex items-center gap-4">
       <div class="text-lg font-semibold text-white">{{ pageTitle }}</div>
@@ -36,8 +36,8 @@ const pageTitle = computed(() => route.meta.title || 'Панель управл�
 const currentUser = ref<{
   name: string
   role: string
-  image: any
-  roles?: any[]
+  image: unknown
+  roles?: unknown[]
 }>({
   name: '',
   role: '',
@@ -107,4 +107,9 @@ onMounted(async () => {
 })
 
 const handleSettings = () => {}
+
+
+defineOptions({
+  name: 'Navbar'
+})
 </script>

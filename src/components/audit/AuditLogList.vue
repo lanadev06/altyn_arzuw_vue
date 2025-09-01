@@ -319,7 +319,7 @@ const USER_ROLE_LABELS: Record<string, string> = {
 }
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-function validatePerPage(val: any) {
+function validatePerPage(val: unknown) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -373,6 +373,11 @@ onMounted(async () => {
       })
     }
   })
+})
+
+
+defineOptions({
+  name: 'AuditLogList'
 })
 </script>
 

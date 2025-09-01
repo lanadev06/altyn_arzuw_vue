@@ -750,7 +750,7 @@
           }}
         </UIButton>
 
-        <UIButton v-if="order" type="button" variant="danger" @click="handleDelete">
+        <UIButton v-if="order && canDelete()" type="button" variant="danger" @click="handleDelete">
           Удалить
         </UIButton>
 
@@ -807,6 +807,7 @@ import type { ProductAssignment, ProductAssignmentMinimal } from '../../../types
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
+import { canDelete } from '../../../utils/permissions'
 import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
 import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
@@ -1182,7 +1183,7 @@ async function onProductChange(productId: number | null) {
           // Группируем назначения продукта по ролям (без stage_id)
           const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
-          productAssignmentsResponse.assignments.forEach((assignment: any) => {
+          productAssignmentsResponse.assignments.forEach((assignment: unknown) => {
             const roleType = assignment.role_type
 
             if (!productAssignmentsByRole[roleType]) {
@@ -1212,7 +1213,7 @@ async function onProductChange(productId: number | null) {
                 // Находим стадии, которые используют эту роль
                 const stagesWithRole = availableStages.value.filter((stage) => {
                   // Проверяем, есть ли у стадии эта роль
-                  return stage.roles && stage.roles.some((role: any) => role.name === roleType)
+                  return stage.roles && stage.roles.some((role: unknown) => role.name === roleType)
                 })
 
                 // Копируем назначения для каждой стадии с этой ролью
@@ -1373,15 +1374,15 @@ onMounted(async () => {
       if (Array.isArray(usersByStageRoles)) {
         // Если API возвращает массив пользователей
         // Распределяем пользователей по ролям
-        usersByStageRoles.forEach((user: any) => {
+        usersByStageRoles.forEach((user: unknown) => {
           if (user.roles && Array.isArray(user.roles)) {
-            user.roles.forEach((role: any) => {
+            user.roles.forEach((role: unknown) => {
               const roleName = role.name || role
               if (allRoles.has(roleName)) {
                 if (!dynamicUsers[roleName]) {
                   dynamicUsers[roleName] = []
                 }
-                const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
                 if (!existingUser) {
                   dynamicUsers[roleName].push(user)
                 }
@@ -1396,15 +1397,15 @@ onMounted(async () => {
 
           if (Array.isArray(stageData)) {
             // Если стадия содержит массив пользователей
-            stageData.forEach((user: any) => {
+            stageData.forEach((user: unknown) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: any) => {
+                user.roles.forEach((role: unknown) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1425,8 +1426,8 @@ onMounted(async () => {
               }
 
               if (Array.isArray(users)) {
-                users.forEach((user: any) => {
-                  const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                users.forEach((user: unknown) => {
+                  const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
                   if (!existingUser) {
                     dynamicUsers[roleName].push(user)
                   }
@@ -1440,7 +1441,7 @@ onMounted(async () => {
 
     // Обрабатываем данные пользователей по ролям из альтернативных источников
     if (roleUsersData && Array.isArray(roleUsersData)) {
-      roleUsersData.forEach((roleData: any, index: number) => {
+      roleUsersData.forEach((roleData: unknown, index: number) => {
         if (roleData && roleData.roleName && roleData.data) {
           const roleName = roleData.roleName
           const users = Array.isArray(roleData.data) ? roleData.data : []
@@ -1449,8 +1450,8 @@ onMounted(async () => {
             dynamicUsers[roleName] = []
           }
 
-          users.forEach((user: any) => {
-            const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+          users.forEach((user: unknown) => {
+            const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
             if (!existingUser) {
               dynamicUsers[roleName].push(user)
             }
@@ -1462,15 +1463,15 @@ onMounted(async () => {
 
           if (users.length > 0 && users[0].roles) {
             // Если у пользователей есть роли, распределяем их по ролям
-            users.forEach((user: any) => {
+            users.forEach((user: unknown) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: any) => {
+                user.roles.forEach((role: unknown) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1483,15 +1484,15 @@ onMounted(async () => {
           // Обрабатываем случай, когда данные приходят напрямую (без обертки)
           if (Array.isArray(roleData)) {
             // Если это массив пользователей, распределяем их по ролям
-            roleData.forEach((user: any) => {
+            roleData.forEach((user: unknown) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: any) => {
+                user.roles.forEach((role: unknown) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1544,14 +1545,14 @@ onMounted(async () => {
 
         if (allUsersResponse && Array.isArray(allUsersResponse)) {
           // Распределяем пользователей по ролям
-          allUsersResponse.forEach((user: any) => {
+          allUsersResponse.forEach((user: unknown) => {
             if (user.roles && Array.isArray(user.roles)) {
-              user.roles.forEach((role: any) => {
+              user.roles.forEach((role: unknown) => {
                 const roleName = role.name || role
                 if (!allUsers[roleName]) {
                   allUsers[roleName] = []
                 }
-                const existingUser = allUsers[roleName].find((u: any) => u.id === user.id)
+                const existingUser = allUsers[roleName].find((u: unknown) => u.id === user.id)
                 if (!existingUser) {
                   allUsers[roleName].push(user)
                 }
@@ -1579,7 +1580,7 @@ onMounted(async () => {
 
       // Загружаем стадии заказа
       if (props.order.stages) {
-        selectedOrderStages.value = props.order.stages.map((stage: any) =>
+        selectedOrderStages.value = props.order.stages.map((stage: unknown) =>
           typeof stage === 'number' ? stage : stage?.id,
         )
       }
@@ -1924,7 +1925,7 @@ async function onBulkOrderProductChange(index: number) {
       // Группируем назначения продукта по ролям
       const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
-      productAssignmentsResponse.assignments.forEach((assignment: any) => {
+      productAssignmentsResponse.assignments.forEach((assignment: unknown) => {
         const roleType = assignment.role_type
 
         if (!productAssignmentsByRole[roleType]) {
@@ -1950,7 +1951,7 @@ async function onBulkOrderProductChange(index: number) {
           if (Array.isArray(assignments)) {
             // Находим стадии, которые используют эту роль
             const stagesWithRole = availableStages.value.filter((stage) => {
-              return stage.roles && stage.roles.some((role: any) => role.name === roleType)
+              return stage.roles && stage.roles.some((role: unknown) => role.name === roleType)
             })
 
             // Копируем назначения для каждой стадии с этой ролью
@@ -2303,6 +2304,11 @@ const selectedClient = computed(() => {
     return null
   }
   return clients.value.find((c) => c.id === clientId) || null
+})
+
+
+defineOptions({
+  name: 'OrderFormModal'
 })
 </script>
 

@@ -3,7 +3,7 @@ import { API_CONFIG } from '../config/api'
 
 // Создаем экземпляр axios с базовой конфигурацией
 const apiClient = {
-  async request(config: any) {
+  async request(config: unknown) {
     try {
       // Добавляем токен авторизации
       const token = localStorage.getItem('auth_token')
@@ -57,15 +57,15 @@ const apiClient = {
     return this.request({ ...config, method: 'GET', url })
   },
 
-  post(url: string, data?: any, config = {}) {
+  post(url: string, data?: unknown, config = {}) {
     return this.request({ ...config, method: 'POST', url, data })
   },
 
-  put(url: string, data?: any, config = {}) {
+  put(url: string, data?: unknown, config = {}) {
     return this.request({ ...config, method: 'PUT', url, data })
   },
 
-  patch(url: string, data?: any, config = {}) {
+  patch(url: string, data?: unknown, config = {}) {
     return this.request({ ...config, method: 'PATCH', url, data })
   },
 

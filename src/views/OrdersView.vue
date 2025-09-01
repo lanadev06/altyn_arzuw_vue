@@ -164,7 +164,7 @@ async function loadStages() {
     }
 
     // Показываем все стадии для всех пользователей
-    kanbanStatuses.value = allStages.map((stage: any) => ({
+    kanbanStatuses.value = allStages.map((stage: unknown) => ({
       key: stage.name,
       label: stage.display_name || stage.name,
     }))
@@ -178,7 +178,7 @@ onMounted(async () => {
   loadOrders()
 })
 
-async function openOrderDetails(payload: any) {
+async function openOrderDetails(payload: unknown) {
   if (payload && payload.order) {
     // Если открываем тот же заказ, сначала закрываем модалку
     if (detailsOrderId.value === payload.order.id) {
@@ -220,12 +220,12 @@ function closeCreateOrderModal() {
   showCreateModal.value = false
 }
 
-async function handleOrderCreated(newOrder: any) {
+async function handleOrderCreated(newOrder: unknown) {
   showCreateModal.value = false
   await loadOrders()
 }
 
-async function handleChangeStatus({ order, newStatus }: { order: any; newStatus: any }) {
+async function handleChangeStatus({ order, newStatus }: { order: unknown; newStatus: unknown }) {
   try {
     if (!order || !order.id) {
       throw new Error('Некорректные данные заказа')
@@ -251,7 +251,7 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
 
     // Обновляем заказы для таблицы
     orderListRef.value?.loadOrders()
-  } catch (error: any) {
+  } catch (error: unknown) {
     let errorMessage = 'Ошибка обновления стадии'
     if (error.message && error.message.includes('422')) {
       try {

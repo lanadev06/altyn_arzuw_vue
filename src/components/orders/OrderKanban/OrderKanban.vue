@@ -320,6 +320,11 @@ async function onDrop(event: DragEvent, newStage: string) {
     showToast(msg, 'error')
   }
 }
+
+
+defineOptions({
+  name: 'OrderKanban'
+})
 </script>
 
 <style scoped>

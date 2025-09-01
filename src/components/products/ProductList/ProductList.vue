@@ -84,17 +84,31 @@
                 <template v-else-if="col.key === 'name'">
                   <span class="font-medium text-gray-900">{{ product.name }}</span>
                 </template>
+                <template v-else-if="col.key === 'categories'">
+                  <div class="flex flex-wrap gap-1">
+                    <span
+                      v-for="category in product.categories"
+                      :key="category.id"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      {{ category.name }}
+                    </span>
+                    <span v-if="!product.categories || product.categories.length === 0" class="text-gray-400 text-sm">
+                      Нет категорий
+                    </span>
+                  </div>
+                </template>
                 <!-- Колонки для назначений -->
                 <template v-else-if="col.type === 'stage_assignments'">
                   <AssignmentDisplay
-                    :assignments="getStageAssignments(product, col.stageId, col.roleType as string)"
+                    :assignments="getStageAssignments(product, col.stageId, col.roleType)"
                     :role-type="col.roleType"
                     empty-message="Не назначены"
                   />
                   <!-- Отладочная информация -->
                   <div v-if="false" class="text-xs text-gray-400">
                     Debug:
-                    {{ getStageAssignments(product, col.stageId, col.roleType as string).length }}
+                    {{ getStageAssignments(product, col.stageId, col.roleType).length }}
                     assignments
                     <br />
                     Product assignments: {{ product.assignments?.length || 0 }}
@@ -201,6 +215,7 @@ interface Column {
 const baseColumns: Column[] = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Название', sortable: true },
+  { key: 'categories', label: 'Категории', sortable: false },
   { key: 'created_at', label: 'Создано', sortable: true },
 ]
 
@@ -219,9 +234,9 @@ const dynamicColumns = computed<Column[]>(() => {
 
     // Сначала собираем все стадии из всех продуктов
     if (pagination.data) {
-      pagination.data.forEach((product: any, index: number) => {
+      pagination.data.forEach((product: unknown, index: number) => {
         if (product.available_stages) {
-          product.available_stages.forEach((stage: any) => {
+          product.available_stages.forEach((stage: unknown) => {
             // Исключаем служебные стадии
             const serviceStages = ['draft', 'completed', 'cancelled', 'final']
             if (serviceStages.includes(stage.name)) {
@@ -229,7 +244,7 @@ const dynamicColumns = computed<Column[]>(() => {
             }
 
             if (stage.roles && stage.roles.length > 0) {
-              stage.roles.forEach((role: any) => {
+              stage.roles.forEach((role: unknown) => {
                 // Исключаем роль die_cutting_operator из колонок
                 if (role.name === 'die_cutting_operator') {
                   return
@@ -368,7 +383,7 @@ const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val: any) {
+function validatePerPage(val: unknown) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -468,7 +483,7 @@ async function handleDeleteProduct(productId: number) {
       currentPage.value--
     }
     toast.show('Товар успешно удален!', 'success')
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 
@@ -535,5 +550,10 @@ onMounted(async () => {
     })
   }
   fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+})
+
+
+defineOptions({
+  name: 'ProductList'
 })
 </script>

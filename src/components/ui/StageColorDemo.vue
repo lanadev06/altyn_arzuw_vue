@@ -102,6 +102,11 @@ const filteredColors = computed(() => {
 function selectColor(color: { value: string; label: string }) {
   selectedColor.value = color
 }
+
+
+defineOptions({
+  name: 'StageColorDemo'
+})
 </script>
 
 <style scoped>

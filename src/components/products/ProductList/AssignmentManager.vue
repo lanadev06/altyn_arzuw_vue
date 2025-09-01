@@ -87,7 +87,7 @@ const availableUsers = computed(() => {
 
 // Функция для получения обработчика выбора пользователя для конкретного индекса
 const getUserSelectHandler = (index: number) => {
-  return (val: any) => {
+  return (val: unknown) => {
     const assignment = props.assignments[index]
     if (assignment) {
       handleUserSelect(val as User | null, assignment, index)
@@ -155,4 +155,9 @@ watch(
   },
   { immediate: true },
 )
+
+
+defineOptions({
+  name: 'AssignmentManager'
+})
 </script>

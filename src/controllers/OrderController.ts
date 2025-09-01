@@ -77,7 +77,7 @@ export function useOrderController() {
     // Проверяем права пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     const isAdminOrManager =
-      user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false
+      user.roles?.some((r: unknown) => ['admin', 'manager'].includes(r.name)) || false
 
     if (isAdminOrManager) {
       // Для админов/менеджеров используем специальную функцию
@@ -119,7 +119,7 @@ export function useOrderController() {
     }
   }
 
-  async function updateStage(orderId: number, stage: string, additionalData?: any) {
+  async function updateStage(orderId: number, stage: string, additionalData?: unknown) {
     try {
       // Если есть дополнительные данные (например, для отмененных заказов)
       if (additionalData && Object.keys(additionalData).length > 0) {

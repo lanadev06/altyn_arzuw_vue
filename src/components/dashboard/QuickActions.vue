@@ -164,4 +164,9 @@ const actions = [
 function hasAnyActions() {
   return actions.some((action) => action.show())
 }
+
+
+defineOptions({
+  name: 'QuickActions'
+})
 </script>

@@ -176,4 +176,9 @@ const USER_ROLE_LABELS: Record<string, string> = {
   workshop_worker: 'Работник цеха',
   user: 'Пользователь',
 }
+
+
+defineOptions({
+  name: 'AuditLogDetailsModal'
+})
 </script>

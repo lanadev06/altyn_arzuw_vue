@@ -86,7 +86,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 
-function getInputMode(): any {
+function getInputMode(): unknown {
   return props.inputmode
 }
 
@@ -166,6 +166,11 @@ function saveEdit() {
   emit('save', editValue.value)
   editing.value = false
 }
+
+
+defineOptions({
+  name: 'EditableField'
+})
 </script>
 
 <style scoped>

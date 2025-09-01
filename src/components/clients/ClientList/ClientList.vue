@@ -66,8 +66,7 @@
               @click="editClient(client)"
               style="height: 44px"
             >
-              <template v-for="col in columns" :key="col.key">
-                <td
+              <td v-for="col in columns" :key="col.key"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'id' ? 'max-w-[100px]' : '',
@@ -111,7 +110,6 @@
                     <span class="text-gray-600 text-base">{{ formatDate(client.updated_at) }}</span>
                   </template>
                 </td>
-              </template>
             </tr>
             <tr v-if="loading">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
@@ -236,15 +234,15 @@ async function handleUpdateClient(updatedClient: Client) {
 async function handleDeleteClient(clientId: number) {
   // Предотвращаем множественные запросы на удаление
   if (loading.value) {
-    console.log('⚠️ Deletion already in progress, skipping...')
+    // console.log('⚠️ Deletion already in progress, skipping...')
     return
   }
 
   try {
-    console.log('🗑️ Starting client deletion for ID:', clientId)
+    // console.log('🗑️ Starting client deletion for ID:', clientId)
 
     await remove(clientId)
-    console.log('✅ Client deletion completed successfully')
+    // console.log('✅ Client deletion completed successfully')
 
     // Показываем уведомление об успешном удалении
     toast.show('Клиент успешно удален!', 'success')
@@ -266,7 +264,7 @@ async function handleDeleteClient(clientId: number) {
       'status' in err &&
       (err as { status: number }).status === 404
     ) {
-      console.log('ℹ️ Client not found (404) - already deleted, showing success message')
+      // console.log('ℹ️ Client not found (404) - already deleted, showing success message')
       toast.show('Клиент успешно удален!', 'success')
       // Обновляем список
       await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
@@ -336,5 +334,10 @@ watch(perPage, (newVal) => {
 
 onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
+})
+
+
+defineOptions({
+  name: 'ClientList'
 })
 </script>

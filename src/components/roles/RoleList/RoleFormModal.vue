@@ -74,7 +74,7 @@
 
       <!-- Кнопки -->
       <div class="flex gap-3 pt-4 border-t border-gray-200">
-        <UIButton type="submit" :loading="loading" class="flex-1">
+        <UIButton v-if="!role || canEdit()" type="submit" :loading="loading" class="flex-1">
           {{ role ? 'Сохранить' : 'Создать' }}
         </UIButton>
         <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
@@ -98,7 +98,7 @@ import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
 import type { Role } from '../../../types/role'
-import { canDelete } from '../../../utils/permissions'
+import { canDelete, canEdit } from '../../../utils/permissions'
 
 const props = defineProps<{
   role?: Role | null
@@ -106,7 +106,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  submit: [data: any]
+  submit: [data: unknown]
   delete: [id: number]
 }>()
 
@@ -206,4 +206,9 @@ watch(
   },
   { immediate: true },
 )
+
+
+defineOptions({
+  name: 'RoleFormModal'
+})
 </script>

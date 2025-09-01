@@ -163,4 +163,9 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', closeDropdown)
 })
+
+
+defineOptions({
+  name: 'UserProfile'
+})
 </script>

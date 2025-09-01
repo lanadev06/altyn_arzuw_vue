@@ -85,18 +85,18 @@ export function useClientController() {
   // Contact CRUD methods for compatibility
   async function createContact(clientId: number, contactData: unknown) {
     // This would need to be implemented in API service
-    console.log('createContact called:', clientId, contactData)
+    // console.log('createContact called:', clientId, contactData)
     return { id: Date.now(), ...(contactData as Record<string, unknown>) }
   }
 
   async function updateContact(clientId: number, contactId: number, contactData: unknown) {
     // This would need to be implemented in API service
-    console.log('updateContact called:', clientId, contactId, contactData)
+    // console.log('updateContact called:', clientId, contactId, contactData)
   }
 
   async function removeContact(clientId: number, contactId: number) {
     // This would need to be implemented in API service
-    console.log('removeContact called:', clientId, contactId)
+    // console.log('removeContact called:', clientId, contactId)
   }
 
   async function create(client: Partial<Client>) {

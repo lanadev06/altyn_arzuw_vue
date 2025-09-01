@@ -23,7 +23,7 @@ const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
   // Проверяем, если это 401 ошибка
   if (error && typeof error.message === 'string') {
     if (error.message.includes('401') || error.message.includes('Сессия истекла')) {
-      console.log('🚨 Unhandled 401 error detected')
+      // console.log('🚨 Unhandled 401 error detected')
       event.preventDefault() // Предотвращаем показ ошибки в консоли
       // handle401Error уже вызывается в других местах, здесь просто логируем
     }
