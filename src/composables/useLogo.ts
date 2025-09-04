@@ -1,7 +1,7 @@
 import { ref, onMounted } from 'vue'
 
 const LOGO_KEY = 'altyn_arzuw_logo'
-const LOGO_URL = '/logo.png' // Убираем Date.now() для стабильного кэширования
+const LOGO_URL = '/logo.svg' // Убираем Date.now() для стабильного кэширования
 
 // Глобальные переменные для предотвращения повторной загрузки
 let globalLogoDataUrl = ''
@@ -165,6 +165,14 @@ export function useLogo() {
     })
   }
 
+  // Очищаем кэш для загрузки нового логотипа
+  const clearCacheForNewLogo = (): void => {
+    clearLogoFromStorage()
+    globalIsLoading = false
+    isLoading.value = false
+    isInitialized = false
+  }
+
   return {
     logoDataUrl,
     isLoading,
@@ -173,5 +181,6 @@ export function useLogo() {
     clearLogoFromStorage,
     reloadLogo,
     getLogoUrl,
+    clearCacheForNewLogo,
   }
 }

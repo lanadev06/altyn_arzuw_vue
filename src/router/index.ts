@@ -1,7 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ClientsView from '@/views/ClientsView.vue'
 import { isAuthenticated, validateAuth } from '@/utils/auth'
 import { canViewAllUsers, canViewAllClients, canViewAuditLogs, canViewStages, canViewRoles } from '@/utils/permissions'
+
+// Функция для создания ленивой загрузки с предзагрузкой
+const createLazyComponent = (importFn: () => Promise<any>, preload = true) => {
+  if (preload) {
+    // Предзагружаем компонент сразу
+    importFn()
+  }
+  return importFn
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,68 +17,68 @@ const router = createRouter({
     {
       path: '/',
       name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
-      meta: { title: 'Панель управления', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/DashboardView.vue'), true),
+      meta: { title: 'Панель управления', requiresAuth: true, preload: true },
     },
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: createLazyComponent(() => import('../views/LoginView.vue'), false),
       meta: { title: 'Вход в систему' },
     },
     {
       path: '/users',
       name: 'users',
-      component: () => import('../views/UsersView.vue'),
-      meta: { title: 'Пользователи', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/UsersView.vue'), true),
+      meta: { title: 'Пользователи', requiresAuth: true, preload: true },
     },
     {
       path: '/clients',
       name: 'clients',
-      component: () => import('../views/ClientsView.vue'),
-      meta: { title: 'Клиенты', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/ClientsView.vue'), true),
+      meta: { title: 'Клиенты', requiresAuth: true, preload: true },
     },
     {
       path: '/projects',
       name: 'projects',
-      component: () => import('../views/ProjectsView.vue'),
-      meta: { title: 'Проекты', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/ProjectsView.vue'), true),
+      meta: { title: 'Проекты', requiresAuth: true, preload: true },
     },
     {
       path: '/products',
       name: 'products',
-      component: () => import('../views/ProductsView.vue'),
-      meta: { title: 'Товары', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/ProductsView.vue'), true),
+      meta: { title: 'Товары', requiresAuth: true, preload: true },
     },
     {
       path: '/orders',
       name: 'orders',
-      component: () => import('../views/OrdersView.vue'),
-      meta: { title: 'Заказы', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/OrdersView.vue'), true),
+      meta: { title: 'Заказы', requiresAuth: true, preload: true },
     },
     {
       path: '/audit-logs',
       name: 'audit-logs',
-      component: () => import('../views/AuditLogsView.vue'),
-      meta: { title: 'Аудит-логи', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/AuditLogsView.vue'), false),
+      meta: { title: 'Аудит-логи', requiresAuth: true, preload: false },
     },
     {
       path: '/stages',
       name: 'stages',
-      component: () => import('../views/StagesView.vue'),
-      meta: { title: 'Управление стадиями', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/StagesView.vue'), true),
+      meta: { title: 'Управление стадиями', requiresAuth: true, preload: true },
     },
     {
       path: '/roles',
       name: 'roles',
-      component: () => import('../views/RolesView.vue'),
-      meta: { title: 'Управление ролями', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/RolesView.vue'), true),
+      meta: { title: 'Управление ролями', requiresAuth: true, preload: true },
     },
     {
       path: '/categories',
       name: 'categories',
-      component: () => import('../views/CategoriesView.vue'),
-      meta: { title: 'Категории', requiresAuth: true },
+      component: createLazyComponent(() => import('../views/CategoriesView.vue'), true),
+      meta: { title: 'Категории', requiresAuth: true, preload: true },
     },
   ],
 })
@@ -112,9 +120,47 @@ router.beforeEach((to, from, next) => {
   }
 })
 
-router.afterEach((to) => {
+// Оптимизированный хук после навигации
+router.afterEach((to, from) => {
   const defaultTitle = 'Панель управления'
   document.title = (to.meta.title as string) || defaultTitle
+  
+  // Предзагружаем связанные маршруты в фоне
+  if (to.meta.preload) {
+    setTimeout(() => {
+      preloadRelatedRoutes(to.name as string)
+    }, 100)
+  }
 })
+
+// Функция предзагрузки связанных маршрутов
+function preloadRelatedRoutes(currentRoute: string) {
+  const routeMap: Record<string, string[]> = {
+    'dashboard': ['orders', 'users', 'clients'],
+    'orders': ['dashboard', 'clients', 'products'],
+    'users': ['dashboard', 'roles'],
+    'clients': ['dashboard', 'orders', 'projects'],
+    'products': ['orders', 'categories'],
+    'projects': ['clients', 'orders'],
+    'categories': ['products'],
+    'stages': ['roles', 'orders'],
+    'roles': ['users', 'stages']
+  }
+  
+  const routesToPreload = routeMap[currentRoute] || []
+  
+  routesToPreload.forEach(routeName => {
+    const route = router.resolve({ name: routeName })
+    if (route.matched.length > 0) {
+      const component = route.matched[0].components?.default
+      if (component && typeof component === 'function') {
+        // Предзагружаем компонент
+        component().catch(() => {
+          // Игнорируем ошибки предзагрузки
+        })
+      }
+    }
+  })
+}
 
 export default router

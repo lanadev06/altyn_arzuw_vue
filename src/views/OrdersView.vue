@@ -58,19 +58,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, nextTick, computed, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
-import OrderList from '../components/orders/OrderList/OrderList.vue'
-import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
-import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
-import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff } from '../utils/permissions'
 import { getAllStages } from '../services/api'
 import { useOrderEvents } from '../composables/useOrderEvents'
 import { useEntityEvents } from '../composables/useEntityEvents'
+import { useComponentOptimization } from '../composables/useComponentOptimization'
+
+// Ленивая загрузка тяжелых компонентов
+const OrderList = defineAsyncComponent({
+  loader: () => import('../components/orders/OrderList/OrderList.vue'),
+  loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
+  delay: 200,
+  timeout: 5000
+})
+
+const OrderKanban = defineAsyncComponent({
+  loader: () => import('../components/orders/OrderKanban/OrderKanban.vue'),
+  loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
+  delay: 200,
+  timeout: 5000
+})
+
+const OrderDetailsModal = defineAsyncComponent({
+  loader: () => import('../components/orders/OrderList/OrderDetailsModal.vue'),
+  delay: 100
+})
+
+const OrderFormModal = defineAsyncComponent({
+  loader: () => import('../components/orders/OrderList/OrderFormModal.vue'),
+  delay: 100
+})
 
 const route = useRoute()
 const search = ref(
@@ -84,6 +106,9 @@ const selectedAssignmentStatus = ref('')
 const currentPage = ref(1)
 const selectedStage = ref<string | null>(null)
 const isArchived = ref<boolean>(false)
+
+// Оптимизация компонентов
+const { isVisible, isLoaded } = useComponentOptimization()
 
 const { orders, fetchOrders, fetchAllOrdersForKanban } = OrderController()
 

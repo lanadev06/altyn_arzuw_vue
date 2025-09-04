@@ -214,11 +214,11 @@ defineOptions({
 const { logoDataUrl, isLoading: logoLoading } = useLogo()
 
 // Получаем URL логотипа
-const logoUrl = ref(logoDataUrl.value || '/logo.png')
+const logoUrl = ref(logoDataUrl.value || '/logo.svg')
 
 // Обработчик ошибки загрузки логотипа
 const handleLogoError = () => {
   // При ошибке загрузки основного логотипа, используем fallback
-  logoUrl.value = '/logo.png'
+  logoUrl.value = '/logo.svg'
 }
 </script>

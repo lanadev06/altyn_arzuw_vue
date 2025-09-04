@@ -44,9 +44,25 @@ export default defineConfig({
     force: true, // Принудительная пересборка зависимостей
   },
   build: {
-    rollupOptions: {
-      external: [],
+    target: 'es2015',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia'],
+          ui: ['@heroicons/vue', '@tabler/icons-vue'],
+          charts: ['chart.js'],
+          forms: ['@vueform/multiselect', '@vuepic/vue-datepicker'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
   // Настройки для стабильности разработки
   define: {
