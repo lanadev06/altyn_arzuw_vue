@@ -292,7 +292,7 @@ async function deleteCategory(category: Category) {
 // Обработчики событий от CategoryFormModal
 async function handleCreateCategory(categoryData: unknown) {
   try {
-    await create(categoryData)
+    await categoryController.create(categoryData)
     showCreateModal.value = false
     fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   } catch (err) {

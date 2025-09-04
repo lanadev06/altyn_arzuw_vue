@@ -127,13 +127,32 @@ export function useOrderDetails(orderId: number | null | undefined) {
     await fetchAll()
   }
 
-  // Основные функции загрузки данных
+  // Основные функции загрузки данных с ленивой загрузкой
   async function fetchAll() {
     if (!orderId) return
     loading.value = true
 
     try {
-      // Загружаем стадии
+      // 1. Сначала загружаем только основные данные заказа (быстро)
+      const orderData = await getOrderDetails(orderId)
+      order.value = orderData as OrderInfoType
+      loading.value = false // Показываем основную информацию сразу
+    } catch {
+      toast.show('Ошибка загрузки заказа', 'error')
+      loading.value = false
+      return
+    }
+
+    // 2. Загружаем стадии в фоне (не критично для отображения)
+    loadStagesAsync()
+
+    // 3. Загружаем остальные данные в фоне
+    loadSecondaryDataAsync()
+  }
+
+  // Асинхронная загрузка стадий
+  async function loadStagesAsync() {
+    try {
       const stagesData = await getAllStages()
       stagesWithRoles.value = stagesData as Stage[]
 
@@ -163,72 +182,70 @@ export function useOrderDetails(orderId: number | null | undefined) {
         color: stage.color,
       }))
     }
+  }
 
-    try {
-      const orderData = await getOrderDetails(orderId)
-      order.value = orderData as OrderInfoType
-    } catch {
-      toast.show('Ошибка загрузки заказа', 'error')
-      return
-    }
-
-    try {
-      if (order.value?.project_id) {
+  // Асинхронная загрузка вторичных данных
+  async function loadSecondaryDataAsync() {
+    // Загружаем проект в фоне
+    if (order.value?.project_id) {
+      try {
         const projectData = await getProjectDetails(order.value.project_id)
         project.value = projectData as ProjectInfo
+      } catch {
+        // Не критично
       }
-    } catch {
-      // Не критично
     }
 
+    // Загружаем комментарии и логи в фоне
     await loadComments()
   }
 
-  // Отдельная функция для загрузки комментариев
+  // Отдельная функция для загрузки комментариев с ленивой загрузкой
   async function loadComments() {
     if (!orderId) {
       comments.value = []
       return
     }
     
-    try {
-      const rawComments = await getOrderComments(orderId)
-      
-      // Обрабатываем комментарии и нормализуем пользователей
-      const processedComments = (rawComments as OrderComment[]).map((c: OrderComment) => ({
-        ...c,
-        user: normalizeUser(c.user),
-      }))
-      
-      // Обновляем массив комментариев
-      comments.value = processedComments
-    } catch (error) {
-      console.error('Ошибка загрузки комментариев:', error)
+    // Загружаем комментарии и логи параллельно
+    const [commentsResult, logsResult] = await Promise.allSettled([
+      getOrderComments(orderId),
+      getOrderStatusLogs(orderId)
+    ])
+    
+    // Обрабатываем комментарии
+    if (commentsResult.status === 'fulfilled') {
+      try {
+        const rawComments = commentsResult.value
+        
+        // Обрабатываем комментарии и нормализуем пользователей
+        const processedComments = (rawComments as OrderComment[]).map((c: OrderComment) => ({
+          ...c,
+          user: normalizeUser(c.user),
+        }))
+        
+        // Обновляем массив комментариев
+        comments.value = processedComments
+      } catch (error) {
+        console.error('Ошибка обработки комментариев:', error)
+        comments.value = []
+      }
+    } else {
+      console.error('Ошибка загрузки комментариев:', commentsResult.reason)
       comments.value = []
     }
 
-    try {
-      const logsData = await getOrderStatusLogs(orderId)
-      statusLogs.value = logsData as StatusLog[]
-    } catch {
+    // Обрабатываем логи
+    if (logsResult.status === 'fulfilled') {
+      statusLogs.value = logsResult.value as StatusLog[]
+    } else {
       statusLogs.value = []
     }
 
-    try {
-      await fetchAvailableUsers()
-    } catch {
-      availableUsers.value = []
-    }
+    // Загружаем пользователей и роли в фоне (не критично)
+    loadUsersAndRolesAsync()
 
-    try {
-      const rolesData = await getRoles()
-      roles.value = rolesData
-    } catch {
-      roles.value = []
-    }
-
-    loading.value = false
-
+    // Обрабатываем назначения
     if (order.value && order.value.assignments) {
       assignments.value = order.value.assignments.map((a: Assignment) => ({
         ...a,
@@ -248,6 +265,25 @@ export function useOrderDetails(orderId: number | null | undefined) {
       setTimeout(() => {
         highlightAssignments.value = false
       }, 5000)
+    }
+  }
+
+  // Асинхронная загрузка пользователей и ролей
+  async function loadUsersAndRolesAsync() {
+    // Загружаем пользователей и роли параллельно
+    const [usersResult, rolesResult] = await Promise.allSettled([
+      fetchAvailableUsers(),
+      getRoles()
+    ])
+
+    if (usersResult.status === 'rejected') {
+      availableUsers.value = []
+    }
+
+    if (rolesResult.status === 'fulfilled') {
+      roles.value = rolesResult.value
+    } else {
+      roles.value = []
     }
   }
 

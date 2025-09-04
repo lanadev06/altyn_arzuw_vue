@@ -734,22 +734,22 @@ export async function getByRole(role: string): Promise<{ data: User[] }> {
 }
 
 export async function getAllClients(): Promise<any[]> {
-  const res = await cachedApiRequest('/clients/all', {}, CacheKeys.CLIENTS, CacheTTL.LONG)
+  const res = await cachedApiRequest('/clients/all', {}, CacheKeys.CLIENTS, CacheTTL.MEDIUM)
   return Array.isArray(res) ? res : []
 }
 
 export async function getAllProducts(): Promise<any[]> {
-  const res = await cachedApiRequest('/products/all', {}, CacheKeys.PRODUCTS, CacheTTL.LONG)
+  const res = await cachedApiRequest('/products/all', {}, CacheKeys.PRODUCTS, CacheTTL.MEDIUM)
   return Array.isArray(res) ? res : []
 }
 
 export async function getAllUsers(): Promise<any[]> {
-  const res = await cachedApiRequest('/users/all', {}, CacheKeys.USERS, CacheTTL.LONG)
+  const res = await cachedApiRequest('/users/all', {}, CacheKeys.USERS, CacheTTL.MEDIUM)
   return Array.isArray(res) ? res : []
 }
 
 export async function getAllProjects(): Promise<any[]> {
-  const res = await cachedApiRequest('/projects/all', {}, CacheKeys.PROJECTS, CacheTTL.LONG)
+  const res = await cachedApiRequest('/projects/all', {}, CacheKeys.PROJECTS, CacheTTL.MEDIUM)
   return Array.isArray(res) ? res : []
 }
 
@@ -868,15 +868,15 @@ export async function deleteOrder(id: number): Promise<void> {
   await apiRequest(`/orders/${id}`, { method: 'DELETE' })
 }
 export async function getOrderDetails(orderId: number) {
-  return await cachedApiRequest(`/orders/${orderId}`, {}, `order_details_${orderId}`, CacheTTL.SHORT)
+  return await cachedApiRequest(`/orders/${orderId}`, {}, `order_details_${orderId}`, CacheTTL.MEDIUM)
 }
 
 export async function getOrderStatusLogs(orderId: number) {
-  return await cachedApiRequest(`/orders/${orderId}/status-logs`, {}, `order_status_logs_${orderId}`, CacheTTL.SHORT)
+  return await cachedApiRequest(`/orders/${orderId}/status-logs`, {}, `order_status_logs_${orderId}`, CacheTTL.MEDIUM)
 }
 
 export async function getOrderComments(orderId: number) {
-  return await cachedApiRequest(`/comments?order_id=${orderId}`, {}, `order_comments_${orderId}`, CacheTTL.SHORT)
+  return await cachedApiRequest(`/comments?order_id=${orderId}`, {}, `order_comments_${orderId}`, CacheTTL.MEDIUM)
 }
 
 export async function postOrderComment(orderId: number, text: string) {
@@ -1036,7 +1036,7 @@ export async function updateUser(id: number, data: UpdateUserData): Promise<User
 export async function getRoles(): Promise<
   Array<{ id: number; name: string; display_name?: string }>
 > {
-  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)) as { data?: unknown[] } | any[]
+  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.VERY_LONG)) as { data?: unknown[] } | any[]
   return (res as any).data || res // поддержка разных форматов ответа
 }
 
@@ -1047,7 +1047,7 @@ export { getAllRoles as getRolesNew }
 
 // --- Стадии (Stages) ---
 export async function getAllStages(): Promise<any> {
-  const res = await cachedApiRequest('/stages', {}, CacheKeys.STAGES, CacheTTL.LONG)
+  const res = await cachedApiRequest('/stages', {}, CacheKeys.STAGES, CacheTTL.VERY_LONG)
   return res
 }
 
@@ -1094,13 +1094,13 @@ export async function getUsersByStageRoles(stageId: number): Promise<any> {
 
 // Получить всех пользователей по ролям всех стадий
 export async function getAllUsersByStageRoles(): Promise<any> {
-  const res = await cachedApiRequest('/stages/users-by-roles/all', {}, CacheKeys.USERS_BY_STAGE_ROLES, CacheTTL.LONG)
+  const res = await cachedApiRequest('/stages/users-by-roles/all', {}, CacheKeys.USERS_BY_STAGE_ROLES, CacheTTL.VERY_LONG)
   return res
 }
 
 // --- Роли (Roles) ---
 export async function getAllRoles(): Promise<any> {
-  const res = await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.LONG)
+  const res = await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.VERY_LONG)
   return res
 }
 
@@ -1318,7 +1318,7 @@ export async function getCategories({
 }
 
 export async function getAllCategories(): Promise<any[]> {
-  const res = await cachedApiRequest('/categories/all', {}, CacheKeys.CATEGORIES, CacheTTL.LONG)
+  const res = await cachedApiRequest('/categories/all', {}, CacheKeys.CATEGORIES, CacheTTL.VERY_LONG)
   // API возвращает {data: [...]}, поэтому извлекаем data
   const categories = (res as any)?.data || res
   return Array.isArray(categories) ? categories : []

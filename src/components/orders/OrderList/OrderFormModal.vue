@@ -1167,7 +1167,7 @@ async function onProductChange(productId: number | null) {
           // Группируем назначения продукта по ролям (без stage_id)
           const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
-          productAssignmentsResponse.assignments.forEach((assignment: unknown) => {
+          productAssignmentsResponse.assignments.forEach((assignment: any) => {
             const roleType = assignment.role_type
 
             if (!productAssignmentsByRole[roleType]) {
@@ -1197,7 +1197,7 @@ async function onProductChange(productId: number | null) {
                 // Находим стадии, которые используют эту роль
                 const stagesWithRole = availableStages.value.filter((stage) => {
                   // Проверяем, есть ли у стадии эта роль
-                  return stage.roles && stage.roles.some((role: unknown) => role.name === roleType)
+                  return stage.roles && stage.roles.some((role: any) => role.name === roleType)
                 })
 
                 // Копируем назначения для каждой стадии с этой ролью
@@ -1358,15 +1358,15 @@ onMounted(async () => {
       if (Array.isArray(usersByStageRoles)) {
         // Если API возвращает массив пользователей
         // Распределяем пользователей по ролям
-        usersByStageRoles.forEach((user: unknown) => {
+        usersByStageRoles.forEach((user: any) => {
           if (user.roles && Array.isArray(user.roles)) {
-            user.roles.forEach((role: unknown) => {
+            user.roles.forEach((role: any) => {
               const roleName = role.name || role
               if (allRoles.has(roleName)) {
                 if (!dynamicUsers[roleName]) {
                   dynamicUsers[roleName] = []
                 }
-                const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+                const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
                 if (!existingUser) {
                   dynamicUsers[roleName].push(user)
                 }
@@ -1381,15 +1381,15 @@ onMounted(async () => {
 
           if (Array.isArray(stageData)) {
             // Если стадия содержит массив пользователей
-            stageData.forEach((user: unknown) => {
+            stageData.forEach((user: any) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: unknown) => {
+                user.roles.forEach((role: any) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1410,8 +1410,8 @@ onMounted(async () => {
               }
 
               if (Array.isArray(users)) {
-                users.forEach((user: unknown) => {
-                  const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+                users.forEach((user: any) => {
+                  const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
                   if (!existingUser) {
                     dynamicUsers[roleName].push(user)
                   }
@@ -1425,7 +1425,7 @@ onMounted(async () => {
 
     // Обрабатываем данные пользователей по ролям из альтернативных источников
     if (roleUsersData && Array.isArray(roleUsersData)) {
-      roleUsersData.forEach((roleData: unknown, index: number) => {
+      roleUsersData.forEach((roleData: any, index: number) => {
         if (roleData && roleData.roleName && roleData.data) {
           const roleName = roleData.roleName
           const users = Array.isArray(roleData.data) ? roleData.data : []
@@ -1434,8 +1434,8 @@ onMounted(async () => {
             dynamicUsers[roleName] = []
           }
 
-          users.forEach((user: unknown) => {
-            const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+          users.forEach((user: any) => {
+            const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
             if (!existingUser) {
               dynamicUsers[roleName].push(user)
             }
