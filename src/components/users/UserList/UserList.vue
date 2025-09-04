@@ -55,11 +55,11 @@
               v-for="(user, index) in users"
               :key="user.id"
               :class="[
-                'cursor-pointer border-b border-gray-100',
+                canEditUsers() ? 'cursor-pointer hover:bg-blue-50' : 'cursor-default',
+                'border-b border-gray-100 transition-colors',
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
-                'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editUser(user)"
+              @click="canEditUsers() ? editUser(user) : null"
               style="height: 44px"
             >
               <template
@@ -207,6 +207,7 @@ import Pagination from './Pagination.vue'
 import Sortable from 'sortablejs'
 import { useToast } from '@/stores/toast'
 import { getRoleColorClasses, getRoleColorStyles } from '../../../utils/roleColors'
+import { canEditUsers } from '../../../utils/permissions'
 
 const props = defineProps<{
   search?: string
@@ -247,7 +248,9 @@ const savedPerPage = localStorage.getItem(PER_PAGE_KEY)
 
 const showEditModal = ref(false)
 const editingUser = ref<any>(null)
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('userList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
@@ -279,6 +282,9 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('userList_currentPage', '1')
 
   // Используем вспомогательную функцию для получения правильного параметра сортировки
   const sortByParam = getSortByParam(key)
@@ -344,7 +350,7 @@ function formatDate(date: string | null | undefined) {
 function getUserImageUrl(user: unknown) {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) return `${API_CONFIG.BASE_URL.replace('/api', '')}/storage/${user.image}`
+  if (user.image) return `http://localhost:8000/storage/${user.image}`
   return ''
 }
 
@@ -366,6 +372,7 @@ function getSortByParam(sortKey: string): string {
 }
 
 const editUser = (user: unknown) => {
+  if (!canEditUsers()) return
   editingUser.value = user
   showEditModal.value = true
 }
@@ -388,88 +395,16 @@ async function toggleUserActive(userId: number) {
   } catch (e) {}
 }
 
-const handleCreateUser = async (userData: unknown) => {
-  try {
-    await create(userData)
-    emit('close-create-modal')
-    const sortByParam = getSortByParam(sortBy.value)
-    fetchUsers(
-      currentPage.value,
-      props.search || '',
-      sortByParam,
-      sortOrder.value,
-      perPage.value,
-      props.role,
-      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
-    )
-  } catch (err) {}
-}
 
-const handleUpdateUser = async (userData: unknown) => {
-  try {
-    if (!editingUser.value) return
-    // console.log(
-    //   'updateUser id:',
-    //   editingUser.value.id,
-    //   typeof editingUser.value.id,
-    //   editingUser.value,
-    // )
-    // console.log('Sending userData to API:', userData) // Отладка
-    if (typeof editingUser.value.id !== 'number') {
-      alert('Ошибка: id пользователя не число! ' + editingUser.value.id)
-      return
-    }
-    await updateUser(editingUser.value.id, userData)
-    showEditModal.value = false
-    editingUser.value = null
-    const sortByParam = getSortByParam(sortBy.value)
-    fetchUsers(
-      currentPage.value,
-      props.search || '',
-      sortByParam,
-      sortOrder.value,
-      perPage.value,
-      props.role,
-      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
-    )
-  } catch (err) {}
-}
 
-const handleDeleteUser = async (userId: number) => {
-  try {
-    await deleteUser(userId)
-    showEditModal.value = false
-    editingUser.value = null
-    const sortByParam = getSortByParam(sortBy.value)
-    fetchUsers(
-      currentPage.value,
-      props.search || '',
-      sortByParam,
-      sortOrder.value,
-      perPage.value,
-      props.role,
-      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
-    )
-    toast.show('Пользователь успешно удален!', 'success')
-  } catch (err: unknown) {
-    // Обрабатываем ошибки от сервера
-    let message = 'Произошла неизвестная ошибка при удалении пользователя'
 
-    if (err?.response?.data?.message) {
-      // Ошибка от Laravel (например, пользователь назначен в заказах)
-      message = err.response.data.message
-    } else if (err instanceof Error && err.message) {
-      message = `Ошибка удаления пользователя: ${err.message}`
-    }
-
-    toast.show(message, 'error')
-  }
-}
 
 function goToPage(page: number) {
   if (!pagination || !pagination.last_page) return
   if (page < 1 || page > pagination.last_page) return
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
+  localStorage.setItem('userList_currentPage', page.toString())
 
   const sortByParam = getSortByParam(sortBy.value)
 
@@ -491,11 +426,17 @@ function validatePerPage(val: unknown) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem(PER_PAGE_KEY, perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('userList_currentPage', '1')
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem(PER_PAGE_KEY, perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('userList_currentPage', '1')
   goToPage(1)
 })
 
@@ -528,6 +469,9 @@ onMounted(async () => {
 })
 
 watch([() => props.search, () => props.role, () => props.activeFilter], () => {
+  // При изменении фильтров возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('userList_currentPage', '1')
   goToPage(1)
 })
 
@@ -544,6 +488,64 @@ watch([sortBy, sortOrder], () => {
   )
 })
 
+// Обработчики событий от UserFormModal
+async function handleCreateUser(userData: unknown) {
+  try {
+    await create(userData)
+    emit('close-create-modal')
+    const sortByParam = getSortByParam(sortBy.value)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortByParam,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
+  } catch (err) {
+    console.error('Error creating user:', err)
+  }
+}
+
+async function handleUpdateUser(userData: unknown) {
+  try {
+    if (!editingUser.value) return
+    await updateUser(editingUser.value.id, userData)
+    showEditModal.value = false
+    const sortByParam = getSortByParam(sortBy.value)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortByParam,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
+  } catch (err) {
+    console.error('Error updating user:', err)
+  }
+}
+
+async function handleDeleteUser(userId: number) {
+  try {
+    await deleteUser(userId)
+    showEditModal.value = false
+    const sortByParam = getSortByParam(sortBy.value)
+    fetchUsers(
+      currentPage.value,
+      props.search || '',
+      sortByParam,
+      sortOrder.value,
+      perPage.value,
+      props.role,
+      props.activeFilter === 'active' ? true : props.activeFilter === 'inactive' ? false : null,
+    )
+  } catch (err) {
+    console.error('Error deleting user:', err)
+  }
+}
 
 defineOptions({
   name: 'UserList'

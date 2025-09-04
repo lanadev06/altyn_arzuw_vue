@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
+
 interface Props {
   show: boolean
 }
@@ -83,9 +84,6 @@ function handleCancel() {
   emit('cancel')
 }
 
-defineOptions({
-  name: 'OrderCancelForm'
-})
 </script>
 
 <style scoped>

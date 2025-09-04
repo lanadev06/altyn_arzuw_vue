@@ -75,7 +75,7 @@
           v-model="form.roles"
           :options="roleOptions"
           label="label"
-          :reduce="(option: unknown) => option.value"
+          :reduce="(option: any) => option.value"
           placeholder="Выберите роли"
           :clearable="true"
           :searchable="true"
@@ -100,10 +100,10 @@
       </div>
 
       <div class="flex gap-3 pt-4">
-        <UIButton v-if="!user || canEdit()" type="submit" :loading="loading" class="flex-1">
+        <UIButton v-if="!user || canEditUsers()" type="submit" :loading="loading" class="flex-1">
           {{ user ? 'Сохранить' : 'Создать' }}
         </UIButton>
-        <UIButton v-if="user && canDelete()" type="button" variant="danger" @click="handleDelete" class="flex-1">
+        <UIButton v-if="user && canDeleteUsers() && !isCurrentUser" type="button" variant="danger" @click="handleDelete" class="flex-1">
           Удалить
         </UIButton>
         <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="flex-1">
@@ -123,7 +123,8 @@ import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import { toast } from '@/stores/toast'
 import { getRoles } from '@/services/api'
-import { canDelete, canEdit } from '@/utils/permissions'
+import { canDeleteUsers, canEditUsers } from '@/utils/permissions'
+import { getCurrentUser } from '@/utils/auth'
 
 const props = defineProps<{
   user?: unknown
@@ -151,6 +152,17 @@ const form = reactive({
 })
 
 const allRoles = ref<Array<{ id: number; name: string; display_name?: string }>>([])
+
+// Проверяем, является ли редактируемый пользователь текущим пользователем
+const isCurrentUser = computed(() => {
+  if (!props.user) return false
+  
+  const currentUser = getCurrentUser()
+  if (!currentUser) return false
+  
+  // Сравниваем ID пользователей
+  return (props.user as any)?.id === currentUser.id
+})
 
 onMounted(async () => {
   allRoles.value = await getRoles()

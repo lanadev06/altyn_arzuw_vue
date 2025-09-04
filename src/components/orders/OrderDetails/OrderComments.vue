@@ -111,6 +111,7 @@ import { isAdmin } from '../../../utils/permissions'
 import type { User as ApiUser } from '../../../types/api'
 import type { OrderComment, Role, User } from '../../../types/orderDetails'
 
+
 interface Props {
   comments: OrderComment[]
   roles: Role[]
@@ -223,7 +224,4 @@ watch(
 )
 
 
-defineOptions({
-  name: 'OrderComments'
-})
 </script>

@@ -191,23 +191,27 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import Modal from '@/components/ui/Modal.vue'
-import UIInput from '@/components/ui/UIInput.vue'
-import UIButton from '@/components/ui/UIButton.vue'
+import Modal from '../../ui/Modal.vue'
+import UIInput from '../../ui/UIInput.vue'
+import UIButton from '../../ui/UIButton.vue'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
-import type { Project } from '@/types/project'
-import type { Client } from '@/types/client'
-import projectController from '@/controllers/projectControllerInstance'
-import { getAllClients } from '@/services/api'
-import { toast } from '@/stores/toast'
-import { canViewPrices, canDelete } from '@/utils/permissions'
+import type { Project } from '../../../types/project'
+import type { Client } from '../../../types/client'
+import projectController from '../../../controllers/projectControllerInstance'
+import { getAllClients } from '../../../services/api'
+import { toast } from '../../../stores/toast'
+import { canViewPrices, canDelete } from '../../../utils/permissions'
+import { useEntityEvents } from '../../../composables/useEntityEvents'
 
 const props = defineProps<{ project?: Project | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
+
+// Система событий
+const { emitEntityCreated, emitEntityUpdated, emitEntityDeleted } = useEntityEvents()
 
 const loading = ref(false)
 const loadingClients = ref(false)
@@ -338,6 +342,10 @@ async function handleSubmit() {
     if (props.project?.id) {
       await projectController.update(props.project.id, payload as Partial<Project>)
       toast.show('Проект успешно обновлён!')
+      
+      // Отправляем событие обновления
+      emitEntityUpdated('project', props.project.id, payload, 'form')
+      
       emit('submit', { id: props.project.id, ...payload })
       emit('close')
     } else {
@@ -345,6 +353,8 @@ async function handleSubmit() {
       toast.show('Проект успешно создан!')
       const newId = (created as any)?.id || (created as any)?.data?.id
       if (newId) {
+        // Отправляем событие создания
+        emitEntityCreated('project', newId, payload, 'form')
         emit('submit', { id: newId, ...payload })
       }
       emit('close')
@@ -359,6 +369,10 @@ function handleDelete() {
     const projectId = props.project.id
     projectController.remove(projectId).then(() => {
       toast.show('Проект удалён!')
+      
+      // Отправляем событие удаления
+      emitEntityDeleted('project', projectId, 'form')
+      
       emit('delete', projectId)
       emit('close')
     })

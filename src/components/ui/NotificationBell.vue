@@ -165,7 +165,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { API_CONFIG } from '@/config/api'
+import { API_CONFIG } from '../../config/api'
+
+defineOptions({
+  name: 'NotificationBell'
+})
 
 // Звук уведомления
 const notificationAudio =
@@ -255,22 +259,72 @@ async function markAllRead() {
   fetchNotifications()
 }
 
-async function handleClick(notif: unknown) {
+async function handleClick(notif: any) {
+  // Отмечаем уведомление как прочитанное только для этого конкретного уведомления
   if (!notif.read_at) {
-    await fetch(`${API_CONFIG.BASE_URL}/notifications/${notif.id}/read`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    })
-    notif.read_at = new Date().toISOString()
-    unreadCount.value = notifications.value.filter((n) => !n.read_at).length
+    try {
+      await fetch(`${API_CONFIG.BASE_URL}/notifications/${notif.id}/read`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      notif.read_at = new Date().toISOString()
+      unreadCount.value = notifications.value.filter((n) => !n.read_at).length
+    } catch (error) {
+      console.error('Ошибка при отметке уведомления как прочитанного:', error)
+    }
   }
-  // Если есть ссылка — перейти
+  
+  // Обрабатываем разные типы уведомлений
   if (notif.data?.url) {
-    window.open(notif.data.url, '_blank')
+    // Извлекаем ID заказа из URL или данных уведомления
+    const orderId = notif.data.orderId || extractOrderIdFromUrl(notif.data.url)
+    const projectId = notif.data.projectId || extractProjectIdFromUrl(notif.data.url)
+    const clientId = notif.data.clientId || extractClientIdFromUrl(notif.data.url)
+    
+    // Определяем тип уведомления по URL или типу
+    const isOrderNotification = orderId && (notif.data.url.includes('/orders/') || notif.type?.includes('order'))
+    const isProjectNotification = projectId && (notif.data.url.includes('/projects/') || notif.type?.includes('project'))
+    const isClientNotification = clientId && (notif.data.url.includes('/clients/') || notif.type?.includes('client'))
+    
+    if (isOrderNotification) {
+      // Отправляем событие для открытия модалки заказа
+      document.dispatchEvent(new CustomEvent('openOrderDetails', {
+        detail: { orderId: parseInt(orderId) }
+      }))
+    } else if (isProjectNotification) {
+      // Отправляем событие для открытия модалки проекта
+      document.dispatchEvent(new CustomEvent('openProjectDetails', {
+        detail: { projectId: parseInt(projectId) }
+      }))
+    } else if (isClientNotification) {
+      // Отправляем событие для открытия модалки клиента
+      document.dispatchEvent(new CustomEvent('openClientDetails', {
+        detail: { clientId: parseInt(clientId) }
+      }))
+    } else {
+      // Для других типов уведомлений используем обычную навигацию
+      window.location.href = notif.data.url
+    }
   }
+}
+
+// Функции для извлечения ID из URL
+function extractOrderIdFromUrl(url: string): string | null {
+  const match = url.match(/\/orders\/(\d+)/)
+  return match ? match[1] : null
+}
+
+function extractProjectIdFromUrl(url: string): string | null {
+  const match = url.match(/\/projects\/(\d+)/)
+  return match ? match[1] : null
+}
+
+function extractClientIdFromUrl(url: string): string | null {
+  const match = url.match(/\/clients\/(\d+)/)
+  return match ? match[1] : null
 }
 
 function formatDate(date: string) {
@@ -350,7 +404,7 @@ onMounted(() => {
 // Очищаем интервал при размонтировании компонента
 onUnmounted(() => {
   if (pollInterval) {
-    clearInterval(pollInterval)
+    clearInterval(pollInterval as number)
   }
 
   // Удаляем обработчик клика
@@ -363,11 +417,6 @@ onUnmounted(() => {
       fetchNotifications()
     }
   })
-})
-
-
-defineOptions({
-  name: 'NotificationBell'
 })
 </script>
 

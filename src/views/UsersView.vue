@@ -24,7 +24,7 @@
           <option value="0">Только неактивные</option>
         </select>
       </div>
-      <UIButton @click="openCreateModal" variant="primary"> Добавить пользователя </UIButton>
+      <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> Добавить пользователя </UIButton>
     </div>
     <div class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       <UserList
@@ -46,6 +46,7 @@ import UserList from '../components/users/UserList/UserList.vue'
 import UIButton from '../components/ui/UIButton.vue'
 import Layout from '../components/layout/Layout.vue'
 import { getAllRoles, getRolesWithStages, getAllStages } from '../services/api'
+import { canCreateUsers } from '../utils/permissions'
 
 const showCreateModal = ref(false)
 const selectedRole = ref('')

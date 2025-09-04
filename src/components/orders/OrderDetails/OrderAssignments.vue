@@ -11,24 +11,31 @@
     <div
       v-for="assignment in currentStageAssignments"
       :key="assignment.id"
-      :class="`assignment-card flex flex-col rounded-lg shadow-sm px-3 py-2 mb-2 border border-gray-100 ${getAssignmentBg(assignment.status)}`"
+      :class="`assignment-card flex flex-col rounded-lg shadow-sm px-3 py-2 mb-2 border border-gray-100 ${getAssignmentBg(assignment.status)} ${
+        isCurrentUserAssignment(assignment) ? 'ring-2 ring-blue-300 bg-blue-50' : ''
+      }`"
     >
       <div class="flex items-center justify-between">
         <div>
-          <span class="font-semibold text-gray-900">{{ assignment.user?.name || '—' }}</span>
-          <span
-            class="inline-block rounded px-2 py-0.5 text-xs font-semibold ml-2 align-middle leading-tight"
-            :style="getRoleBadgeStyle(assignment.role_type)"
-          >
-            {{ getRoleLabel(assignment.role_type) }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-900">{{ assignment.user?.name || '—' }}</span>
+            <span
+              class="inline-block rounded px-2 py-0.5 text-xs font-semibold align-middle leading-tight"
+              :style="getRoleBadgeStyle(assignment.role_type)"
+            >
+              {{ getRoleLabel(assignment.role_type) }}
+            </span>
+
+          </div>
         </div>
         <div class="flex items-center gap-2">
+          <!-- Селект статуса (для назначений текущего пользователя или для админов/менеджеров) -->
           <select
+            v-if="isCurrentUserAssignment(assignment) || canViewAllOrders()"
             v-model="assignment.status"
             @change="handleStatusChange(assignment)"
             :class="`border rounded px-2 py-1 text-xs text-gray-900 bg-white transition-all duration-200 ${getStatusTextColor(assignment.status)} ${assignment.updating ? 'status-updating' : ''}`"
-            :disabled="assignment.updating"
+            :disabled="assignment.updating || !canUpdateAssignmentStatus()"
           >
             <option value="pending">Ожидание</option>
             <option value="in_progress">В работе</option>
@@ -36,11 +43,20 @@
             <option value="under_review">На проверке</option>
             <option value="approved">Одобрено</option>
           </select>
+          
+          <!-- Статичный статус для назначений других пользователей -->
+          <div
+            v-else
+            :class="`px-2 py-1 text-xs rounded ${getStatusTextColor(assignment.status)}`"
+          >
+            {{ getStatusLabel(assignment.status) }}
+          </div>
+          
           <div v-if="assignment.updating" class="text-xs text-blue-600 animate-pulse">
             Обновление...
           </div>
           <button
-            v-if="assignment.status === 'cancelled' && canCreateEdit()"
+            v-if="assignment.status === 'cancelled' && canViewAllOrders()"
             @click="$emit('delete-assignment', assignment)"
             class="text-red-500 hover:underline text-xs ml-2"
           >
@@ -55,7 +71,8 @@
         </span>
       </div>
     </div>
-    <div v-if="currentStageUsersWithRoles.length > 0" class="flex items-center gap-2 mt-4">
+    <!-- Селект для назначения пользователей (только для админов и менеджеров) -->
+    <div v-if="currentStageUsersWithRoles.length > 0 && canViewAllOrders()" class="flex items-center gap-2 mt-4">
       <Vue3Select
         v-model="selectedUserId"
         :options="currentStageUsersWithRoles"
@@ -82,8 +99,8 @@
       </p>
     </div>
 
-    <!-- Сообщение если нет ролей для стадии -->
-    <div v-else class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+    <!-- Сообщение если нет ролей для стадии (только для админов и менеджеров) -->
+    <div v-else-if="canViewAllOrders()" class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
       <p class="text-sm text-gray-500 text-center">
         Для стадии "{{ currentStageLabel }}" не настроены роли или нет доступных сотрудников
       </p>
@@ -94,8 +111,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import Vue3Select from 'vue3-select'
-import { canCreateEdit } from '../../../utils/permissions'
+import { canCreateEdit, canViewAllOrders, canUpdateAssignmentStatus } from '../../../utils/permissions'
+import { getCurrentUser } from '../../../utils/auth'
 import type { Assignment, Role, Stage, User, UserWithRole } from '../../../types/orderDetails'
+
 
 interface Props {
   assignments: Assignment[]
@@ -345,6 +364,15 @@ function getAssignedByName(assignedBy: User | number | string | unknown): string
   return '—'
 }
 
+// Проверить, является ли назначение текущего пользователя
+function isCurrentUserAssignment(assignment: Assignment): boolean {
+  const currentUser = getCurrentUser()
+  if (!currentUser) return false
+  
+  // Проверяем, является ли назначение текущего пользователя
+  return assignment.user_id === currentUser.id
+}
+
 // Функция для получения текста ролей
 function getCurrentStageRolesText() {
   const stageData = props.stages.find((stage: Stage) => stage.name === props.currentStage)
@@ -356,6 +384,18 @@ function getCurrentStageRolesText() {
 
   const roleLabels = stageRoles.map((role: Role) => getRoleLabel(role.name)).join(', ')
   return roleLabels
+}
+
+// Функция для получения текста статуса
+function getStatusLabel(status: string): string {
+  const statusLabels = {
+    pending: 'Ожидание',
+    in_progress: 'В работе',
+    cancelled: 'Отменено',
+    under_review: 'На проверке',
+    approved: 'Одобрено'
+  }
+  return statusLabels[status as keyof typeof statusLabels] || status
 }
 
 // Следим за изменениями стадии и принудительно обновляем данные
@@ -378,9 +418,6 @@ watch(
 )
 
 
-defineOptions({
-  name: 'OrderAssignments'
-})
 </script>
 
 <style scoped>

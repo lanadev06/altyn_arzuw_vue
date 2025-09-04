@@ -119,8 +119,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw new Error(validationErrors)
       }
 
-      // Обработка 401/403 ошибок
-      if (response.status === 401 || response.status === 403) {
+      // Обработка 401 ошибок (неавторизован)
+      if (response.status === 401) {
         const message = errorData.message || 'Сессия истекла. Необходимо войти в систему заново.'
 
         // Не вызываем handle401Error для определенных endpoints, которые могут быть недоступны
@@ -140,6 +140,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
           handle401Error(message)
         }
 
+        throw new Error(message)
+      }
+
+      // Обработка 403 ошибок (доступ запрещен) - НЕ выбиваем из системы
+      if (response.status === 403) {
+        const message = errorData.message || 'У вас нет прав на это действие'
         throw new Error(message)
       }
 
@@ -569,10 +575,11 @@ import type { ProductForm } from '@/types/product'
 export async function getProducts({
   page = '1',
   search = '',
-  sort_by = 'id',
-  sort_order = 'desc',
+  sort_by = 'name',
+  sort_order = 'asc',
   per_page = '30',
   forceRefresh = false,
+  category_id = '',
 } = {}): Promise<PaginatedResponse<Product>> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
@@ -580,6 +587,7 @@ export async function getProducts({
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
+  if (category_id) params.push(`category_id=${encodeURIComponent(category_id)}`)
   if (forceRefresh) params.push(`_t=${Date.now()}`) // Принудительное обновление кэша
   const query = params.length ? `?${params.join('&')}` : ''
 
@@ -755,6 +763,7 @@ export async function getOrders({
   stage,
   is_archived,
   assignment_status,
+  admin_view = false,
 }: {
   page?: string
   search?: string
@@ -764,6 +773,7 @@ export async function getOrders({
   stage?: string
   is_archived?: boolean
   assignment_status?: string
+  admin_view?: boolean
 } = {}): Promise<PaginatedResponse<Order>> {
   const params = new URLSearchParams({
     page,
@@ -775,6 +785,7 @@ export async function getOrders({
   if (stage) params.append('stage', stage)
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
   if (assignment_status) params.append('assignment_status', assignment_status)
+  if (admin_view) params.append('admin_view', 'true')
 
   return await apiRequest(`/orders?${params.toString()}`)
 }
@@ -869,10 +880,15 @@ export async function getOrderComments(orderId: number) {
 }
 
 export async function postOrderComment(orderId: number, text: string) {
-  return await apiRequest('/comments', {
+  const result = await apiRequest('/comments', {
     method: 'POST',
     body: JSON.stringify({ order_id: orderId, text }),
   })
+  
+  // Очищаем кэш комментариев для этого заказа
+  frontendCache.invalidatePattern(`order_comments_${orderId}`)
+  
+  return result
 }
 
 // Добавляем функцию для удаления комментария к заказу
@@ -880,6 +896,9 @@ export async function deleteOrderComment(orderId: number, commentId: number): Pr
   await apiRequest(`/comments/${commentId}?order_id=${orderId}`, {
     method: 'DELETE',
   })
+  
+  // Очищаем кэш комментариев для этого заказа
+  frontendCache.invalidatePattern(`order_comments_${orderId}`)
 }
 
 // --- Проекты ---

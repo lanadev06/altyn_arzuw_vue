@@ -211,8 +211,16 @@ import { OrderController } from '../../../controllers/OrderController'
 import type { Order } from '../../../types/order'
 import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
+import { useOrderEvents } from '../../../composables/useOrderEvents'
+
+const props = defineProps<{
+  search?: string
+}>()
 
 const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
+
+// Система событий для синхронизации
+const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
 
 const SORT_KEY = 'orderList_sortBy'
 const ORDER_KEY = 'orderList_sortOrder'
@@ -247,7 +255,9 @@ const detailsOrderId = ref<number | null>(null)
 
 // Add search variable to the component
 const search = ref('')
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('orderList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const selectedStage = ref<string>('')
 const selectedArchive = ref('')
 const isArchived = ref<boolean>(false)
@@ -265,16 +275,22 @@ function validatePerPage(val: unknown) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('orderList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 }
 
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('orderList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 })
 
-function loadOrders(page = 1) {
+function loadOrders(page = currentPage.value) {
   const isArchived =
     selectedArchive.value === 'archived'
       ? true
@@ -282,9 +298,13 @@ function loadOrders(page = 1) {
         ? false
         : undefined
 
+  // Обновляем текущую страницу и сохраняем в localStorage
+  currentPage.value = page
+  localStorage.setItem('orderList_currentPage', page.toString())
+
   fetchOrders(
     page,
-    search.value,
+    props.search || '',
     sortBy.value,
     sortOrder.value,
     selectedStage.value || undefined,
@@ -312,6 +332,9 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 }
 
@@ -408,14 +431,23 @@ function formatDate(date: string) {
 }
 
 function filterByStage() {
+  // При изменении фильтра возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 }
 
 function filterByArchive() {
+  // При изменении фильтра возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 }
 
 function filterByAssignmentStatus() {
+  // При изменении фильтра возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('orderList_currentPage', '1')
   loadOrders(1)
 }
 
@@ -518,11 +550,22 @@ async function loadStages() {
   }
 }
 
-// Интервал для автоматического обновления данных
-let autoRefreshInterval: number | null = null
-let handleFocus: (() => void) | null = null
+// Убрали автоматическое обновление для предотвращения сброса на первую страницу
+// let autoRefreshInterval: number | null = null
+// let handleFocus: (() => void) | null = null
 
 defineExpose({ loadOrders })
+
+// Отслеживаем изменения поискового запроса
+watch(
+  () => props.search,
+  () => {
+    // При изменении поиска возвращаемся на первую страницу
+    currentPage.value = 1
+    localStorage.setItem('orderList_currentPage', '1')
+    loadOrders(1)
+  },
+)
 
 onMounted(async () => {
   await nextTick()
@@ -541,36 +584,49 @@ onMounted(async () => {
     })
   }
 
+  // Подписываемся на глобальные события смены стадий
+  onOrderStageChanged((event) => {
+    console.log('🔄 OrderList: Стадия заказа изменена:', event)
+    // Обновляем список заказов
+    loadOrders()
+  })
+  
+  onOrderUpdated((event) => {
+    console.log('📝 OrderList: Заказ обновлен:', event)
+    // Обновляем список заказов
+    loadOrders()
+  })
+
   // Загружаем стадии для фильтра
   await loadStages()
 
   // Загружаем заказы
   loadOrders()
 
-  // Запускаем автоматическое обновление каждые 30 секунд
-  autoRefreshInterval = window.setInterval(() => {
-    loadOrders()
-  }, 30000) // Увеличиваем до 30 секунд
+  // Убрали автоматическое обновление для предотвращения сброса на первую страницу
+  // autoRefreshInterval = window.setInterval(() => {
+  //   loadOrders()
+  // }, 30000)
 
-  // Обновляем данные при фокусе на окне (когда пользователь возвращается к вкладке)
-  handleFocus = () => {
-    loadOrders()
-  }
-  window.addEventListener('focus', handleFocus)
+  // Убрали обновление при фокусе окна
+  // handleFocus = () => {
+  //   loadOrders()
+  // }
+  // window.addEventListener('focus', handleFocus)
 })
 
 onUnmounted(() => {
-  // Очищаем интервал при размонтировании компонента
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval)
-    autoRefreshInterval = null
-  }
+  // Убрали очистку интервала и обработчика фокуса
+  // if (autoRefreshInterval) {
+  //   clearInterval(autoRefreshInterval)
+  //   autoRefreshInterval = null
+  // }
 
-  // Удаляем обработчик события фокуса
-  if (handleFocus) {
-    window.removeEventListener('focus', handleFocus)
-  }
+  // if (handleFocus) {
+  //   window.removeEventListener('focus', handleFocus)
+  // }
 })
+
 
 
 defineOptions({

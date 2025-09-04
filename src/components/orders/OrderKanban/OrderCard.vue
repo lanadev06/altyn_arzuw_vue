@@ -52,6 +52,10 @@ import { computed, ref, onMounted } from 'vue'
 import { canViewPrices } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
 
+defineOptions({
+  name: 'OrderCard'
+})
+
 const stages = ref<Array<{ value: string; label: string; color: string }>>([])
 
 onMounted(async () => {
@@ -187,11 +191,6 @@ const stageClass = computed(() => {
       return 'stage-default'
   }
 })
-
-
-defineOptions({
-  name: 'OrderCard'
-})
 </script>
 
 <style scoped>
@@ -255,17 +254,6 @@ defineOptions({
   background: #ece6f6;
 }
 /* Цвета стадий теперь динамические, не переопределяем их */
-.stage-draft.order-card.bitrix-order-card::before,
-.stage-design.order-card.bitrix-order-card::before,
-.stage-print.order-card.bitrix-order-card::before,
-.stage-workshop.order-card.bitrix-order-card::before,
-.stage-final.order-card.bitrix-order-card::before,
-.stage-completed.order-card.bitrix-order-card::before,
-.stage-cancelled.order-card.bitrix-order-card::before,
-.stage-engraving.order-card.bitrix-order-card::before,
-.stage-default.order-card.bitrix-order-card::before {
-  /* Цвет будет установлен динамически через inline стили */
-}
 .order-card-content {
   padding: 6px 8px 6px 10px;
   width: 100%;

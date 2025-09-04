@@ -4,7 +4,7 @@
     <div class="flex-1 flex flex-col min-h-screen">
       <Navbar class="fixed top-0 left-48 right-0 z-30" @search="onSearch" @logout="handleLogout" />
       <main
-        class="flex-1 flex flex-col h-[calc(100vh-4rem)] min-h-0 mt-16 overflow-auto p-5 pl-52 bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500"
+        class="flex-1 flex flex-col h-[calc(100vh-4rem)] min-h-0 mt-16 overflow-auto p-5 pl-52 bg-gray-200"
       >
         <slot :search="search" />
       </main>
@@ -15,9 +15,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Sidebar from '@/components/layout/Sidebar.vue'
-import Navbar from '@/components/layout/Navbar.vue'
-import { authApi } from '@/services/api'
+import Sidebar from './Sidebar.vue'
+import Navbar from './Navbar.vue'
+import { authApi } from '../../services/api'
+import { useGlobalNotifications } from '../../composables/useGlobalNotifications'
+
+defineOptions({
+  name: 'Layout'
+})
+
+// Инициализируем глобальную обработку уведомлений
+useGlobalNotifications()
 
 const search = ref('')
 function onSearch(value: string) {

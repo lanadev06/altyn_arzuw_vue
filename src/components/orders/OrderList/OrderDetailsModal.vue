@@ -84,7 +84,7 @@
               <OrderTimeline :status-logs="statusLogs" :stages="stagesWithRoles" :roles="roles" />
               
               <!-- Кнопка удаления заказа -->
-              <div v-if="canDelete()" class="mt-4 flex justify-end">
+              <div v-if="canDelete() && canViewAllOrders()" class="mt-4 flex justify-end">
                 <button
                   @click="deleteOrderHandler"
                   class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-import { canDelete } from '../../../utils/permissions'
+import { canDelete, canViewAllOrders } from '../../../utils/permissions'
 import { useOrderDetails } from '../../../composables/useOrderDetails'
 import OrderStagesProgress from '../OrderDetails/OrderStagesProgress.vue'
 import OrderCancelForm from '../OrderDetails/OrderCancelForm.vue'
@@ -171,6 +171,11 @@ const {
 
 // Обработчики событий
 function handleStageClick(stageValue: string) {
+  // Сотрудники не могут менять стадии заказов
+  if (!canViewAllOrders()) {
+    return
+  }
+  
   if (stageValue === 'cancelled') {
     startCancelFlow()
   } else {

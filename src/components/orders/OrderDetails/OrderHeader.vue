@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import type { OrderInfo as OrderInfoType } from '../../../types/orderDetails'
 
+
 interface Props {
   order: OrderInfoType | null
   isPollingActive: boolean
@@ -112,7 +113,4 @@ function getStatusBadgeStyle(stage: string) {
   }
 }
 
-defineOptions({
-  name: 'OrderHeader'
-})
 </script>

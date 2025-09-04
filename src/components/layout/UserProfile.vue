@@ -93,6 +93,10 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { API_CONFIG } from '../../config/api'
 
+defineOptions({
+  name: 'UserProfile'
+})
+
 const props = defineProps({
   user: {
     type: Object,
@@ -122,7 +126,7 @@ const userImageUrl = ref('')
 const getUserImageUrl = (user: { image_url?: string; image?: string }) => {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) return `${API_CONFIG.BASE_URL.replace('/api', '')}/storage/${user.image}`
+  if (user.image) return `http://localhost:8000/storage/${user.image}`
   return ''
 }
 
@@ -162,10 +166,5 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', closeDropdown)
-})
-
-
-defineOptions({
-  name: 'UserProfile'
 })
 </script>

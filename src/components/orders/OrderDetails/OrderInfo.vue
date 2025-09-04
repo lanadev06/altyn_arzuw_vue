@@ -5,7 +5,7 @@
       <div class="flex items-center gap-2 text-base text-gray-800">
         <span class="font-semibold w-28">Кол-во:</span>
         <EditableField
-          v-if="order && canCreateEdit()"
+          v-if="order && canViewAllOrders()"
           :model-value="order.quantity || 0"
           type="number"
           :min="1"
@@ -18,7 +18,7 @@
       <div v-if="canViewPrices()" class="flex items-center gap-2 text-base text-gray-800">
         <span class="font-semibold w-28">Общая сумма:</span>
         <EditableField
-          v-if="order && canCreateEdit()"
+          v-if="order && canViewAllOrders()"
           :model-value="order.price || 0"
           type="number"
           :min="0"
@@ -35,7 +35,7 @@
           <div v-if="!showDeadlineInput" class="flex items-center">
             <span>{{ formatDateTime(order?.deadline) || 'Не установлен' }}</span>
             <button
-              v-if="canCreateEdit()"
+              v-if="canViewAllOrders()"
               @click="startDeadlineEdit"
               class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
               title="Изменить дедлайн"
@@ -141,9 +141,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import EditableField from '../../ui/EditableField.vue'
-import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
+import { canCreateEdit, canViewPrices, canViewAllOrders } from '../../../utils/permissions'
 import { toast } from '../../../stores/toast'
 import type { OrderInfo } from '../../../types/orderDetails'
+
 
 interface Props {
   order?: OrderInfo | null
@@ -247,7 +248,4 @@ function formatArchiveDate(dateStr: string) {
   })
 }
 
-defineOptions({
-  name: 'OrderInfo'
-})
 </script>

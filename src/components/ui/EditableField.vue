@@ -38,7 +38,7 @@
         :minlength="minlength"
         :required="required"
         :pattern="pattern"
-        :inputmode="getInputMode()"
+        :inputmode="getInputMode() as any"
         :autofocus="true"
       />
       <button
@@ -85,6 +85,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
+
+defineOptions({
+  name: 'EditableField'
+})
 
 function getInputMode(): unknown {
   return props.inputmode
@@ -166,11 +170,6 @@ function saveEdit() {
   emit('save', editValue.value)
   editing.value = false
 }
-
-
-defineOptions({
-  name: 'EditableField'
-})
 </script>
 
 <style scoped>

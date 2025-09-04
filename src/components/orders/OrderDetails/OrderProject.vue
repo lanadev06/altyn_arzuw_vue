@@ -76,6 +76,7 @@ import { h, type VNode } from 'vue'
 import { toast } from '../../../stores/toast'
 import type { OrderInfo, ProjectInfo, ContactInfo } from '../../../types/orderDetails'
 
+
 interface Props {
   order?: OrderInfo | null
   project?: ProjectInfo | null
@@ -280,7 +281,4 @@ function reasonStatusText(status: string) {
 }
 
 
-defineOptions({
-  name: 'OrderProject'
-})
 </script>

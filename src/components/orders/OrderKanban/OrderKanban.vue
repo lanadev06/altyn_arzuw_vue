@@ -87,9 +87,13 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import OrderCard from './OrderCard.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import { canCreateEdit } from '../../../utils/permissions'
-
 import { getStageColorStyles } from '../../../utils/stageColors'
 import { stageApi } from '../../../services/stageApi'
+import { useOrderEvents } from '../../../composables/useOrderEvents'
+
+defineOptions({
+  name: 'OrderKanban'
+})
 
 // Интерфейс для заказа
 interface Order {
@@ -192,6 +196,9 @@ const emit = defineEmits<{
   (e: 'order-updated', orderId: string): void
   (e: 'change-status', payload: StatusChangePayload): void
 }>()
+
+// Система событий
+const { emitOrderStageChanged } = useOrderEvents()
 
 function handleOrderCardClick(order: Order) {
   emit('open-order', { order })
@@ -300,6 +307,15 @@ async function onDrop(event: DragEvent, newStage: string) {
     const stageDisplayName = stageData?.label || newStage
     showToast('Стадия обновлена: ' + stageDisplayName, 'success')
 
+    // Отправляем глобальное событие о смене стадии
+    emitOrderStageChanged(
+      order.id,
+      originalStage,
+      newStage,
+      'kanban',
+      stageDisplayName
+    )
+
     // Эмитим событие change-status для OrdersView
     emit('change-status', { order, newStatus: newStage })
   } catch (err: unknown) {
@@ -320,11 +336,6 @@ async function onDrop(event: DragEvent, newStage: string) {
     showToast(msg, 'error')
   }
 }
-
-
-defineOptions({
-  name: 'OrderKanban'
-})
 </script>
 
 <style scoped>

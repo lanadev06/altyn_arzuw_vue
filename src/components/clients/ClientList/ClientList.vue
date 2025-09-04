@@ -190,7 +190,9 @@ const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingClient = ref<Client | null>(null)
 const columnsHeader = ref<HTMLElement | null>(null)
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('clientList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
@@ -202,6 +204,9 @@ function validatePerPage(val: number) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('clientList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('clientList_currentPage', '1')
   fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -210,7 +215,9 @@ function goToPage(page: number) {
     return
   }
 
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
+  localStorage.setItem('clientList_currentPage', page.toString())
   fetchClients(page, props.search, sortBy.value, sortOrder.value)
 }
 

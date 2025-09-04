@@ -204,7 +204,9 @@ const showEditModal = ref(false)
 const editingStage = ref<Stage | null>(null)
 const sortBy = ref('order')
 const sortOrder = ref<'asc' | 'desc'>('asc')
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('stageList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
@@ -265,6 +267,9 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('stageList_currentPage', '1')
 }
 
 const columnsHeader = ref<HTMLElement | null>(null)
@@ -364,7 +369,9 @@ const handleDeleteStage = async (stageId: number) => {
 function goToPage(page: number) {
   if (!pagination.value || !pagination.value.last_page) return
   if (page < 1 || page > pagination.value.last_page) return
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
+  localStorage.setItem('stageList_currentPage', page.toString())
   fetchStages()
 }
 
@@ -376,6 +383,9 @@ function validatePerPage(val: number) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('stageList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('stageList_currentPage', '1')
   goToPage(1)
 }
 

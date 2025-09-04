@@ -1,9 +1,9 @@
 <template>
   <nav
-    class="h-16 bg-white bg-opacity-10 backdrop-blur-sm border-b border-white border-opacity-20 flex items-center justify-between px-6 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"
+    class="h-16 bg-gray-300 border-b border-gray-400 flex items-center justify-between px-6"
   >
     <div class="flex items-center gap-4">
-      <div class="text-lg font-semibold text-white">{{ pageTitle }}</div>
+      <div class="text-lg font-semibold text-gray-800">{{ pageTitle }}</div>
       <SearchInput
         v-if="showSearch"
         v-model="searchQuery"
@@ -26,6 +26,10 @@ import { authApi } from '../../services/api'
 import { useRoute, useRouter } from 'vue-router'
 import SearchInput from '../ui/SearchInput.vue'
 import NotificationBell from '../ui/NotificationBell.vue'
+
+defineOptions({
+  name: 'Navbar'
+})
 
 const emit = defineEmits(['logout', 'search'])
 
@@ -107,9 +111,4 @@ onMounted(async () => {
 })
 
 const handleSettings = () => {}
-
-
-defineOptions({
-  name: 'Navbar'
-})
 </script>

@@ -226,7 +226,9 @@ if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = save
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingProject = ref<Project | null>(null)
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('projectList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const showDetailsModal = ref(false)
@@ -253,12 +255,17 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('projectList_currentPage', '1')
   fetchProjects(1, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
   if (page < 1 || page > pagination.last_page) return
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
+  localStorage.setItem('projectList_currentPage', page.toString())
   fetchProjects(page, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -478,11 +485,17 @@ function validatePerPage(val: unknown) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('projectList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('projectList_currentPage', '1')
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('projectList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('projectList_currentPage', '1')
   goToPage(1)
 })
 

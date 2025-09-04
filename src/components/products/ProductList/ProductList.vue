@@ -1,6 +1,20 @@
 <template>
   <div class="product-list flex flex-col h-full">
-    <div class="flex justify-end items-center mb-3">
+    <div class="flex justify-between items-center mb-3">
+      <div class="flex items-center gap-3">
+        <!-- Фильтр по категориям -->
+        <select
+          v-model="selectedCategory"
+          @change="filterByCategory"
+          class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="min-width: 200px"
+        >
+          <option value="">Все категории</option>
+          <option v-for="category in availableCategories" :key="category.id" :value="category.id">
+            {{ category.name }}
+          </option>
+        </select>
+      </div>
       <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
         >Добавить товар</UIButton
       >
@@ -185,7 +199,7 @@ import type { Product, ProductForm, ProductAssignment } from '@/types/product'
 import type { Stage } from '@/types/stage'
 import { canCreateEdit } from '@/utils/permissions'
 import { toast } from '@/stores/toast'
-import { getAllStages } from '@/services/api'
+import { getAllStages, getAllCategories } from '@/services/api'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -199,6 +213,10 @@ const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('productList_perPage')
+
+// Переменные для фильтра по категориям
+const selectedCategory = ref('')
+const availableCategories = ref<any[]>([])
 
 // Тип для колонок
 interface Column {
@@ -371,14 +389,24 @@ watch(
   { immediate: true },
 )
 
-if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
-if (savedSortOrder && sortOrder.value !== savedSortOrder)
+// Принудительно устанавливаем сортировку по имени, если сохранена сортировка по ID
+if (savedSortBy === 'id') {
+  sortBy.value = 'name'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, 'name')
+  localStorage.setItem(ORDER_KEY, 'asc')
+} else if (savedSortBy && sortBy.value !== savedSortBy) {
+  sortBy.value = savedSortBy
+}
+if (savedSortOrder && sortOrder.value !== savedSortOrder && savedSortBy !== 'id')
   sortOrder.value = savedSortOrder as 'asc' | 'desc'
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingProduct = ref<Product | null>(null)
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('productList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
@@ -390,11 +418,17 @@ function validatePerPage(val: unknown) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('productList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('productList_currentPage', '1')
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('productList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('productList_currentPage', '1')
   goToPage(1)
 })
 
@@ -407,27 +441,33 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  fetchProducts(1, search, sortBy.value, sortOrder.value, perPage.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('productList_currentPage', '1')
+  fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 }
 
 function resetSettings() {
   columns.value = [...baseColumns]
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
-  sortBy.value = 'id'
+  sortBy.value = 'name'
   sortOrder.value = 'asc'
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
   perPage.value = 30
   localStorage.setItem('productList_perPage', perPage.value.toString())
   currentPage.value = 1
-  fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value)
+  selectedCategory.value = '' // Сбрасываем фильтр по категориям
+      fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 }
 
 function goToPage(page: number) {
   if (!pagination || typeof pagination.last_page === 'undefined') return
   if (page < 1 || page > pagination.last_page) return
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
-  fetchProducts(page, props.search, sortBy.value, sortOrder.value, perPage.value)
+  localStorage.setItem('productList_currentPage', page.toString())
+      fetchProducts(page, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 }
 
 function editProduct(product: Product) {
@@ -446,7 +486,7 @@ function editProduct(product: Product) {
 async function handleCreateProduct(newProduct: Product) {
   showCreateModal.value = false
   currentPage.value = 1
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 }
 
 async function handleProductSaved() {
@@ -464,6 +504,7 @@ async function handleProductSaved() {
     sortOrder.value,
     perPage.value,
     true,
+    selectedCategory.value,
   )
 
   // Принудительно обновляем колонки после обновления данных
@@ -502,6 +543,8 @@ async function handleDeleteProduct(productId: number) {
         sortBy.value,
         sortOrder.value,
         perPage.value,
+        false,
+        selectedCategory.value,
       )
       return
     } else if (e instanceof Error && e.message) {
@@ -524,15 +567,40 @@ function formatDate(date: string | null | undefined) {
   })
 }
 
+// Функция фильтрации по категориям
+function filterByCategory() {
+  // При изменении фильтра возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('productList_currentPage', '1')
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+}
+
+// Функция загрузки категорий
+async function loadCategories() {
+  try {
+    const categoriesData = await getAllCategories()
+    availableCategories.value = Array.isArray(categoriesData) ? categoriesData : categoriesData.data || []
+  } catch (error) {
+    console.error('Ошибка загрузки категорий:', error)
+    availableCategories.value = []
+  }
+}
+
 watch(
   () => props.search,
   (newVal) => {
+    // При изменении поиска возвращаемся на первую страницу
     currentPage.value = 1
+    localStorage.setItem('productList_currentPage', '1')
+    selectedCategory.value = '' // Сбрасываем фильтр по категориям при поиске
     fetchProducts(1, newVal, sortBy.value, sortOrder.value, perPage.value)
   },
 )
 
 onMounted(async () => {
+  // Загружаем категории для фильтра
+  await loadCategories()
+  
   // Инициализируем колонки из localStorage, если они есть
   await nextTick()
   if (columnsHeader.value) {
@@ -549,7 +617,7 @@ onMounted(async () => {
       },
     })
   }
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 })
 
 

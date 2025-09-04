@@ -18,6 +18,7 @@ import {
 } from '../services/api'
 import { useSmartPolling } from './useSmartPolling'
 import { OrderController } from '../controllers/OrderController'
+import { useOrderEvents } from './useOrderEvents'
 import type {
   OrderInfo as OrderInfoType,
   ProjectInfo,
@@ -52,6 +53,9 @@ export function useOrderDetails(orderId: number | null | undefined) {
   const highlightAssignments = ref(false)
 
   const { updateStage, update } = OrderController()
+  
+  // Система событий
+  const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted } = useOrderEvents()
 
   // Smart polling
   const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
@@ -182,13 +186,24 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
   // Отдельная функция для загрузки комментариев
   async function loadComments() {
+    if (!orderId) {
+      comments.value = []
+      return
+    }
+    
     try {
       const rawComments = await getOrderComments(orderId)
-      comments.value = (rawComments as OrderComment[]).map((c: OrderComment) => ({
+      
+      // Обрабатываем комментарии и нормализуем пользователей
+      const processedComments = (rawComments as OrderComment[]).map((c: OrderComment) => ({
         ...c,
         user: normalizeUser(c.user),
       }))
-    } catch {
+      
+      // Обновляем массив комментариев
+      comments.value = processedComments
+    } catch (error) {
+      console.error('Ошибка загрузки комментариев:', error)
       comments.value = []
     }
 
@@ -287,12 +302,15 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
   // Функции для работы с комментариями
   async function addComment(text: string) {
+    if (!text.trim()) return
+    
     const tempId = Date.now()
     
     try {
+      // Создаем временный комментарий для оптимистичного обновления
       const tempComment = {
         id: tempId,
-        text: text,
+        text: text.trim(),
         user: {
           id: 0,
           name: 'Вы',
@@ -300,18 +318,43 @@ export function useOrderDetails(orderId: number | null | undefined) {
         },
         created_at: new Date().toISOString()
       }
+      
+      // Добавляем временный комментарий в начало списка
       comments.value.unshift(tempComment as any)
       
-      await postOrderComment(orderId as number, text)
+      // Отправляем комментарий на сервер
+      const result = await postOrderComment(orderId as number, text.trim())
+      
+      // Показываем уведомление об успехе
       toast.show('Комментарий добавлен!')
       
+      // Удаляем временный комментарий
+      comments.value = comments.value.filter(c => c.id !== tempId)
+      
+      // Загружаем актуальные комментарии (кэш уже очищен в postOrderComment)
       await loadComments()
       
+      // Отправляем глобальное событие добавления комментария
+      if (result && result.id) {
+        emitOrderCommentAdded(
+          orderId as number,
+          result.id,
+          text.trim(),
+          result.user_id || 0,
+          result.user?.name || 'Пользователь',
+          'modal'
+        )
+      }
+      
+      // Отправляем глобальное событие обновления заказа
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
       }))
-    } catch {
+    } catch (error) {
+      // Удаляем временный комментарий при ошибке
       comments.value = comments.value.filter(c => c.id !== tempId)
+      
+      console.error('Ошибка добавления комментария:', error)
       toast.show('Ошибка добавления комментария', 'error')
     }
   }
@@ -324,13 +367,23 @@ export function useOrderDetails(orderId: number | null | undefined) {
       await deleteOrderComment(orderId as number, commentId)
       toast.show('Комментарий удален!')
       
+      // Отправляем глобальное событие удаления комментария
+      emitOrderCommentDeleted(
+        orderId as number,
+        commentId,
+        'modal'
+      )
+      
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
       }))
-    } catch {
+    } catch (error) {
+      // Возвращаем комментарий при ошибке
       if (commentToDelete) {
         comments.value.push(commentToDelete)
       }
+      
+      console.error('Ошибка удаления комментария:', error)
       toast.show('Ошибка удаления комментария', 'error')
     }
   }
@@ -444,7 +497,21 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
 
       console.error('Error updating assignment status:', error)
-      toast.show('Ошибка обновления назначения', 'error')
+      
+      // Показываем понятное сообщение об ошибке
+      let errorMessage = 'Ошибка обновления назначения'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('У вас нет прав')) {
+          errorMessage = 'У вас нет прав на изменение этого назначения'
+        } else if (error.message.includes('Forbidden')) {
+          errorMessage = 'У вас нет прав на это действие'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      toast.show(errorMessage, 'error')
     }
   }
 
@@ -475,6 +542,8 @@ export function useOrderDetails(orderId: number | null | undefined) {
   async function changeStatus(newStatus: string) {
     if (!order.value || getCurrentStage(order.value) === newStatus) return
 
+    const oldStage = getCurrentStage(order.value)
+    
     try {
       await updateStage(order.value.id, newStatus)
       
@@ -490,8 +559,18 @@ export function useOrderDetails(orderId: number | null | undefined) {
       const stageDisplayName = getStatusText(newStatus)
       toast.show('Стадия заказа обновлена: ' + stageDisplayName)
 
+      // Отправляем глобальное событие о смене стадии
+      emitOrderStageChanged(
+        order.value.id,
+        oldStage,
+        newStatus,
+        'modal',
+        stageDisplayName
+      )
+
       fetchAll()
       
+      // Оставляем старое событие для совместимости
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
       }))
@@ -605,8 +684,21 @@ export function useOrderDetails(orderId: number | null | undefined) {
       alert('Пожалуйста, укажите причину отмены!')
       return
     }
+    
+    const oldStage = getCurrentStage(order.value)
+    
     try {
       await updateStage(order.value.id, 'cancelled')
+      
+      // Отправляем глобальное событие о смене стадии
+      emitOrderStageChanged(
+        order.value.id,
+        oldStage,
+        'cancelled',
+        'modal',
+        'Отменен'
+      )
+      
       toast.show('Заказ отменён!')
       showCancelForm.value = false
       cancelReason.value = ''

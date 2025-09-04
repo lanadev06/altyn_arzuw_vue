@@ -17,6 +17,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: 'ReadOnlyMessage'
+})
+
 defineProps<{
   message?: string
 }>()

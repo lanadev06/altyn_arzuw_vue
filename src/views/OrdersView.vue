@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-4">
       <ReadOnlyMessage
         v-if="!canCreateEdit()"
-        message="Вы можете только просматривать заказы. Создание и редактирование доступно только администраторам и менеджерам."
+        :message="isStaff() ? 'Вы можете просматривать назначенные вам заказы' : 'Вы можете только просматривать заказы. Создание и редактирование доступно только администраторам и менеджерам.'"
       />
       <div class="flex items-center gap-3 mb-2">
         <button
@@ -31,7 +31,7 @@
           <option value="in_progress">В работе</option>
         </select>
       </div>
-      <OrderList v-if="isTableView" ref="orderListRef" />
+      <OrderList v-if="isTableView" ref="orderListRef" :search="search" data-order-list />
       <OrderKanban
         v-else
         :statuses="kanbanStatuses"
@@ -67,8 +67,10 @@ import OrderKanban from '../components/orders/OrderKanban/OrderKanban.vue'
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import OrderFormModal from '../components/orders/OrderList/OrderFormModal.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
-import { canCreateEdit, canViewAllUsers, canViewAllOrders } from '../utils/permissions'
+import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff } from '../utils/permissions'
 import { getAllStages } from '../services/api'
+import { useOrderEvents } from '../composables/useOrderEvents'
+import { useEntityEvents } from '../composables/useEntityEvents'
 
 const route = useRoute()
 const search = ref(
@@ -84,6 +86,18 @@ const selectedStage = ref<string | null>(null)
 const isArchived = ref<boolean>(false)
 
 const { orders, fetchOrders, fetchAllOrdersForKanban } = OrderController()
+
+// Система событий для синхронизации
+const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
+const { onAnyEntityCreated, onAnyEntityUpdated, onAnyEntityDeleted } = useEntityEvents()
+
+// Watch для автоматического открытия модалки при изменении detailsOrderId
+watch(detailsOrderId, (newOrderId) => {
+  if (newOrderId) {
+    // Модалка автоматически откроется, так как она привязана к detailsOrderId
+    console.log('Открываем модалку для заказа:', newOrderId)
+  }
+})
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
@@ -131,6 +145,7 @@ const loadOrders = async () => {
         isArchived.value,
         30,
         undefined,
+        canViewAllOrders(), // Передаем admin_view только для админов и менеджеров
       )
     }
   } catch (error) {
@@ -176,6 +191,78 @@ async function loadStages() {
 onMounted(async () => {
   await loadStages()
   loadOrders()
+  
+  // Подписываемся на глобальные события смены стадий
+  onOrderStageChanged((event) => {
+    console.log('🔄 Стадия заказа изменена:', event)
+    // Обновляем данные во всех компонентах
+    loadOrders()
+    fetchAllOrdersForKanban()
+  })
+  
+  onOrderUpdated((event) => {
+    console.log('📝 Заказ обновлен:', event)
+    // Обновляем данные во всех компонентах
+    loadOrders()
+    fetchAllOrdersForKanban()
+  })
+  
+  // Слушаем события создания сущностей
+  onAnyEntityCreated((event) => {
+    console.log('🆕 Сущность создана:', event)
+    if (event.entityType === 'order') {
+      loadOrders()
+      fetchAllOrdersForKanban()
+    }
+  })
+  
+  // Слушаем события обновления сущностей
+  onAnyEntityUpdated((event) => {
+    console.log('📝 Сущность обновлена:', event)
+    if (event.entityType === 'order') {
+      loadOrders()
+      fetchAllOrdersForKanban()
+    }
+  })
+  
+  // Слушаем события удаления сущностей
+  onAnyEntityDeleted((event) => {
+    console.log('🗑️ Сущность удалена:', event)
+    if (event.entityType === 'order') {
+      loadOrders()
+      fetchAllOrdersForKanban()
+    }
+  })
+  
+  // Проверяем, есть ли ID заказа в localStorage для автоматического открытия модалки
+  const orderIdToOpen = localStorage.getItem('openOrderModal')
+  if (orderIdToOpen) {
+    // Удаляем из localStorage
+    localStorage.removeItem('openOrderModal')
+    
+    // Открываем модалку с деталями заказа
+    detailsOrderId.value = parseInt(orderIdToOpen)
+    detailsErrorMsg.value = ''
+  }
+  
+  // Проверяем, есть ли параметр order в URL для автоматического открытия модального окна
+  const orderParam = route.query.order
+  if (orderParam && typeof orderParam === 'string') {
+    const orderId = parseInt(orderParam)
+    if (!isNaN(orderId)) {
+      detailsOrderId.value = orderId
+      detailsErrorMsg.value = ''
+    }
+  }
+  
+  // Добавляем обработчик для событий от NotificationBell
+  document.addEventListener('openOrderDetails', (event: any) => {
+    const { orderId } = event.detail
+    if (orderId) {
+      detailsOrderId.value = orderId
+      detailsErrorMsg.value = ''
+    }
+  })
 })
 
 async function openOrderDetails(payload: unknown) {

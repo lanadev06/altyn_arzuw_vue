@@ -194,21 +194,6 @@
               </svg>
             </UIButton>
           </div>
-          <div class="mt-2">
-            <div class="text-sm text-gray-600 mb-2">Или введите название проекта:</div>
-            <UIInput
-              v-model="bulkProjectTitle"
-              placeholder="Название проекта для массового заказа"
-              :error="errors.bulk_project_title"
-              @input="onProjectTitleInput"
-            />
-          </div>
-          <div v-if="errors.project_id" class="text-red-600 text-sm mt-1">
-            {{ errors.project_id }}
-          </div>
-          <div v-if="errors.bulk_project_title" class="text-red-600 text-sm mt-1">
-            {{ errors.bulk_project_title }}
-          </div>
         </div>
 
         <!-- Продукты для массового заказа -->
@@ -472,7 +457,6 @@
             </div>
           </div>
 
-          <!-- Кнопка добавления нового заказа -->
           <UIButton
             type="button"
             variant="secondary"
@@ -536,7 +520,6 @@
           </div>
         </div>
 
-        <!-- Количество и цена в одной строке (только для одиночного заказа) -->
         <div v-if="orderMode === 'single' || order" class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -565,7 +548,6 @@
           </div>
         </div>
 
-        <!-- Дедлайн (только для одиночного заказа) -->
         <div v-if="orderMode === 'single' || order">
           <label class="block text-sm font-medium text-gray-700 mb-2">Дедлайн</label>
           <UIInput
@@ -577,7 +559,6 @@
         </div>
       </div>
 
-      <!-- Стадии производства (только если выбран продукт) -->
       <div
         v-if="(orderMode === 'single' || order) && form.product_id && workingStages.length > 0"
         class="relative"
@@ -661,7 +642,6 @@
         </p>
       </div>
 
-      <!-- Назначения исполнителей по стадиям (только если выбраны стадии) -->
       <div
         v-if="(orderMode === 'single' || order) && selectedOrderStages.length > 0"
         class="space-y-6"
@@ -811,11 +791,15 @@ import { canDelete } from '../../../utils/permissions'
 import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
 import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
+import { useEntityEvents } from '../../../composables/useEntityEvents'
 
 const props = defineProps<{ order?: Order | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
 
 const { create, update, remove } = orderController
+
+// Система событий
+const { emitEntityCreated, emitEntityUpdated } = useEntityEvents()
 
 const loading = ref(false)
 const stagesLoading = ref(false)
@@ -1819,10 +1803,20 @@ async function handleSubmit() {
       // Обновляем существующий заказ
       await update(props.order.id, orderData)
       toast.show('Заказ обновлен успешно!')
+      
+      // Отправляем событие обновления
+      emitEntityUpdated('order', props.order.id, orderData, 'form')
     } else {
       // Создаем новый заказ
-      await create(orderData)
+      const created = await create(orderData)
       toast.show('Заказ создан успешно!')
+      
+      // Получаем ID созданного заказа
+      const newOrderId = (created as any)?.id || (created as any)?.data?.id
+      if (newOrderId) {
+        // Отправляем событие создания
+        emitEntityCreated('order', newOrderId, orderData, 'form')
+      }
     }
 
     emit('submit')

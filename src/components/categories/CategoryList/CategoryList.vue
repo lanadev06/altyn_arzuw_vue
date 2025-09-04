@@ -209,7 +209,9 @@ if (savedSortOrder && sortOrder.value !== savedSortOrder)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingCategory = ref<Category | null>(null)
-const currentPage = ref(1)
+// Сохраняем текущую страницу в localStorage
+const savedCurrentPage = localStorage.getItem('categoryList_currentPage')
+const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
@@ -221,11 +223,17 @@ function validatePerPage(val: any) {
 function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('categoryList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('categoryList_currentPage', '1')
   goToPage(1)
 }
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('categoryList_perPage', perPage.value.toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('categoryList_currentPage', '1')
   goToPage(1)
 })
 
@@ -238,13 +246,18 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
+  // При изменении сортировки возвращаемся на первую страницу
+  currentPage.value = 1
+  localStorage.setItem('categoryList_currentPage', '1')
   fetchCategories(1, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
   if (!pagination || typeof pagination.last_page === 'undefined') return
   if (page < 1 || page > pagination.last_page) return
+  // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
+  localStorage.setItem('categoryList_currentPage', page.toString())
   fetchCategories(page, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
@@ -260,16 +273,7 @@ function editCategory(category: Category) {
   showEditModal.value = true
 }
 
-async function handleCreateCategory(newCategory: Category) {
-  showCreateModal.value = false
-  currentPage.value = 1
-  fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
-}
 
-async function handleCategorySaved() {
-  showEditModal.value = false
-  fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
-}
 
 async function deleteCategory(category: Category) {
   if (!canDelete()) return
@@ -285,9 +289,30 @@ async function deleteCategory(category: Category) {
   }
 }
 
-async function handleDeleteCategory(categoryId: number) {
+// Обработчики событий от CategoryFormModal
+async function handleCreateCategory(categoryData: unknown) {
+  try {
+    await create(categoryData)
+    showCreateModal.value = false
+    fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  } catch (err) {
+    console.error('Error creating category:', err)
+  }
+}
+
+async function handleCategorySaved() {
   showEditModal.value = false
   fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+}
+
+async function handleDeleteCategory(categoryId: number) {
+  try {
+    await remove(categoryId)
+    showEditModal.value = false
+    fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  } catch (err) {
+    console.error('Error deleting category:', err)
+  }
 }
 
 function formatDate(date: string | null | undefined) {
@@ -326,7 +351,9 @@ onMounted(async () => {
 watch(
   () => props.search,
   (newSearch) => {
+    // При изменении поиска возвращаемся на первую страницу
     currentPage.value = 1
+    localStorage.setItem('categoryList_currentPage', '1')
     fetchCategories(currentPage.value, newSearch, sortBy.value, sortOrder.value, perPage.value)
   },
 )

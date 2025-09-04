@@ -1,25 +1,31 @@
 <template>
   <div class="flex-1">
+    <!-- Заголовок -->
+    <div class="mb-3">
+      <h3 class="text-base font-medium text-gray-700">История изменений стадий</h3>
+    </div>
+    
+    <!-- Timeline -->
     <div class="flex flex-col gap-4">
       <div
         v-for="log in statusLogs"
         :key="log.id"
-        class="flex items-center bg-white rounded-xl shadow p-4 border border-gray-100 min-h-[48px]"
+        class="flex items-center bg-white rounded-lg shadow-sm p-3 border border-gray-100 min-h-[48px]"
       >
-        <div class="flex-1 flex flex-row items-center gap-2">
-          <span class="font-medium text-gray-500 text-sm">Стадия изменена</span>
-          <span class="text-xs text-gray-300">{{ formatTime(log.changed_at) }}</span>
+        <div class="flex-1 flex flex-row items-center gap-3">
+          <span class="font-medium text-gray-600 text-sm">Стадия изменена</span>
+          <span class="text-xs text-gray-500">{{ formatTime(log.changed_at) }}</span>
           <span
-            class="inline-block px-3 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
+            class="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
             >{{ getStatusText(log.from_status) }}</span
           >
-          <span class="text-base text-gray-300">→</span>
+          <span class="text-gray-400 text-sm">→</span>
           <span
-            class="inline-block px-3 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
+            class="inline-block px-2 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-medium"
             >{{ getStatusText(log.to_status) }}</span
           >
-          <span class="text-xs text-gray-300 ml-2"
-            >{{ log.user?.name
+          <span class="text-xs text-gray-500 ml-2"
+            >{{ log.user?.name || 'Неизвестно'
             }}<span
               v-if="log.user?.role"
               class="inline-block rounded px-1 py-0.5 text-xs font-semibold ml-1"
@@ -31,11 +37,16 @@
         </div>
         <div class="ml-3 flex-shrink-0">
           <div
-            class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 font-semibold text-xs"
+            class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold text-xs"
           >
             {{ log.user?.name ? log.user.name[0] : '?' }}
           </div>
         </div>
+      </div>
+      
+      <!-- Сообщение когда нет логов -->
+      <div v-if="statusLogs.length === 0" class="text-center py-4">
+        <p class="text-gray-400 text-sm">История изменений стадий пока пуста</p>
       </div>
     </div>
   </div>
@@ -43,6 +54,7 @@
 
 <script setup lang="ts">
 import type { StatusLog, Role, Stage } from '../../../types/orderDetails'
+
 
 interface Props {
   statusLogs: StatusLog[]
@@ -54,7 +66,32 @@ const props = defineProps<Props>()
 
 function formatTime(date: string) {
   if (!date) return '-'
-  return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  
+  const dateObj = new Date(date)
+  const now = new Date()
+  
+  // Получаем даты без времени для сравнения
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const logDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate())
+  
+  // Если сегодня
+  if (logDate.getTime() === today.getTime()) {
+    return `Сегодня в ${dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  
+  // Если вчера
+  if (logDate.getTime() === yesterday.getTime()) {
+    return `Вчера в ${dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  
+  // Иначе показываем полную дату и время
+  return dateObj.toLocaleDateString('ru-RU', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  }) + ' в ' + dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
 function getStatusText(stage: string) {
@@ -94,7 +131,4 @@ function getRoleBadgeStyle(role: string) {
 }
 
 
-defineOptions({
-  name: 'OrderTimeline'
-})
 </script>

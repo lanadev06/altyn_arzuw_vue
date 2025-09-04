@@ -57,6 +57,10 @@ import UIButton from '../../ui/UIButton.vue'
 import type { User } from '../../../types/user'
 import type { ProductAssignment } from '../../../types/api'
 
+defineOptions({
+  name: 'AssignmentManager'
+})
+
 interface Props {
   title: string
   roleType: string
@@ -155,9 +159,4 @@ watch(
   },
   { immediate: true },
 )
-
-
-defineOptions({
-  name: 'AssignmentManager'
-})
 </script>

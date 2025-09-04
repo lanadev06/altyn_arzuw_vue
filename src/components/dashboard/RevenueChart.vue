@@ -219,6 +219,7 @@ const getRussianMonthName = (monthName: string): string => {
     October: 'Октябрь',
     November: 'Ноябрь',
     December: 'Декабрь',
+    
     // Сокращенные варианты
     Jan: 'Янв',
     Feb: 'Фев',

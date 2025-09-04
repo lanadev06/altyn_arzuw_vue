@@ -16,16 +16,17 @@ export function useProductController() {
   })
   const loading = ref(false)
   const error = ref('')
-  const sortBy = ref('id')
-  const sortOrder = ref('desc')
+  const sortBy = ref('name')
+  const sortOrder = ref('asc')
 
   async function fetchProducts(
     page = 1,
     search = '',
-    sortByParam = 'id',
-    sortOrderParam = 'desc',
+    sortByParam = 'name',
+    sortOrderParam = 'asc',
     per_page = 30,
     forceRefresh = false,
+    category_id = '',
   ) {
     sortBy.value = sortByParam
     sortOrder.value = sortOrderParam
@@ -39,6 +40,7 @@ export function useProductController() {
         sort_by: sortBy.value,
         sort_order: sortOrder.value,
         forceRefresh,
+        category_id,
       })
       pagination.data = res.data
       pagination.current_page = res.current_page
@@ -59,13 +61,14 @@ export function useProductController() {
   async function fetchProductsWithSort(
     page = 1,
     search = '',
-    sortByParam = 'id',
-    sortOrderParam = 'desc',
+    sortByParam = 'name',
+    sortOrderParam = 'asc',
     per_page = 30,
+    category_id = '',
   ) {
     sortBy.value = sortByParam
     sortOrder.value = sortOrderParam
-    return await fetchProducts(page, search, sortByParam, sortOrderParam, per_page)
+    return await fetchProducts(page, search, sortByParam, sortOrderParam, per_page, false, category_id)
   }
 
   function setSort(key: string, search = '') {

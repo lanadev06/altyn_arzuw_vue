@@ -94,7 +94,22 @@ export function canDelete(): boolean {
 
 // Проверить, может ли пользователь видеть всех пользователей
 export function canViewAllUsers(): boolean {
-  return isAdminOrManager()
+  return isAdminOrManager() // Администраторы и менеджеры видят вкладку пользователей
+}
+
+// Проверить, может ли пользователь создавать пользователей
+export function canCreateUsers(): boolean {
+  return isAdmin() // Только администраторы могут создавать пользователей
+}
+
+// Проверить, может ли пользователь редактировать пользователей
+export function canEditUsers(): boolean {
+  return isAdmin() // Только администраторы могут редактировать пользователей
+}
+
+// Проверить, может ли пользователь удалять пользователей
+export function canDeleteUsers(): boolean {
+  return isAdmin() // Только администраторы могут удалять пользователей
 }
 
 // Проверить, может ли пользователь видеть всех клиентов
@@ -105,6 +120,11 @@ export function canViewAllClients(): boolean {
 // Проверить, может ли пользователь видеть все заказы
 export function canViewAllOrders(): boolean {
   return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь видеть заказы (все или только свои)
+export function canViewOrders(): boolean {
+  return isAdminOrManager() || isStaff()
 }
 
 // Проверить, может ли пользователь видеть все проекты
@@ -124,22 +144,52 @@ export function canViewAuditLogs(): boolean {
 
 // Проверить, может ли пользователь просматривать стадии
 export function canViewStages(): boolean {
-  return isAdminOrManager()
+  return isAdmin() // Только администраторы видят вкладку стадий
 }
 
 // Проверить, может ли пользователь просматривать роли
 export function canViewRoles(): boolean {
-  return isAdminOrManager()
+  return isAdmin() // Только администраторы видят вкладку ролей
 }
 
 // Проверить, может ли пользователь просматривать категории
 export function canViewCategories(): boolean {
-  return isAdminOrManager()
+  return isAdmin() // Только администраторы видят вкладку категорий
 }
 
 // Проверить, может ли пользователь просматривать цены
 export function canViewPrices(): boolean {
   return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь просматривать данные стадий (для работы с заказами)
+export function canViewStagesData(): boolean {
+  return isAdminOrManager() || isStaff()
+}
+
+// Проверить, может ли пользователь просматривать данные ролей (для работы с заказами)
+export function canViewRolesData(): boolean {
+  return isAdminOrManager() || isStaff()
+}
+
+// Проверить, может ли пользователь просматривать данные категорий (для работы с заказами)
+export function canViewCategoriesData(): boolean {
+  return isAdminOrManager()
+}
+
+// Проверить, может ли пользователь просматривать данные пользователей (для работы с заказами)
+export function canViewUsersData(): boolean {
+  return isAdminOrManager() || isStaff()
+}
+
+// Проверить, может ли пользователь просматривать комментарии заказов
+export function canViewOrderComments(): boolean {
+  return isAdminOrManager() || isStaff()
+}
+
+// Проверить, может ли пользователь изменять статусы назначений
+export function canUpdateAssignmentStatus(): boolean {
+  return isAdminOrManager() || isStaff()
 }
 
 // Получить текст для навигации в зависимости от роли

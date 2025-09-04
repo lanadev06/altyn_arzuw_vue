@@ -30,6 +30,7 @@
 </template>
 
 <script setup lang="ts">
+
 interface Stage {
   value: string
   label: string
@@ -105,10 +106,6 @@ function getStageStyle(stage: string, current: string, completed: string[]) {
 
   return {}
 }
-
-defineOptions({
-  name: 'OrderStagesProgress'
-})
 </script>
 
 <style scoped>

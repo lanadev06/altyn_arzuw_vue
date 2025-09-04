@@ -1,12 +1,12 @@
 <template>
   <aside
-    class="border-r border-white border-opacity-20 flex flex-col py-8 shadow-lg bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600"
+    class="border-r border-gray-400 flex flex-col py-8 shadow-lg bg-gray-300"
   >
     <div
       v-if="logoLoading"
       class="mx-auto mb-10 max-w-[150px] w-40 h-24 flex items-center justify-center"
     >
-      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
     </div>
     <img
       v-else
@@ -18,8 +18,8 @@
     <nav class="flex flex-col gap-2 px-4 flex-1">
       <router-link
         to="/"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -41,8 +41,8 @@
       <router-link
         v-if="canViewAllUsers()"
         to="/users"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -58,8 +58,8 @@
       <router-link
         v-if="canViewAllClients()"
         to="/clients"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -74,8 +74,8 @@
 
       <router-link
         to="/projects"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -90,8 +90,8 @@
 
       <router-link
         to="/products"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -105,9 +105,10 @@
       </router-link>
 
       <router-link
+        v-if="canViewOrders()"
         to="/orders"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -123,8 +124,8 @@
       <router-link
         v-if="canViewAuditLogs()"
         to="/audit-logs"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -140,8 +141,8 @@
       <router-link
         v-if="canViewStages()"
         to="/stages"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -157,8 +158,8 @@
       <router-link
         v-if="canViewRoles()"
         to="/roles"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -174,8 +175,8 @@
       <router-link
         v-if="canViewCategories()"
         to="/categories"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition-colors text-white"
-        active-class="bg-white bg-opacity-20"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-400 transition-colors text-gray-800"
+        active-class="bg-gray-400"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -200,9 +201,14 @@ import {
   canViewStages,
   canViewRoles,
   canViewCategories,
+  canViewOrders,
   getNavigationText,
 } from '../../utils/permissions'
 import { useLogo } from '@/composables/useLogo'
+
+defineOptions({
+  name: 'Sidebar'
+})
 
 // Используем composable для логотипа
 const { logoDataUrl, isLoading: logoLoading } = useLogo()
@@ -215,9 +221,4 @@ const handleLogoError = () => {
   // При ошибке загрузки основного логотипа, используем fallback
   logoUrl.value = '/logo.png'
 }
-
-
-defineOptions({
-  name: 'Sidebar'
-})
 </script>

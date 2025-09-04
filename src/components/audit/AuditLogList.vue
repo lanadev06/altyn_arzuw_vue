@@ -223,11 +223,13 @@ const loading = ref(false)
 const selectedLog = ref<AuditLog | null>(null)
 
 const AUDIT_PER_PAGE_KEY = 'auditLogList_perPage'
+const AUDIT_CURRENT_PAGE_KEY = 'auditLogList_currentPage'
 
 const savedPerPage = localStorage.getItem(AUDIT_PER_PAGE_KEY)
+const savedCurrentPage = localStorage.getItem(AUDIT_CURRENT_PAGE_KEY)
 
 const filters = ref<AuditLogFilters>({
-  page: 1,
+  page: savedCurrentPage ? parseInt(savedCurrentPage) : 1,
   per_page: savedPerPage ? parseInt(savedPerPage) : 30,
 })
 
@@ -270,6 +272,7 @@ const loadLogs = async () => {
 const changePage = (page: number) => {
   if (page >= 1 && page <= (pagination.value?.last_page || 1)) {
     filters.value.page = page
+    localStorage.setItem(AUDIT_CURRENT_PAGE_KEY, page.toString())
     loadLogs()
   }
 }
@@ -280,6 +283,7 @@ const clearFilters = () => {
     per_page: 30,
   }
   localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
+  localStorage.setItem(AUDIT_CURRENT_PAGE_KEY, '1')
   loadLogs()
 }
 
@@ -288,6 +292,7 @@ const debouncedSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = window.setTimeout(() => {
     filters.value.page = 1
+    localStorage.setItem(AUDIT_CURRENT_PAGE_KEY, '1')
     loadLogs()
   }, 500)
 }
@@ -326,7 +331,9 @@ function validatePerPage(val: unknown) {
 function changePerPage() {
   filters.value.per_page = validatePerPage(filters.value.per_page)
   localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
+  // При изменении количества элементов на странице возвращаемся на первую страницу
   filters.value.page = 1
+  localStorage.setItem(AUDIT_CURRENT_PAGE_KEY, '1')
   loadLogs()
 }
 watch(
@@ -334,7 +341,9 @@ watch(
   (newVal) => {
     filters.value.per_page = validatePerPage(newVal)
     localStorage.setItem(AUDIT_PER_PAGE_KEY, (filters.value.per_page || 30).toString())
+    // При изменении количества элементов на странице возвращаемся на первую страницу
     filters.value.page = 1
+    localStorage.setItem(AUDIT_CURRENT_PAGE_KEY, '1')
     loadLogs()
   },
 )

@@ -33,6 +33,7 @@ export function useOrderController() {
     isArchived = false,
     per_page = 30,
     assignment_status?: string,
+    admin_view = false,
   ) {
     loading.value = true
     error.value = ''
@@ -48,6 +49,7 @@ export function useOrderController() {
         stage,
         is_archived: isArchived,
         assignment_status,
+        admin_view,
       })
 
       pagination.data = res.data
