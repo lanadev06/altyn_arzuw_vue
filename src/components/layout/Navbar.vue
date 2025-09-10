@@ -41,12 +41,14 @@ const currentUser = ref<{
   name: string
   role: string
   image: any
+  image_url?: string
   roles?: any[]
   phone?: string
 }>({
   name: '',
   role: '',
   image: null,
+  image_url: null,
   phone: '',
 })
 
@@ -95,6 +97,7 @@ onMounted(async () => {
         name: user.name,
         role: user.roles?.[0]?.name || '',
         image: user.image || null,
+        image_url: user.image_url || null,
         roles: user.roles || [],
         phone: user.phone || '',
       }
@@ -112,6 +115,7 @@ onMounted(async () => {
       name: user.name,
       role: user.roles?.[0]?.name || '',
       image: user.image || null,
+      image_url: user.image_url || null,
       roles: user.roles || [],
       phone: user.phone || '',
     }

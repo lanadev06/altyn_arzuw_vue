@@ -4,11 +4,13 @@ export async function getUserImageUrl(user: User | null | undefined): Promise<st
   if (!user) return ''
   const anyUser = user as any
   
-  // Если есть полный URL изображения
-  if (typeof anyUser.image_url === 'string') return anyUser.image_url
+  // Приоритет: используем image_url из API ответа (полный URL)
+  if (typeof anyUser.image_url === 'string' && anyUser.image_url) {
+    return anyUser.image_url
+  }
   
-  // Если есть путь к изображению в базе данных
-  if (typeof anyUser.image === 'string') {
+  // Fallback: если image_url нет, используем image
+  if (typeof anyUser.image === 'string' && anyUser.image) {
     // Если это уже полный URL
     if (anyUser.image.startsWith('http')) {
       return anyUser.image

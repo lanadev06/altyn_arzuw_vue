@@ -209,6 +209,7 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { API_CONFIG } from '../../config/api'
 import { apiRequest } from '../../services/api'
+import { getUserImageUrl } from '../../utils/user'
 
 defineOptions({
   name: 'UserProfile'
@@ -221,6 +222,7 @@ const props = defineProps({
       name: '',
       role: '',
       image: null,
+      image_url: null,
       roles: [],
     }),
   },
@@ -233,6 +235,7 @@ const safeUser = computed(() => ({
   name: props.user?.name || '',
   role: props.user?.role || '',
   image: props.user?.image || null,
+  image_url: props.user?.image_url || null,
   roles: props.user?.roles || [],
   phone: props.user?.phone || '',
 }))
@@ -264,19 +267,10 @@ const validationErrors = ref({
   confirmPassword: ''
 })
 
-const getUserImageUrl = (user: { image_url?: string; image?: string }) => {
-  if (user.image_url) return user.image_url
-  if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) {
-    // Используем относительный путь для работы в production
-    return `/storage/${user.image}`
-  }
-  return ''
-}
 
-const loadUserImageUrl = () => {
+const loadUserImageUrl = async () => {
   if (safeUser.value) {
-    const url = getUserImageUrl(safeUser.value)
+    const url = await getUserImageUrl(safeUser.value)
     userImageUrl.value = url
   } else {
     userImageUrl.value = ''
@@ -307,17 +301,18 @@ const loadUserData = () => {
   }
 }
 
-onMounted(() => {
-  loadUserImageUrl()
+onMounted(async () => {
+  await loadUserImageUrl()
   loadUserData()
 })
 
-const toggleDropdown = () => {
+const toggleDropdown = async () => {
   isDropdownOpen.value = !isDropdownOpen.value
   
   // Загружаем актуальные данные пользователя при открытии dropdown'а
   if (isDropdownOpen.value) {
     loadUserData()
+    await loadUserImageUrl()
   }
 }
 
@@ -543,8 +538,9 @@ const saveProfile = async () => {
     }
     
     // Перезагружаем данные пользователя с небольшой задержкой
-    setTimeout(() => {
+    setTimeout(async () => {
       loadUserData()
+      await loadUserImageUrl()
     }, 100)
     
     // Закрываем dropdown после успешного сохранения

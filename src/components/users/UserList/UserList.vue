@@ -81,8 +81,8 @@
                   <template v-else-if="col.key === 'name'">
                     <div class="flex items-center gap-2">
                       <img
-                        v-if="getUserImageUrl(user)"
-                        :src="getUserImageUrl(user)"
+                        v-if="user.image_url || user.image"
+                        :src="user.image_url || `/storage/${user.image}`"
                         :alt="user.name"
                         class="w-8 h-8 rounded-full object-cover"
                       />
@@ -221,6 +221,7 @@ import Sortable from 'sortablejs'
 import { useToast } from '@/stores/toast'
 import { getRoleColorClasses, getRoleColorStyles } from '../../../utils/roleColors'
 import { canEditUsers, canToggleUserActive } from '../../../utils/permissions'
+import { getUserImageUrl } from '../../../utils/user'
 
 const props = defineProps<{
   search?: string
@@ -343,12 +344,6 @@ function formatDate(date: string | null | undefined) {
   })
 }
 
-function getUserImageUrl(user: any) {
-  if (user.image_url) return user.image_url
-  if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) return `/storage/${user.image}`
-  return ''
-}
 
 const getRoleBadgeClass = (role: string) => {
   const roleData = props.rolesData?.find((r) => r.name === role)
