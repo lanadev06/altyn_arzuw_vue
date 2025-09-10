@@ -297,7 +297,7 @@ const fetchStages = async () => {
   try {
     const data = await StageController.getAll()
     stages.value = data
-  } catch (err: unknown) {
+  } catch (err: any) {
     error.value = (err as Error)?.message || 'Ошибка загрузки стадий'
   } finally {
     loading.value = false
@@ -316,7 +316,7 @@ const handleCreateStage = async (stageData: {
     await StageController.create(stageData)
     emit('close-create-modal')
     await fetchStages()
-  } catch (err: unknown) {}
+  } catch (err: any) {}
 }
 
 const handleUpdateStage = async (stageData: {
@@ -333,7 +333,7 @@ const handleUpdateStage = async (stageData: {
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
-  } catch (err: unknown) {}
+  } catch (err: any) {}
 }
 
 const handleDeleteStage = async (stageId: number) => {
@@ -356,7 +356,7 @@ const handleDeleteStage = async (stageId: number) => {
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
-  } catch (err: unknown) {
+  } catch (err: any) {
     // Показываем ошибку пользователю
     if (err instanceof Error) {
       toast.show(`Ошибка удаления стадии: ${err.message}`, 'error')

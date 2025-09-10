@@ -106,7 +106,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  submit: [data: unknown]
+  submit: [data: any]
   delete: [id: number]
 }>()
 

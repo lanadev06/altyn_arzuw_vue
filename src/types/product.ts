@@ -45,10 +45,10 @@ export interface ProductForm {
   // Categories
   categories?: number[]
   // Index signature for dynamic access
-  [key: string]: unknown
+  [key: string]: any
 }
 
 // Type guard to check if object is ProductForm
-export function isProductForm(obj: unknown): obj is ProductForm {
+export function isProductForm(obj: any): obj is ProductForm {
   return typeof obj === 'object' && obj !== null && 'name' in obj && 'has_engraving' in obj
 }

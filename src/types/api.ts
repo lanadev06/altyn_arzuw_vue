@@ -176,7 +176,7 @@ export interface Project {
   created_at: string
   updated_at: string
   client?: Client
-  items?: unknown[]
+  items?: any[]
   orders?: Order[]
 }
 

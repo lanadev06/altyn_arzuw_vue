@@ -61,7 +61,7 @@ export function useOrderController() {
       pagination.to = res.to
 
       orders.value = res.data
-    } catch (e: unknown) {
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
     } finally {
       loading.value = false
@@ -79,7 +79,7 @@ export function useOrderController() {
     // Проверяем права пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     const isAdminOrManager =
-      user.roles?.some((r: unknown) => ['admin', 'manager'].includes(r.name)) || false
+      user.roles?.some((r: any) => ['admin', 'manager'].includes(r.name)) || false
 
     if (isAdminOrManager) {
       // Для админов/менеджеров используем специальную функцию
@@ -121,7 +121,7 @@ export function useOrderController() {
     }
   }
 
-  async function updateStage(orderId: number, stage: string, additionalData?: unknown) {
+  async function updateStage(orderId: number, stage: string, additionalData?: any) {
     try {
       // Если есть дополнительные данные (например, для отмененных заказов)
       if (additionalData && Object.keys(additionalData).length > 0) {
@@ -146,12 +146,12 @@ export function useOrderController() {
     return await remove(id)
   }
 
-  async function createProjectWithOrders(projectData: unknown) {
+  async function createProjectWithOrders(projectData: any) {
     // This would need to be implemented in API service
     await fetchOrders(pagination.current_page)
   }
 
-  async function create(order: unknown) {
+  async function create(order: any) {
     loading.value = true
     try {
       const created = await createOrder(order as any)
@@ -162,7 +162,7 @@ export function useOrderController() {
     }
   }
 
-  async function update(id: number, order: unknown) {
+  async function update(id: number, order: any) {
     loading.value = true
     try {
       const updated = await updateOrder(id, order as any)

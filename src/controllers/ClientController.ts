@@ -52,7 +52,7 @@ export function useClientController() {
         pagination.per_page = res.per_page
         clients.value = res.data
       }
-    } catch (e: unknown) {
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки клиентов'
     } finally {
       loading.value = false
@@ -83,20 +83,17 @@ export function useClientController() {
   }
 
   // Contact CRUD methods for compatibility
-  async function createContact(clientId: number, contactData: unknown) {
+  async function createContact(clientId: number, contactData: any) {
     // This would need to be implemented in API service
-    // console.log('createContact called:', clientId, contactData)
     return { id: Date.now(), ...(contactData as Record<string, unknown>) }
   }
 
-  async function updateContact(clientId: number, contactId: number, contactData: unknown) {
+  async function updateContact(clientId: number, contactId: number, contactData: any) {
     // This would need to be implemented in API service
-    // console.log('updateContact called:', clientId, contactId, contactData)
   }
 
   async function removeContact(clientId: number, contactId: number) {
     // This would need to be implemented in API service
-    // console.log('removeContact called:', clientId, contactId)
   }
 
   async function create(client: Partial<Client>) {
@@ -130,7 +127,6 @@ export function useClientController() {
         await fetchClients(pagination.current_page)
       } catch (fetchError) {
         // Если не удалось загрузить обновленный список, просто очищаем текущие данные
-        console.warn('Could not refresh client list after deletion:', fetchError)
         // Удаляем клиента из локального списка
         pagination.data = pagination.data.filter(client => client.id !== id)
         pagination.total = Math.max(0, pagination.total - 1)

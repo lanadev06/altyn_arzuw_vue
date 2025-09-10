@@ -241,15 +241,11 @@ async function handleUpdateClient(updatedClient: Client) {
 async function handleDeleteClient(clientId: number) {
   // Предотвращаем множественные запросы на удаление
   if (loading.value) {
-    // console.log('⚠️ Deletion already in progress, skipping...')
     return
   }
 
   try {
-    // console.log('🗑️ Starting client deletion for ID:', clientId)
-
     await remove(clientId)
-    // console.log('✅ Client deletion completed successfully')
 
     // Показываем уведомление об успешном удалении
     toast.show('Клиент успешно удален!', 'success')
@@ -261,9 +257,7 @@ async function handleDeleteClient(clientId: number) {
       currentPage.value--
     }
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
-  } catch (err: unknown) {
-    console.error('❌ Ошибка удаления клиента:', clientId, err)
-    
+  } catch (err: any) {
     // Если ошибка 404 (клиент не найден), считаем это успешным удалением
     if (
       err &&
@@ -271,7 +265,6 @@ async function handleDeleteClient(clientId: number) {
       'status' in err &&
       (err as { status: number }).status === 404
     ) {
-      // console.log('ℹ️ Client not found (404) - already deleted, showing success message')
       toast.show('Клиент успешно удален!', 'success')
       // Обновляем список
       await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)

@@ -77,7 +77,7 @@ const emit = defineEmits<{
   update: [assignments: ProductAssignment[]]
 }>()
 
-// Доступные пользователи - исключаем уже назначенных
+// Доступные сотрудники - исключаем уже назначенных
 const availableUsers = computed(() => {
   const assignedUserIds = props.assignments
     .filter((a) => a.user && a.is_active !== false)
@@ -91,7 +91,7 @@ const availableUsers = computed(() => {
 
 // Функция для получения обработчика выбора пользователя для конкретного индекса
 const getUserSelectHandler = (index: number) => {
-  return (val: unknown) => {
+  return (val: any) => {
     const assignment = props.assignments[index]
     if (assignment) {
       handleUserSelect(val as User | null, assignment, index)
@@ -102,7 +102,6 @@ const getUserSelectHandler = (index: number) => {
 function addAssignment() {
   // Проверяем, что roleType не пустой и валидный
   if (!props.roleType || props.roleType.trim() === '') {
-    console.warn('Попытка добавить назначение с пустой ролью')
     return
   }
 

@@ -14,7 +14,7 @@
     </div>
     <div class="flex items-center gap-2">
       <NotificationBell :user="currentUser" />
-      <UserProfile :user="currentUser" @logout="$emit('logout')" @settings="handleSettings" />
+      <UserProfile :user="currentUser" @logout="$emit('logout')" @profile-updated="handleProfileUpdated" />
     </div>
   </nav>
 </template>
@@ -40,12 +40,14 @@ const pageTitle = computed(() => route.meta.title || 'Панель управл�
 const currentUser = ref<{
   name: string
   role: string
-  image: unknown
-  roles?: unknown[]
+  image: any
+  roles?: any[]
+  phone?: string
 }>({
   name: '',
   role: '',
   image: null,
+  phone: '',
 })
 
 const searchQuery = ref('')
@@ -72,6 +74,17 @@ function handleSearchInput() {
   emit('search', searchQuery.value)
 }
 
+function handleProfileUpdated(updatedUser: any) {
+  // Обновляем данные текущего пользователя
+  currentUser.value = {
+    ...currentUser.value,
+    ...updatedUser
+  }
+  
+  // Сохраняем обновленные данные в localStorage
+  localStorage.setItem('user', JSON.stringify(updatedUser))
+}
+
 onMounted(async () => {
   // Сначала загружаем данные из localStorage
   const storedUser = localStorage.getItem('user')
@@ -83,13 +96,12 @@ onMounted(async () => {
         role: user.roles?.[0]?.name || '',
         image: user.image || null,
         roles: user.roles || [],
+        phone: user.phone || '',
       }
     } catch (parseError) {
-      console.error('Failed to parse stored user:', parseError)
     }
   }
 
-  // Затем пытаемся обновить данные через API (в фоне)
   try {
     const response = await authApi.me()
 
@@ -101,11 +113,11 @@ onMounted(async () => {
       role: user.roles?.[0]?.name || '',
       image: user.image || null,
       roles: user.roles || [],
+      phone: user.phone || '',
     }
     // Обновляем localStorage с новыми данными
     localStorage.setItem('user', JSON.stringify(user))
   } catch (e) {
-    console.error('API call failed:', e)
     // Если API не работает, продолжаем использовать данные из localStorage
   }
 })

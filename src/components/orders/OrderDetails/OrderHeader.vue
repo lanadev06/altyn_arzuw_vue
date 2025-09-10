@@ -5,24 +5,6 @@
         Заказ #{{ order?.id }}
       </div>
       
-      <!-- Индикатор синхронизации -->
-      <div class="flex items-center gap-2 text-sm text-gray-500">
-        <div 
-          class="w-2 h-2 rounded-full"
-          :class="isPollingActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'"
-          :title="isPollingActive ? 'Синхронизация активна' : 'Синхронизация остановлена'"
-        ></div>
-        <span v-if="lastPollingUpdate">
-          {{ Math.floor((Date.now() - lastPollingUpdate.getTime()) / 1000) }}с назад
-        </span>
-        <button 
-          @click="$emit('forceRefresh')"
-          class="ml-2 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-          title="Принудительно обновить данные"
-        >
-          🔄
-        </button>
-      </div>
       
       <!-- Статус заказа -->
       <div class="flex flex-col gap-2">
@@ -51,14 +33,9 @@ import type { OrderInfo as OrderInfoType } from '../../../types/orderDetails'
 
 interface Props {
   order: OrderInfoType | null
-  isPollingActive: boolean
-  lastPollingUpdate: Date | null
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  forceRefresh: []
-}>()
 
 function getCurrentStage(orderData: OrderInfoType | null): string {
   if (!orderData?.stage) return ''

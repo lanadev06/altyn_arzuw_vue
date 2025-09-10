@@ -47,7 +47,7 @@ export function useCategoryController() {
       pagination.from = res.from
       pagination.to = res.to
       categories.value = res.data
-    } catch (e: unknown) {
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки категорий'
     } finally {
       loading.value = false

@@ -90,7 +90,7 @@ defineOptions({
   name: 'EditableField'
 })
 
-function getInputMode(): unknown {
+function getInputMode(): any {
   return props.inputmode
 }
 

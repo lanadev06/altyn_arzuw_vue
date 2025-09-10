@@ -267,7 +267,7 @@ const loadingStages = ref(false)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val: unknown) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -462,15 +462,13 @@ function closeDetailsModal() {
 }
 
 function handleOrderUpdatedFromModal() {
-  // console.log('🔄 OrderList: Получено событие обновления от модального окна')
   // Принудительно обновляем список с небольшой задержкой для синхронизации с сервером
   setTimeout(() => {
-    // console.log('🔄 OrderList: Обновляем данные после изменения статуса')
     loadOrders()
   }, 100)
 }
 
-function getOrderStageName(order: unknown): string | null {
+function getOrderStageName(order: any): string | null {
   // Проверяем все возможные источники названия стадии
   if (order.current_stage_info?.display_name) {
     return order.current_stage_info.display_name
@@ -504,7 +502,7 @@ function getOrderStageName(order: unknown): string | null {
   return null
 }
 
-function getOrderStageStyle(order: unknown): unknown {
+function getOrderStageStyle(order: any): any {
   // Если есть current_stage_info с цветом, используем его
   if (order.current_stage_info?.color) {
     return { backgroundColor: order.current_stage_info.color, color: 'white' }
@@ -586,13 +584,11 @@ onMounted(async () => {
 
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {
-    console.log('🔄 OrderList: Стадия заказа изменена:', event)
     // Обновляем список заказов
     loadOrders()
   })
   
   onOrderUpdated((event) => {
-    console.log('📝 OrderList: Заказ обновлен:', event)
     // Обновляем список заказов
     loadOrders()
   })

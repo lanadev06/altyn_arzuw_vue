@@ -16,11 +16,11 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900">
-            {{ user ? 'Редактировать пользователя' : 'Добавить пользователя' }}
+            {{ user ? 'Редактировать сотрудника' : 'Добавить сотрудника' }}
           </h2>
           <p class="text-sm text-gray-600">
             {{
-              user ? 'Обновите информацию о пользователе' : 'Добавьте нового пользователя в систему'
+              user ? 'Обновите информацию о сотруднике' : 'Добавьте нового сотрудника в систему'
             }}
           </p>
         </div>
@@ -127,7 +127,7 @@ import { canDeleteUsers, canEditUsers } from '@/utils/permissions'
 import { getCurrentUser } from '@/utils/auth'
 
 const props = defineProps<{
-  user?: unknown
+  user?: any
 }>()
 
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -153,14 +153,14 @@ const form = reactive({
 
 const allRoles = ref<Array<{ id: number; name: string; display_name?: string }>>([])
 
-// Проверяем, является ли редактируемый пользователь текущим пользователем
+// Проверяем, является ли редактируемый сотрудник текущим сотрудником
 const isCurrentUser = computed(() => {
   if (!props.user) return false
   
   const currentUser = getCurrentUser()
   if (!currentUser) return false
   
-  // Сравниваем ID пользователей
+  // Сравниваем ID сотрудников
   return (props.user as any)?.id === currentUser.id
 })
 
@@ -176,7 +176,7 @@ watch(
       form.name = newUser.name || ''
       form.username = newUser.username || ''
       form.phone = newUser.phone || ''
-      form.roles = newUser.roles ? newUser.roles.map((r: unknown) => Number(r.id)) : []
+      form.roles = newUser.roles ? newUser.roles.map((r: any) => Number(r.id)) : []
     } else {
       form.name = ''
       form.username = ''
@@ -249,27 +249,21 @@ const handlePhoneChange = (event: Event) => {
   const target = event.target as HTMLInputElement
   const value = target.value
 
-  // console.log('handlePhoneChange called with:', value) // Для отладки
 
   // Если значение пустая строка, очищаем поле
   if (!value || value.trim() === '') {
-    // console.log('Clearing phone field') // Для отладки
     form.phone = ''
     return
   }
 
   // Если значение не пустое, форматируем его
-  // console.log('Formatting phone:', value) // Для отладки
   const formatted = formatPhoneNumber(value)
-  // console.log('Formatted result:', formatted) // Для отладки
   form.phone = formatted
 }
 
 // Функция для принудительной очистки телефона
 const clearPhone = () => {
-  // console.log('clearPhone called') // Для отладки
   form.phone = ''
-  // console.log('Phone cleared, new value:', form.phone) // Для отладки
 }
 
 const handleImageChange = (event: Event) => {
@@ -365,7 +359,7 @@ const handleSubmit = async () => {
   if (!validateForm()) return
   loading.value = true
   try {
-    const dataToSend: unknown = {
+    const dataToSend: any = {
       name: form.name,
       username: form.username,
       phone: form.phone && form.phone.trim() ? form.phone.trim() : null,
@@ -375,34 +369,26 @@ const handleSubmit = async () => {
             .filter((id) => Number.isInteger(id) && id > 0)
         : [],
     }
-    if (form.password) dataToSend.password = form.password
+    
+    if (form.password) {
+      dataToSend.password = form.password
+    }
 
     if (form.image instanceof File) {
-      const convertedImage = await convertHeicToJpg(form.image)
-      dataToSend.image = convertedImage
+      // Обработка изображения
+      // Временно отключаем конвертацию HEIC для отладки
+      // const convertedImage = await convertHeicToJpg(form.image)
+      //   name: convertedImage.name,
+      //   size: convertedImage.size,
+      //   type: convertedImage.type
+      // })
+      // dataToSend.image = convertedImage
+      dataToSend.image = form.image
     }
 
-    // Проверяем, что данные не теряются при передаче
-    const eventData = { ...dataToSend }
-
-    // Отладочная информация
-    // console.log('Sending user data:', {
-    //   phone: form.phone,
-    //   phoneTrimmed: form.phone && form.phone.trim(),
-    //   phoneFinal: eventData.phone,
-    // })
-
-    // Тест сериализации
-    try {
-      const serialized = JSON.stringify(eventData)
-      // console.log('Serialized data:', serialized)
-    } catch (e) {
-      console.error('Serialization error:', e)
-    }
-
-    emit('submit', eventData)
-    toast.show(props.user ? 'Пользователь обновлён!' : 'Пользователь создан!')
+    emit('submit', dataToSend)
   } catch (error) {
+    toast.show('Ошибка при подготовке данных', 'error')
   } finally {
     loading.value = false
   }
@@ -412,17 +398,17 @@ const handleDelete = async () => {
   if (!props.user?.id) return
 
   // Показываем toast с подтверждением вместо alert
-  toast.show('Удаление пользователя...', 'success')
+  toast.show('Удаление сотрудника...', 'success')
 
   try {
     await emit('delete', props.user.id)
-    toast.show('Пользователь удалён!', 'success')
-  } catch (err: unknown) {
-    let message = 'Произошла неизвестная ошибка при удалении пользователя'
+    toast.show('Сотрудник удалён!', 'success')
+  } catch (err: any) {
+    let message = 'Произошла неизвестная ошибка при удалении сотрудника'
     if (err?.response?.data?.message) {
       message = err.response.data.message
     } else if (err instanceof Error && err.message) {
-      message = `Ошибка удаления пользователя: ${err.message}`
+      message = `Ошибка удаления сотрудника: ${err.message}`
     }
     toast.show(message, 'error')
   }

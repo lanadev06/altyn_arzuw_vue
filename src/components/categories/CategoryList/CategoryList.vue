@@ -265,7 +265,6 @@ function editCategory(category: Category) {
   if (!canCreateEdit()) return
 
   if (!category) {
-    console.error('❌ editCategory: category is null or undefined')
     return
   }
 
@@ -290,13 +289,12 @@ async function deleteCategory(category: Category) {
 }
 
 // Обработчики событий от CategoryFormModal
-async function handleCreateCategory(categoryData: unknown) {
+async function handleCreateCategory(categoryData: any) {
   try {
     await categoryController.create(categoryData)
     showCreateModal.value = false
     fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   } catch (err) {
-    console.error('Error creating category:', err)
   }
 }
 
@@ -311,7 +309,6 @@ async function handleDeleteCategory(categoryId: number) {
     showEditModal.value = false
     fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   } catch (err) {
-    console.error('Error deleting category:', err)
   }
 }
 

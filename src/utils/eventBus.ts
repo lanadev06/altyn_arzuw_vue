@@ -100,7 +100,6 @@ class EventBus {
         try {
           callback(data)
         } catch (error) {
-          console.error(`Error in event listener for ${eventName}:`, error)
         }
       })
     }

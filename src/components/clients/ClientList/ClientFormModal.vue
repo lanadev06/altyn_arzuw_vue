@@ -538,7 +538,7 @@ async function handleDelete() {
       toast.show('Клиент удалён!')
       emit('delete', clientId)
       emit('close')
-    } catch (err: unknown) {
+    } catch (err: any) {
       let message = 'Произошла неизвестная ошибка при удалении клиента'
       if (
         err &&

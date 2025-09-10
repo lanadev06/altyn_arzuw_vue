@@ -213,7 +213,7 @@ const currentStageAssignments = computed(() => {
   })
 })
 
-// Пользователи для текущей стадии
+// Сотрудники для текущей стадии
 const currentStageUsers = computed(() => {
   // Получаем роли для текущей стадии
   const stageData = props.stages.find((stage: Stage) => stage.name === props.currentStage)

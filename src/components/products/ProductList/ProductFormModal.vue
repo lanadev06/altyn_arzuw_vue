@@ -317,7 +317,6 @@ function updateAssignmentsForStageRole(
   if (stage && stage.roles) {
     const validRoleNames = stage.roles.map((r) => r.name)
     if (!validRoleNames.includes(roleName)) {
-      console.warn(`Попытка сохранить недопустимую роль ${roleName} для стадии ${stageId}`)
       return
     }
   }
@@ -434,7 +433,6 @@ onMounted(async () => {
     try {
       stagesResult = await getAllStages()
     } catch (error) {
-      console.warn('Ошибка загрузки стадий:', error)
       stagesResult = { data: [] }
     }
 
@@ -443,15 +441,15 @@ onMounted(async () => {
     if (stagesResult && Array.isArray(stagesResult)) {
       stagesResult.forEach((stage) => {
         if (stage.roles) {
-          stage.roles.forEach((role: unknown) => {
+          stage.roles.forEach((role: any) => {
             allRoles.add(role.name)
           })
         }
       })
     } else if (stagesResult && stagesResult.data && Array.isArray(stagesResult.data)) {
-      stagesResult.data.forEach((stage: unknown) => {
+      stagesResult.data.forEach((stage: any) => {
         if (stage.roles) {
-          stage.roles.forEach((role: unknown) => {
+          stage.roles.forEach((role: any) => {
             allRoles.add(role.name)
           })
         }
@@ -482,7 +480,6 @@ onMounted(async () => {
       roleUsersData = await Promise.all(roleUsersPromises)
       usersByStageRoles = stageRolesResult
     } catch (error) {
-      console.error('Error loading users:', error)
       usersByStageRoles = {}
       roleUsersData = []
     }
@@ -494,7 +491,6 @@ onMounted(async () => {
       const categoriesResult = await getAllCategories()
       availableCategories.value = categoriesResult || []
     } catch (error) {
-      console.warn('Ошибка загрузки категорий:', error)
       availableCategories.value = []
     }
 
@@ -622,9 +618,9 @@ onMounted(async () => {
         })
 
         // Распределяем пользователей по ролям
-        usersByStageRoles.forEach((user: unknown) => {
+        usersByStageRoles.forEach((user: any) => {
           if (user.roles && Array.isArray(user.roles)) {
-            user.roles.forEach((role: unknown) => {
+            user.roles.forEach((role: any) => {
               const roleName = role.name || role
               if (allRoles.has(roleName)) {
                 if (!dynamicUsers[roleName]) {
@@ -646,9 +642,9 @@ onMounted(async () => {
           if (Array.isArray(stageData)) {
             // Если стадия содержит массив пользователей
 
-            stageData.forEach((user: unknown) => {
+            stageData.forEach((user: any) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: unknown) => {
+                user.roles.forEach((role: any) => {
                   const roleName = role.name || role
                   if (!dynamicUsers[roleName]) {
                     dynamicUsers[roleName] = []
@@ -701,7 +697,7 @@ onMounted(async () => {
       })
     }
 
-    // Если пользователи не загрузились, создаем fallback пользователей
+    // Если сотрудники не загрузились, создаем fallback сотрудников
     const totalUsers =
       allUsers && typeof allUsers === 'object'
         ? Object.keys(allUsers).reduce((sum, role) => sum + (allUsers[role]?.length || 0), 0)
@@ -805,21 +801,21 @@ onMounted(async () => {
         }
       } else {
         // Если нет доступных стадий у продукта, НЕ устанавливаем стадии по умолчанию
-        // Пользователь должен сам выбрать нужные стадии
+        // Сотрудник должен сам выбрать нужные стадии
         selectedStages.value = []
       }
 
       // Дополнительно загружаем все стадии продукта (включая недоступные) для правильного отображения
       try {
-        const productStagesResponse: unknown = await getProductStages(props.product.id)
+        const productStagesResponse: any = await getProductStages(props.product.id)
 
         if (productStagesResponse && productStagesResponse.product_stages) {
           // Получаем все стадии продукта (включая недоступные)
           const allProductStages = productStagesResponse.product_stages
 
           // Фильтруем только доступные стадии для selectedStages
-          const availableProductStages = allProductStages.filter((ps: unknown) => ps.is_available)
-          const availableStageIds = availableProductStages.map((ps: unknown) => ps.stage_id)
+          const availableProductStages = allProductStages.filter((ps: any) => ps.is_available)
+          const availableStageIds = availableProductStages.map((ps: any) => ps.stage_id)
 
           // Обновляем selectedStages только доступными стадиями, исключая служебные
           selectedStages.value = availableStageIds.filter((stageId: number) => {
@@ -847,7 +843,7 @@ onMounted(async () => {
           // Группируем назначения по стадиям и ролям
           const assignmentsByStageRole: Record<number, Record<string, ProductAssignment[]>> = {}
 
-          assignmentsResponse.assignments.forEach((assignment: unknown) => {
+          assignmentsResponse.assignments.forEach((assignment: any) => {
             const stageId = assignment.stage_id
             const roleType = assignment.role_type
 
@@ -894,10 +890,10 @@ onMounted(async () => {
           // Это нужно для ролей типа die_cutting_operator, которые могут быть назначены
           // но не включены в стадии продукта
           const allAssignments = assignmentsResponse.assignments || []
-          const uniqueRoles = new Set(allAssignments.map((a: unknown) => a.role_type))
+          const uniqueRoles = new Set(allAssignments.map((a: any) => a.role_type))
 
           uniqueRoles.forEach((roleType) => {
-            const roleAssignments = allAssignments.filter((a: unknown) => a.role_type === roleType)
+            const roleAssignments = allAssignments.filter((a: any) => a.role_type === roleType)
 
             // Находим стадию для этой роли (если есть)
             const stageForRole = availableStages.value.find((stage) =>
@@ -1032,7 +1028,7 @@ onMounted(async () => {
       }
     } else {
       // Для нового продукта НЕ устанавливаем стадии по умолчанию
-      // Пользователь должен сам выбрать нужные стадии
+      // Сотрудник должен сам выбрать нужные стадии
       selectedStages.value = []
     }
   } catch (error) {
@@ -1164,7 +1160,6 @@ async function handleSubmit() {
       Object.keys(stageAssignmentsForStage).forEach((roleName) => {
         // Проверяем, что роль является допустимой
         if (!validRoles.has(roleName)) {
-          console.warn(`Пропускаем недопустимую роль: ${roleName}`)
           return
         }
 
@@ -1192,7 +1187,6 @@ async function handleSubmit() {
       try {
         const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
       } catch (error) {
-        console.error('Ошибка при сохранении назначений:', error)
 
         // Показываем более детальную ошибку
         let errorMessage = 'Ошибка при сохранении назначений'
@@ -1211,14 +1205,14 @@ async function handleSubmit() {
 
     // Проверяем, что стадии действительно сохранились
     try {
-      const savedStages: unknown = await getProductStages(productId)
+      const savedStages: any = await getProductStages(productId)
 
       if (savedStages?.product_stages) {
-        const availableStages = savedStages.product_stages.filter((ps: unknown) => ps.is_available)
-        const availableStageIds = availableStages.map((ps: unknown) => ps.stage_id)
+        const availableStages = savedStages.product_stages.filter((ps: any) => ps.is_available)
+        const availableStageIds = availableStages.map((ps: any) => ps.stage_id)
 
         const newSelectedStages = availableStageIds.filter((stageId: number) => {
-          const stage = availableStages.value.find((s: unknown) => s.id === stageId)
+          const stage = availableStages.value.find((s: any) => s.id === stageId)
           if (!stage) return false
 
           // Исключаем служебные стадии
@@ -1275,7 +1269,7 @@ async function handleDelete() {
     toast.show('Товар успешно удален!', 'success')
     emit('delete', props.product.id)
     emit('close')
-  } catch (error: unknown) {
+  } catch (error: any) {
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 

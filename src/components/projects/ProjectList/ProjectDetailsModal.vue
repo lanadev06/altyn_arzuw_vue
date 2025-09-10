@@ -215,8 +215,72 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- Связанные заказы -->
+              <div
+                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4"
+              >
+                <div
+                  class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
+                >
+                  <svg
+                    class="w-6 h-6 text-orange-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                    ></path>
+                  </svg>
+                  Связанные заказы
+                </div>
+                <div v-if="orders.length === 0" class="text-gray-500">Нет связанных заказов</div>
+                <div v-else class="flex flex-col gap-3">
+                  <div
+                    v-for="order in orders"
+                    :key="order.id"
+                    :class="[
+                      'rounded-xl shadow p-4 border border-blue-100 flex flex-col gap-2',
+                      order.stage ? orderStatusBadge(order.stage) : 'bg-gray-100',
+                    ]"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="font-semibold text-blue-700 mr-2">{{ order.id }}</span>
+                        <span
+                          v-if="order.stage"
+                          :class="[
+                            'inline-block align-middle px-2 py-0.5 rounded-full text-xs font-semibold mr-2',
+                            orderStatusBadge(order.stage),
+                          ]"
+                        >
+                          {{ orderStatusText(order.stage) }}
+                        </span>
+                        <span class="text-gray-800 align-middle">{{
+                          order.product?.name || '—'
+                        }}</span>
+                      </div>
+                      <button
+                        v-if="canCreateEdit() || isMyOrder(order)"
+                        @click="$emit('open-order', order)"
+                        class="text-blue-500 font-semibold hover:underline text-sm"
+                      >
+                        Открыть
+                      </button>
+                    </div>
+
+                    <div class="text-xs text-gray-400 mt-1">
+                      {{ formatDateTime(order.created_at ? String(order.created_at) : '') }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <!-- Правая часть: комментарии, связанные заказы и создание заказа -->
+            <!-- Правая часть: комментарии -->
             <div class="w-1/2 flex flex-col gap-4 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
               <!-- Комментарии -->
               <div
@@ -247,18 +311,19 @@
                       :key="comment.id"
                       class="flex gap-3 items-start group relative"
                     >
-                      <div
-                        class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base shadow"
-                      >
+                      <div class="w-8 h-8 rounded-full overflow-hidden shadow">
                         <img
                           v-if="comment.user?.name && userImageUrls[comment.user.name]"
                           :src="comment.user?.name ? userImageUrls[comment.user.name] : ''"
                           :alt="comment.user?.name"
                           class="w-8 h-8 rounded-full object-cover"
                         />
-                        <span v-else>
+                        <div
+                          v-else
+                          class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base"
+                        >
                           {{ comment.user?.name ? comment.user.name[0] : '?' }}
-                        </span>
+                        </div>
                       </div>
                       <div
                         class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative"
@@ -289,8 +354,8 @@
                           }}</span>
                           <span v-if="comment.user?.roles && comment.user.roles.length">
                             <span
-                              v-for="role in comment.user.roles"
-                              :key="typeof role === 'string' ? role : (role as any)?.name || ''"
+                              v-for="(role, index) in comment.user.roles"
+                              :key="index"
                               class="text-[10px] rounded px-2 py-0.5 font-semibold mr-1"
                               :class="
                                 getRoleBadgeClass(
@@ -355,69 +420,6 @@
                     >
                       ОТМЕНА
                     </button>
-                  </div>
-                </div>
-              </div>
-              <!-- Связанные заказы -->
-              <div
-                class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4"
-              >
-                <div
-                  class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
-                >
-                  <svg
-                    class="w-6 h-6 text-orange-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                    ></path>
-                  </svg>
-                  Связанные заказы
-                </div>
-                <div v-if="orders.length === 0" class="text-gray-500">Нет связанных заказов</div>
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="order in orders"
-                    :key="order.id"
-                    :class="[
-                      'rounded-xl shadow p-4 border border-blue-100 flex flex-col gap-2',
-                      order.stage ? orderStatusBadge(order.stage) : 'bg-gray-100',
-                    ]"
-                  >
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <span class="font-semibold text-blue-700 mr-2">{{ order.id }}</span>
-                        <span
-                          v-if="order.stage"
-                          :class="[
-                            'inline-block align-middle px-2 py-0.5 rounded-full text-xs font-semibold mr-2',
-                            orderStatusBadge(order.stage),
-                          ]"
-                        >
-                          {{ orderStatusText(order.stage) }}
-                        </span>
-                        <span class="text-gray-800 align-middle">{{
-                          order.product?.name || '—'
-                        }}</span>
-                      </div>
-                      <button
-                        v-if="canCreateEdit() || isMyOrder(order)"
-                        @click="$emit('open-order', order)"
-                        class="text-blue-500 font-semibold hover:underline text-sm"
-                      >
-                        Открыть
-                      </button>
-                    </div>
-
-                    <div class="text-xs text-gray-400 mt-1">
-                      {{ formatDateTime(order.created_at ? String(order.created_at) : '') }}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -493,11 +495,11 @@ const emit = defineEmits([
   'open-order',
 ])
 
-function getClientId(client: unknown): number | undefined {
+function getClientId(client: any): number | undefined {
   return (client as any)?.id
 }
 
-function getUserImageUrlLocal(user: unknown): string | undefined {
+function getUserImageUrlLocal(user: any): string | undefined {
   return (user as any)?.image_url
 }
 
@@ -526,7 +528,7 @@ const selectedClientIdProxy = computed({
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const clientIdReduce = (client: unknown) => client.id
+const clientIdReduce = (client: any) => client.id
 
 onMounted(async () => {
   // Загрузить всех клиентов для селекта
@@ -571,7 +573,7 @@ async function deleteProjectHandler() {
 }
 
 type ProjectField = keyof Project | 'client_id' | 'total_price' | 'payment_amount'
-async function updateProjectField(field: ProjectField, value: unknown) {
+async function updateProjectField(field: ProjectField, value: any) {
   if (!props.project) return
   // PATCH-запрос на /api/projects/{id}
   const payload: Record<string, unknown> = {}
@@ -775,13 +777,13 @@ function getRoleLabel(role: string) {
 // Исправление getUserImageUrl (ожидает Promise)
 // Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки
 const userImageUrls = ref<Record<string, string>>({})
-async function loadUserImageUrl(user: unknown) {
+async function loadUserImageUrl(user: any) {
   if (!user || !user.name) return
   if (!userImageUrls.value[user.name]) {
     try {
       const url = await getUserImageUrl(user)
       userImageUrls.value[user.name] = url
-    } catch {
+    } catch (error) {
       userImageUrls.value[user.name] = ''
     }
   }

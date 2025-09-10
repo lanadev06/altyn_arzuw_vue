@@ -295,7 +295,7 @@ const fetchRoles = async () => {
   try {
     const data = await RoleController.getAll()
     roles.value = data
-  } catch (err: unknown) {
+  } catch (err: any) {
     error.value = (err as Error)?.message || 'Ошибка загрузки ролей'
   } finally {
     loading.value = false
@@ -311,7 +311,7 @@ const handleCreateRole = async (roleData: {
     await RoleController.create(roleData)
     emit('close-create-modal')
     await fetchRoles()
-  } catch (err: unknown) {}
+  } catch (err: any) {}
 }
 
 const handleUpdateRole = async (roleData: {
@@ -325,7 +325,7 @@ const handleUpdateRole = async (roleData: {
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
-  } catch (err: unknown) {}
+  } catch (err: any) {}
 }
 
 const handleDeleteRole = async (roleId: number) => {
@@ -348,7 +348,7 @@ const handleDeleteRole = async (roleId: number) => {
     showEditModal.value = false
     editingRole.value = null
     await fetchRoles()
-  } catch (err: unknown) {
+  } catch (err: any) {
     // Показываем ошибку пользователю
     if (err instanceof Error) {
       toast.show(`Ошибка удаления роли: ${err.message}`, 'error')

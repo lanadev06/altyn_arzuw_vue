@@ -180,7 +180,7 @@ export function useFormOptimization() {
   const validationErrors = ref<Record<string, string>>({})
   const touchedFields = ref<Set<string>>(new Set())
 
-  const validateField = (field: string, value: any, rules: any) => {
+  const validateField = (field: string, value: any, rules: Record<string, any>) => {
     // Простая валидация
     if (rules.required && (!value || value.toString().trim() === '')) {
       validationErrors.value[field] = 'Поле обязательно для заполнения'

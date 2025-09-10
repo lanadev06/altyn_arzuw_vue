@@ -38,7 +38,7 @@
             <option value="App\Models\Order">Заказы</option>
             <option value="App\Models\Product">Товары</option>
             <option value="App\Models\Project">Проекты</option>
-            <option value="App\Models\User">Пользователи</option>
+            <option value="App\Models\User">Сотрудники</option>
             <option value="App\Models\Client">Клиенты</option>
             <option value="App\Models\ClientContact">Контакты клиентов</option>
             <option value="App\Models\Comment">Комментарии</option>
@@ -242,7 +242,7 @@ const pagination = ref<{
 
 const columns = ref([
   { key: 'created_at', label: 'Время' },
-  { key: 'user', label: 'Пользователь' },
+  { key: 'user', label: 'Сотрудник' },
   { key: 'action', label: 'Действие' },
   { key: 'auditable_type', label: 'Модель' },
   { key: 'auditable_id', label: 'ID' },
@@ -320,11 +320,11 @@ const USER_ROLE_LABELS: Record<string, string> = {
   designer: 'Дизайнер',
   print_operator: 'Печатник',
   workshop_worker: 'Работник цеха',
-  user: 'Пользователь',
+  user: 'Сотрудник',
 }
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
-function validatePerPage(val: unknown) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }

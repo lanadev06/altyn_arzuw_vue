@@ -24,7 +24,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Пользователь</label>
+              <label class="block text-sm font-medium text-gray-700">Сотрудник</label>
               <p class="mt-1 text-sm text-gray-900">
                 {{ log.user?.name || 'Система' }}
                 <span v-if="log.user?.role" class="text-xs text-gray-500">{{
@@ -174,7 +174,7 @@ const USER_ROLE_LABELS: Record<string, string> = {
   designer: 'Дизайнер',
   print_operator: 'Печатник',
   workshop_worker: 'Работник цеха',
-  user: 'Пользователь',
+  user: 'Сотрудник',
 }
 
 

@@ -15,7 +15,7 @@ export enum ErrorType {
 export interface ProcessedError {
   type: ErrorType
   message: string
-  originalError?: unknown
+  originalError?: any
   status?: number
   validationErrors?: Record<string, string[]>
 }
@@ -25,7 +25,7 @@ export class ApiErrorHandler {
   /**
    * Обрабатывает ошибку API и возвращает структурированную ошибку
    */
-  static processError(error: unknown): ProcessedError {
+  static processError(error: any): ProcessedError {
     // Если это уже обработанная ошибка
     if (this.isProcessedError(error)) {
       return error
@@ -69,7 +69,7 @@ export class ApiErrorHandler {
   /**
    * Проверяет, является ли ошибка уже обработанной
    */
-  private static isProcessedError(error: unknown): error is ProcessedError {
+  private static isProcessedError(error: any): error is ProcessedError {
     return typeof error === 'object' && error !== null && 'type' in error && 'message' in error
   }
 
@@ -77,8 +77,8 @@ export class ApiErrorHandler {
    * Проверяет, является ли ошибка axios-like
    */
   private static isAxiosLikeError(
-    error: unknown,
-  ): error is { response?: { status: number; data?: unknown } } {
+    error: any,
+  ): error is { response?: { status: number; data?: any } } {
     return (
       typeof error === 'object' &&
       error !== null &&
@@ -91,7 +91,7 @@ export class ApiErrorHandler {
   /**
    * Проверяет, является ли ошибка fetch-like
    */
-  private static isFetchLikeError(error: unknown): error is { status: number; statusText: string } {
+  private static isFetchLikeError(error: any): error is { status: number; statusText: string } {
     return (
       typeof error === 'object' &&
       error !== null &&
@@ -104,7 +104,7 @@ export class ApiErrorHandler {
    * Обрабатывает axios-like ошибки
    */
   private static processAxiosLikeError(error: {
-    response?: { status: number; data?: unknown }
+    response?: { status: number; data?: any }
   }): ProcessedError {
     const status = error.response?.status || 0
     const data = error.response?.data
@@ -221,7 +221,7 @@ export class ApiErrorHandler {
   /**
    * Проверяет, является ли ошибка валидационной
    */
-  private static isValidationError(data: unknown): data is { errors: Record<string, string[]> } {
+  private static isValidationError(data: any): data is { errors: Record<string, string[]> } {
     return (
       typeof data === 'object' &&
       data !== null &&
@@ -233,7 +233,7 @@ export class ApiErrorHandler {
   /**
    * Извлекает сообщение об ошибке из данных
    */
-  private static extractMessage(data: unknown): string | null {
+  private static extractMessage(data: any): string | null {
     if (typeof data === 'string') {
       return data
     }
@@ -288,17 +288,7 @@ export class ApiErrorHandler {
    */
   static logError(error: ProcessedError): void {
     if (import.meta.env.DEV) {
-      console.group('API Error')
-      console.error('Type:', error.type)
-      console.error('Message:', error.message)
-      console.error('Status:', error.status)
-      if (error.validationErrors) {
-        console.error('Validation Errors:', error.validationErrors)
-      }
-      if (error.originalError) {
-        console.error('Original Error:', error.originalError)
-      }
-      console.groupEnd()
+      // Error logging in development mode
     }
   }
 }

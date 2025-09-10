@@ -50,7 +50,7 @@ export function useProductController() {
       pagination.from = res.from
       pagination.to = res.to
       products.value = res.data
-    } catch (e: unknown) {
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки продуктов'
     } finally {
       loading.value = false

@@ -84,7 +84,7 @@ export const AUDIT_MODEL_LABELS: Record<string, string> = {
   'App\\Models\\Order': 'Заказ',
   'App\\Models\\Product': 'Товар',
   'App\\Models\\Project': 'Проект',
-  'App\\Models\\User': 'Пользователь',
+  'App\\Models\\User': 'Сотрудник',
   'App\\Models\\Client': 'Клиент',
   'App\\Models\\ClientContact': 'Контакт клиента',
   'App\\Models\\Comment': 'Комментарий',

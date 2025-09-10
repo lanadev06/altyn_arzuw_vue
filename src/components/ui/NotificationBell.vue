@@ -186,14 +186,14 @@ function handleClickOutside(event: Event) {
   }
 }
 
-const props = defineProps<{ user: unknown }>()
+const props = defineProps<{ user: any }>()
 
 const dropdownOpen = ref(false)
 const notifications = ref<any[]>([])
 const unreadCount = ref(0)
 const loading = ref(false)
 const hasNewNotifications = ref(false)
-let pollInterval: unknown = null
+let pollInterval: any = null
 let previousUnreadCount = 0
 
 function toggleDropdown() {
@@ -214,9 +214,7 @@ async function fetchNotifications() {
     })
 
     if (!res.ok) {
-      console.error('❌ Notifications API error:', res.status, res.statusText)
       const errorText = await res.text()
-      console.error('❌ Error response:', errorText)
       throw new Error(`HTTP ${res.status}: ${res.statusText}`)
     }
 
@@ -239,7 +237,6 @@ async function fetchNotifications() {
     unreadCount.value = newUnreadCount
     previousUnreadCount = newUnreadCount
   } catch (e) {
-    console.error('❌ Error fetching notifications:', e)
     notifications.value = []
     unreadCount.value = 0
     previousUnreadCount = 0
@@ -273,7 +270,6 @@ async function handleClick(notif: any) {
       notif.read_at = new Date().toISOString()
       unreadCount.value = notifications.value.filter((n) => !n.read_at).length
     } catch (error) {
-      console.error('Ошибка при отметке уведомления как прочитанного:', error)
     }
   }
   
@@ -343,7 +339,7 @@ function getRoleLabel(role: string) {
     admin: 'Администратор',
     manager: 'Менеджер',
     designer: 'Дизайнер',
-    user: 'Пользователь',
+    user: 'Сотрудник',
   }
   return roleLabels[role] || role
 }
@@ -364,7 +360,7 @@ function getStatusLabelRu(status: string) {
     engraving: 'Гравировка',
     workshop: 'Цех',
     final: 'Финальный',
-    user: 'Пользователь',
+    user: 'Сотрудник',
     manager: 'Менеджер',
     designer: 'Дизайнер',
     print_operator: 'Печатник',

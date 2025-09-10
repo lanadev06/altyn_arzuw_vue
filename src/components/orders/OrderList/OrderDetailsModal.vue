@@ -31,27 +31,37 @@
           <div class="flex-1 flex flex-row h-full min-h-0">
             <!-- Левая панель - информация о заказе -->
             <div
-              class="w-1/2 bg-gradient-to-br from-blue-200 via-purple-200 to-cyan-200 p-10 flex flex-col gap-8 border-r border-gray-200 min-w-[340px] overflow-y-auto"
+              class="w-1/2 bg-gradient-to-br from-blue-200 via-purple-200 to-cyan-200 p-10 flex flex-col gap-2 border-r border-gray-200 min-w-[340px] overflow-y-auto"
             >
               <!-- Заголовок заказа -->
               <OrderHeader
                 :order="order"
-                :is-polling-active="isPollingActive"
-                :last-polling-update="lastPollingUpdate"
-                @force-refresh="forceRefresh"
               />
 
               <!-- Информация о заказе -->
               <OrderInfo :order="order" @update-field="updateOrderField" />
 
-              <hr class="my-4 border-blue-100" />
+
+              <!-- Назначенные сотрудники -->
+              <OrderAssignments
+                :assignments="assignments"
+                :available-users="availableUsers"
+                :stages="stagesWithRoles"
+                :roles="roles"
+                :current-stage="getCurrentStage(order)"
+                :highlight-assignments="highlightAssignments"
+                @assign-user="assignUser"
+                @update-assignment-status="updateAssignmentStatus"
+                @delete-assignment="deleteAssignment"
+              />
+
 
               <!-- Информация о проекте и клиенте -->
               <OrderProject :order="order" :project="project" />
             </div>
 
-            <!-- Правая панель - комментарии, назначения, таймлайн -->
-            <div class="w-1/2 flex flex-col gap-8 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
+            <!-- Правая панель - комментарии и таймлайн -->
+            <div class="w-1/2 flex flex-col gap-2 p-10 bg-[#f8fafc] min-w-[340px] overflow-y-auto">
               <!-- Форма отмены заказа -->
               <OrderCancelForm
                 :show="showCancelForm"
@@ -65,19 +75,6 @@
                 :roles="roles"
                 @add-comment="addComment"
                 @delete-comment="deleteComment"
-              />
-
-              <!-- Назначенные сотрудники -->
-              <OrderAssignments
-                :assignments="assignments"
-                :available-users="availableUsers"
-                :stages="stagesWithRoles"
-                :roles="roles"
-                :current-stage="getCurrentStage(order)"
-                :highlight-assignments="highlightAssignments"
-                @assign-user="assignUser"
-                @update-assignment-status="updateAssignmentStatus"
-                @delete-assignment="deleteAssignment"
               />
 
               <!-- Временная шкала -->
@@ -196,7 +193,6 @@ async function confirmCancel(reason: string, reasonStatus: string) {
     
     emit('updated')
   } catch (error) {
-    console.error('Error cancelling order:', error)
   }
 }
 
@@ -206,7 +202,6 @@ async function deleteOrderHandler() {
     emit('close')
     emit('updated')
   } catch (error) {
-    console.error('Error deleting order:', error)
   }
 }
 

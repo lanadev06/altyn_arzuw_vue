@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 
 /**
  * Composable для оптимизации производительности компонентов
@@ -227,7 +227,7 @@ export function useListRendering<T>(
     const endIndex = Math.min(currentIndex.value + batchSize, items.length)
     const batch = items.slice(currentIndex.value, endIndex)
     
-    renderedItems.value.push(...batch)
+    renderedItems.value.push(...(batch as any))
     currentIndex.value = endIndex
 
     if (currentIndex.value < items.length) {

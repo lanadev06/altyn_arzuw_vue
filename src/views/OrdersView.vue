@@ -120,7 +120,6 @@ const { onAnyEntityCreated, onAnyEntityUpdated, onAnyEntityDeleted } = useEntity
 watch(detailsOrderId, (newOrderId) => {
   if (newOrderId) {
     // Модалка автоматически откроется, так как она привязана к detailsOrderId
-    console.log('Открываем модалку для заказа:', newOrderId)
   }
 })
 
@@ -204,12 +203,11 @@ async function loadStages() {
     }
 
     // Показываем все стадии для всех пользователей
-    kanbanStatuses.value = allStages.map((stage: unknown) => ({
+    kanbanStatuses.value = allStages.map((stage: any) => ({
       key: stage.name,
       label: stage.display_name || stage.name,
     }))
   } catch (error) {
-    console.error('❌ Error loading stages:', error)
   }
 }
 
@@ -219,14 +217,12 @@ onMounted(async () => {
   
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {
-    console.log('🔄 Стадия заказа изменена:', event)
     // Обновляем данные во всех компонентах
     loadOrders()
     fetchAllOrdersForKanban()
   })
   
   onOrderUpdated((event) => {
-    console.log('📝 Заказ обновлен:', event)
     // Обновляем данные во всех компонентах
     loadOrders()
     fetchAllOrdersForKanban()
@@ -234,7 +230,6 @@ onMounted(async () => {
   
   // Слушаем события создания сущностей
   onAnyEntityCreated((event) => {
-    console.log('🆕 Сущность создана:', event)
     if (event.entityType === 'order') {
       loadOrders()
       fetchAllOrdersForKanban()
@@ -243,7 +238,6 @@ onMounted(async () => {
   
   // Слушаем события обновления сущностей
   onAnyEntityUpdated((event) => {
-    console.log('📝 Сущность обновлена:', event)
     if (event.entityType === 'order') {
       loadOrders()
       fetchAllOrdersForKanban()
@@ -252,7 +246,6 @@ onMounted(async () => {
   
   // Слушаем события удаления сущностей
   onAnyEntityDeleted((event) => {
-    console.log('🗑️ Сущность удалена:', event)
     if (event.entityType === 'order') {
       loadOrders()
       fetchAllOrdersForKanban()
@@ -290,7 +283,7 @@ onMounted(async () => {
   })
 })
 
-async function openOrderDetails(payload: unknown) {
+async function openOrderDetails(payload: any) {
   if (payload && payload.order) {
     // Если открываем тот же заказ, сначала закрываем модалку
     if (detailsOrderId.value === payload.order.id) {
@@ -332,12 +325,12 @@ function closeCreateOrderModal() {
   showCreateModal.value = false
 }
 
-async function handleOrderCreated(newOrder: unknown) {
+async function handleOrderCreated(newOrder: any) {
   showCreateModal.value = false
   await loadOrders()
 }
 
-async function handleChangeStatus({ order, newStatus }: { order: unknown; newStatus: unknown }) {
+async function handleChangeStatus({ order, newStatus }: { order: any; newStatus: any }) {
   try {
     if (!order || !order.id) {
       throw new Error('Некорректные данные заказа')
@@ -363,7 +356,7 @@ async function handleChangeStatus({ order, newStatus }: { order: unknown; newSta
 
     // Обновляем заказы для таблицы
     orderListRef.value?.loadOrders()
-  } catch (error: unknown) {
+  } catch (error: any) {
     let errorMessage = 'Ошибка обновления стадии'
     if (error.message && error.message.includes('422')) {
       try {

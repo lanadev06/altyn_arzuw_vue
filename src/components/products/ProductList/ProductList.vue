@@ -252,9 +252,9 @@ const dynamicColumns = computed<Column[]>(() => {
 
     // Сначала собираем все стадии из всех продуктов
     if (pagination.data) {
-      pagination.data.forEach((product: unknown, index: number) => {
+      pagination.data.forEach((product: any, index: number) => {
         if (product.available_stages) {
-          product.available_stages.forEach((stage: unknown) => {
+          product.available_stages.forEach((stage: any) => {
             // Исключаем служебные стадии
             const serviceStages = ['draft', 'completed', 'cancelled', 'final']
             if (serviceStages.includes(stage.name)) {
@@ -262,7 +262,7 @@ const dynamicColumns = computed<Column[]>(() => {
             }
 
             if (stage.roles && stage.roles.length > 0) {
-              stage.roles.forEach((role: unknown) => {
+              stage.roles.forEach((role: any) => {
                 // Исключаем роль die_cutting_operator из колонок
                 if (role.name === 'die_cutting_operator') {
                   return
@@ -411,7 +411,7 @@ const columnsHeader = ref<HTMLElement | null>(null)
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
-function validatePerPage(val: unknown) {
+function validatePerPage(val: any) {
   if (!allowedPerPage.includes(val)) return 30
   return val
 }
@@ -475,7 +475,6 @@ function editProduct(product: Product) {
 
   // Защита от null/undefined
   if (!product) {
-    console.error('❌ editProduct: product is null or undefined')
     return
   }
 
@@ -524,7 +523,7 @@ async function handleDeleteProduct(productId: number) {
       currentPage.value--
     }
     toast.show('Товар успешно удален!', 'success')
-  } catch (e: unknown) {
+  } catch (e: any) {
     // Обрабатываем ошибки от сервера
     let message = 'Произошла неизвестная ошибка при удалении товара'
 
@@ -579,9 +578,8 @@ function filterByCategory() {
 async function loadCategories() {
   try {
     const categoriesData = await getAllCategories()
-    availableCategories.value = Array.isArray(categoriesData) ? categoriesData : categoriesData.data || []
+    availableCategories.value = Array.isArray(categoriesData) ? categoriesData : (categoriesData as any).data || []
   } catch (error) {
-    console.error('Ошибка загрузки категорий:', error)
     availableCategories.value = []
   }
 }

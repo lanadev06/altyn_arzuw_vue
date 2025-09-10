@@ -79,10 +79,8 @@ onMounted(async () => {
         }),
       )
     } else {
-      console.warn('Unexpected stages data format:', stagesData)
     }
   } catch (error) {
-    console.warn('Failed to load stages:', error)
   }
 })
 

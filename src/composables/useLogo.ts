@@ -109,7 +109,7 @@ export function useLogo() {
           }
           localStorage.setItem(LOGO_KEY, JSON.stringify(logoData))
         } catch (e) {
-          console.warn('Не удалось сохранить логотип в localStorage:', e)
+          // Не удалось сохранить логотип в localStorage
         }
 
         globalIsLoading = false
@@ -127,7 +127,6 @@ export function useLogo() {
       globalIsLoading = false
       error.value = globalError
       isLoading.value = false
-      console.error('Ошибка загрузки логотипа:', err)
     }
   }
 
@@ -139,7 +138,7 @@ export function useLogo() {
       logoDataUrl.value = ''
       isInitialized = false
     } catch (e) {
-      console.warn('Не удалось очистить логотип из localStorage:', e)
+      // Не удалось очистить логотип из localStorage
     }
   }
 

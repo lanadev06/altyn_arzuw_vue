@@ -19,12 +19,12 @@
           class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style="min-width: 180px"
         >
-          <option value="">Все пользователи</option>
+          <option value="">Все сотрудники</option>
           <option value="1">Только активные</option>
           <option value="0">Только неактивные</option>
         </select>
       </div>
-      <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> Добавить пользователя </UIButton>
+      <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> Добавить сотрудника </UIButton>
     </div>
     <div class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       <UserList

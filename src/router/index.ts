@@ -30,7 +30,7 @@ const router = createRouter({
       path: '/users',
       name: 'users',
       component: createLazyComponent(() => import('../views/UsersView.vue'), true),
-      meta: { title: 'Пользователи', requiresAuth: true, preload: true },
+      meta: { title: 'Сотрудники', requiresAuth: true, preload: true },
     },
     {
       path: '/clients',
@@ -60,7 +60,7 @@ const router = createRouter({
       path: '/audit-logs',
       name: 'audit-logs',
       component: createLazyComponent(() => import('../views/AuditLogsView.vue'), false),
-      meta: { title: 'Аудит-логи', requiresAuth: true, preload: false },
+      meta: { title: 'Действия', requiresAuth: true, preload: false },
     },
     {
       path: '/stages',
@@ -155,7 +155,7 @@ function preloadRelatedRoutes(currentRoute: string) {
       const component = route.matched[0].components?.default
       if (component && typeof component === 'function') {
         // Предзагружаем компонент
-        component().catch(() => {
+        ;(component as any)().catch(() => {
           // Игнорируем ошибки предзагрузки
         })
       }

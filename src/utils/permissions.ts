@@ -1,198 +1,73 @@
 import type { User, Role } from '../types/api'
 
-// Универсальная функция для проверки наличия роли у пользователя
-export function hasRole(user: User | null | undefined, roleName: string): boolean {
-  return !!(
-    user &&
-    user.roles &&
-    Array.isArray(user.roles) &&
-    user.roles.some((r: Role) => r.name === roleName)
-  )
-}
-
 // Получить текущего пользователя
 export function getCurrentUser(): User | null {
   const userStr = localStorage.getItem('user')
   return userStr ? JSON.parse(userStr) : null
 }
 
-// Получить роль текущего пользователя
-export function getCurrentUserRole(): string | null {
-  const user = getCurrentUser()
-  return user?.roles?.[0]?.name || null
-}
-
-// Проверить, является ли пользователь администратором или менеджером
-export function isAdminOrManager(): boolean {
-  const user = getCurrentUser()
-  if (!user || !user.roles || !Array.isArray(user.roles)) {
-    return false
-  }
-
-  return user.roles.some((role: Role) => role.name === 'admin' || role.name === 'manager')
-}
-
-// Проверить, является ли пользователь администратором
+// Проверить, является ли сотрудник администратором
 export function isAdmin(): boolean {
   const user = getCurrentUser()
-  if (!user || !user.roles || !Array.isArray(user.roles)) {
-    return false
-  }
-
-  return user.roles.some((role: Role) => role.name === 'admin')
+  return user?.roles?.some((role: Role) => role.name === 'admin') ?? false
 }
 
-// Проверить, является ли пользователь менеджером
+// Проверить, является ли сотрудник менеджером
 export function isManager(): boolean {
   const user = getCurrentUser()
-  if (!user || !user.roles || !Array.isArray(user.roles)) {
-    return false
-  }
-
-  return user.roles.some((role: Role) => role.name === 'manager')
+  return user?.roles?.some((role: Role) => role.name === 'manager') ?? false
 }
 
-// Проверить, является ли пользователь сотрудником (не админ/менеджер)
+// Проверить, является ли сотрудник администратором или менеджером
+export function isAdminOrManager(): boolean {
+  return isAdmin() || isManager()
+}
+
+// Проверить, является ли сотрудник обычным сотрудником (не админ/менеджер)
 export function isStaff(): boolean {
   const user = getCurrentUser()
-  if (!user || !user.roles || !Array.isArray(user.roles)) {
-    return false
-  }
-
-  // Проверяем, что у пользователя есть роли, но НЕТ ролей admin или manager
-  const hasAdminRole = user.roles.some((role: Role) => role.name === 'admin')
-  const hasManagerRole = user.roles.some((role: Role) => role.name === 'manager')
-
-  // Если есть роль admin или manager, то это не сотрудник
-  if (hasAdminRole || hasManagerRole) {
-    return false
-  }
-
-  // Если есть любые другие роли, то это сотрудник
-  return user.roles.length > 0
+  if (!user?.roles?.length) return false
+  
+  return !isAdmin() && !isManager() && user.roles.length > 0
 }
 
-// Проверить, может ли пользователь создавать записи
-export function canCreate(): boolean {
-  return isAdminOrManager()
-}
+// Основные права доступа
+export const canCreate = () => isAdminOrManager()
+export const canEdit = () => isAdmin()
+export const canDelete = () => isAdmin()
+export const canViewAll = () => isAdminOrManager()
+export const canCreateEdit = () => isAdminOrManager() // Для обратной совместимости
 
-// Проверить, может ли пользователь редактировать записи
-export function canEdit(): boolean {
-  return isAdmin()
-}
+// Права для пользователей
+export const canCreateUsers = () => isAdmin()
+export const canEditUsers = () => isAdmin()
+export const canDeleteUsers = () => isAdmin()
+export const canToggleUserActive = () => isAdmin()
+export const canViewAllUsers = () => isAdminOrManager()
 
-// Проверить, может ли пользователь создавать/редактировать записи (для обратной совместимости)
-export function canCreateEdit(): boolean {
-  return isAdminOrManager()
-}
+// Права для других сущностей
+export const canViewAllClients = () => isAdminOrManager()
+export const canViewAllOrders = () => isAdminOrManager()
+export const canViewAllProjects = () => isAdminOrManager()
+export const canViewAllProducts = () => isAdminOrManager()
+export const canViewOrders = () => isAdminOrManager() || isStaff()
 
-// Проверить, может ли пользователь удалять записи
-export function canDelete(): boolean {
-  return isAdmin()
-}
+// Административные права
+export const canViewAuditLogs = () => isAdmin()
+export const canViewStages = () => isAdmin()
+export const canViewRoles = () => isAdmin()
+export const canViewCategories = () => isAdmin()
+export const canViewPrices = () => isAdminOrManager()
 
-// Проверить, может ли пользователь видеть всех пользователей
-export function canViewAllUsers(): boolean {
-  return isAdminOrManager() // Администраторы и менеджеры видят вкладку пользователей
-}
+// Права на данные (для работы с формами)
+export const canViewStagesData = () => isAdminOrManager() || isStaff()
+export const canViewRolesData = () => isAdminOrManager() || isStaff()
+export const canViewCategoriesData = () => isAdminOrManager()
+export const canViewUsersData = () => isAdminOrManager() || isStaff()
+export const canViewOrderComments = () => isAdminOrManager() || isStaff()
+export const canUpdateAssignmentStatus = () => isAdminOrManager() || isStaff()
 
-// Проверить, может ли пользователь создавать пользователей
-export function canCreateUsers(): boolean {
-  return isAdmin() // Только администраторы могут создавать пользователей
-}
-
-// Проверить, может ли пользователь редактировать пользователей
-export function canEditUsers(): boolean {
-  return isAdmin() // Только администраторы могут редактировать пользователей
-}
-
-// Проверить, может ли пользователь удалять пользователей
-export function canDeleteUsers(): boolean {
-  return isAdmin() // Только администраторы могут удалять пользователей
-}
-
-// Проверить, может ли пользователь видеть всех клиентов
-export function canViewAllClients(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь видеть все заказы
-export function canViewAllOrders(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь видеть заказы (все или только свои)
-export function canViewOrders(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Проверить, может ли пользователь видеть все проекты
-export function canViewAllProjects(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь видеть все товары
-export function canViewAllProducts(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь просматривать аудит-логи
-export function canViewAuditLogs(): boolean {
-  return isAdmin()
-}
-
-// Проверить, может ли пользователь просматривать стадии
-export function canViewStages(): boolean {
-  return isAdmin() // Только администраторы видят вкладку стадий
-}
-
-// Проверить, может ли пользователь просматривать роли
-export function canViewRoles(): boolean {
-  return isAdmin() // Только администраторы видят вкладку ролей
-}
-
-// Проверить, может ли пользователь просматривать категории
-export function canViewCategories(): boolean {
-  return isAdmin() // Только администраторы видят вкладку категорий
-}
-
-// Проверить, может ли пользователь просматривать цены
-export function canViewPrices(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь просматривать данные стадий (для работы с заказами)
-export function canViewStagesData(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Проверить, может ли пользователь просматривать данные ролей (для работы с заказами)
-export function canViewRolesData(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Проверить, может ли пользователь просматривать данные категорий (для работы с заказами)
-export function canViewCategoriesData(): boolean {
-  return isAdminOrManager()
-}
-
-// Проверить, может ли пользователь просматривать данные пользователей (для работы с заказами)
-export function canViewUsersData(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Проверить, может ли пользователь просматривать комментарии заказов
-export function canViewOrderComments(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Проверить, может ли пользователь изменять статусы назначений
-export function canUpdateAssignmentStatus(): boolean {
-  return isAdminOrManager() || isStaff()
-}
-
-// Получить текст для навигации в зависимости от роли
+// Навигация
 export function getNavigationText(item: string): string {
   const texts: Record<string, string> = {
     orders: isStaff() ? 'Мои заказы' : 'Заказы',

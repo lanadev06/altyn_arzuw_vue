@@ -12,13 +12,13 @@ import { API_CONFIG } from '../config/api'
  * @param path - путь к свойству (например, 'client.name')
  * @param defaultValue - значение по умолчанию
  */
-export function safeGet<T = unknown>(obj: unknown, path: string, defaultValue: T = null as T): T {
+export function safeGet<T = unknown>(obj: any, path: string, defaultValue: T = null as T): T {
   if (!obj || typeof obj !== 'object') {
     return defaultValue
   }
 
   const keys = path.split('.')
-  let result: unknown = obj
+  let result: any = obj
 
   for (const key of keys) {
     if (result === null || result === undefined || typeof result !== 'object') {
@@ -123,7 +123,7 @@ export async function safeApiRequest<T>(url: string, options: RequestInit = {}):
  * Безопасно получает данные активности с защитой от null объектов
  * @param data - данные активности
  */
-export function safeProcessActivityData(data: unknown[]): unknown[] {
+export function safeProcessActivityData(data: any[]): any[] {
   if (!Array.isArray(data)) {
     return []
   }
@@ -146,7 +146,7 @@ export function safeProcessActivityData(data: unknown[]): unknown[] {
       user: activity?.user
         ? {
             id: activity.user.id || 0,
-            name: activity.user.name || 'Неизвестный пользователь',
+            name: activity.user.name || 'Неизвестный сотрудник',
             username: activity.user.username || '',
           }
         : null,
@@ -160,7 +160,7 @@ export function safeProcessActivityData(data: unknown[]): unknown[] {
  * @param date - дата в любом формате
  * @param format - формат даты (по умолчанию 'ru-RU')
  */
-export function safeFormatDate(date: unknown, format = 'ru-RU'): string {
+export function safeFormatDate(date: any, format = 'ru-RU'): string {
   if (!date) return '-'
 
   try {
@@ -185,7 +185,7 @@ export function safeFormatDate(date: unknown, format = 'ru-RU'): string {
  * @param key - ключ
  * @param defaultValue - значение по умолчанию
  */
-export function safeGetValue<T>(obj: unknown, key: string, defaultValue: T): T {
+export function safeGetValue<T>(obj: any, key: string, defaultValue: T): T {
   if (!obj || typeof obj !== 'object') {
     return defaultValue
   }
@@ -199,7 +199,7 @@ export function safeGetValue<T>(obj: unknown, key: string, defaultValue: T): T {
  * Проверяет, является ли объект валидным
  * @param obj - объект для проверки
  */
-export function isValidObject(obj: unknown): boolean {
+export function isValidObject(obj: any): boolean {
   return obj !== null && obj !== undefined && typeof obj === 'object'
 }
 

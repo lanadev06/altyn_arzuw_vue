@@ -8,8 +8,7 @@ import {
   toggleUserActive,
   getUsersByRole,
 } from '@/services/api'
-import type { User, CreateUserData, UpdateUserData, Role, Stage } from '@/types/api'
-import { getRoleLabel as getRoleLabelFromUtils, getRoleColorClasses } from '@/utils/roleColors'
+import type { User, CreateUserData, UpdateUserData } from '@/types/api'
 
 export function useUserController() {
   const users = ref<User[]>([])
@@ -22,12 +21,8 @@ export function useUserController() {
   })
   const loading = ref(false)
   const error = ref('')
-
-  // Загружаем настройки сортировки из localStorage
-  const sortBy = ref(localStorage.getItem('userList_sortBy') || 'id')
-  const sortOrder = ref<'asc' | 'desc'>(
-    (localStorage.getItem('userList_sortOrder') as 'asc' | 'desc') || 'asc',
-  )
+  const sortBy = ref('id')
+  const sortOrder = ref<'asc' | 'desc'>('asc')
 
   async function fetchUsers(
     page = 1,
@@ -36,42 +31,28 @@ export function useUserController() {
     sort_order = sortOrder.value,
     per_page = 30,
     role = '',
-    is_active: boolean | null | undefined = null,
+    is_active: boolean | null = null,
   ) {
     loading.value = true
     error.value = ''
     try {
-      // Используем правильный параметр сортировки
-      const sortByParam = getSortByParam(sort_by)
-
       const res = await getUsers({
         page,
         search,
-        sort_by: sortByParam,
+        sort_by,
         sort_order,
         per_page,
         role,
-        is_active: is_active === null ? null : undefined,
+        is_active,
       })
 
-      // Проверяем структуру ответа
-      if (res.data && Array.isArray(res.data)) {
-        pagination.data = res.data
-        pagination.current_page = res.current_page || 1
-        pagination.last_page = res.last_page || 1
-        pagination.total = res.total || 0
-        pagination.per_page = res.per_page || 30
-        users.value = res.data
-      } else {
-        // Если данные приходят в другом формате
-        pagination.data = Array.isArray(res) ? res : []
-        pagination.current_page = 1
-        pagination.last_page = 1
-        pagination.total = Array.isArray(res) ? res.length : 0
-        pagination.per_page = 30
-        users.value = Array.isArray(res) ? res : []
-      }
-    } catch (e: unknown) {
+      pagination.data = res.data
+      pagination.current_page = res.current_page
+      pagination.last_page = res.last_page
+      pagination.total = res.total
+      pagination.per_page = res.per_page
+      users.value = res.data
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователей'
     } finally {
       loading.value = false
@@ -81,9 +62,8 @@ export function useUserController() {
   async function fetchUser(id: number) {
     loading.value = true
     try {
-      const user = await getUser(id)
-      return user
-    } catch (e: unknown) {
+      return await getUser(id)
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователя'
       throw e
     } finally {
@@ -96,17 +76,12 @@ export function useUserController() {
     try {
       const res = await getUsersByRole(role)
       return res.data || []
-    } catch (e: unknown) {
+    } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки пользователей по роли'
       throw e
     } finally {
       loading.value = false
     }
-  }
-
-  // Вспомогательная функция для получения правильного параметра сортировки
-  function getSortByParam(sortKey: string): string {
-    return sortKey
   }
 
   function setSort(key: string, search = '') {
@@ -116,21 +91,13 @@ export function useUserController() {
       sortBy.value = key
       sortOrder.value = 'asc'
     }
-
-    // Сохраняем настройки сортировки в localStorage
-    localStorage.setItem('userList_sortBy', sortBy.value)
-    localStorage.setItem('userList_sortOrder', sortOrder.value)
-
-    // Используем правильный параметр сортировки
-    const sortByParam = getSortByParam(key)
-    fetchUsers(1, search, sortByParam, sortOrder.value)
+    fetchUsers(1, search, sortBy.value, sortOrder.value)
   }
 
   async function create(userData: CreateUserData & { image?: File }) {
     loading.value = true
     try {
       const created = await createUser(userData)
-      // Удалён отдельный PATCH-запрос на /users/{id}/roles
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return created
     } finally {
@@ -142,7 +109,6 @@ export function useUserController() {
     loading.value = true
     try {
       const updated = await updateUser(id, userData)
-      // Удалён отдельный PATCH-запрос на /users/{id}/roles
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return updated
     } finally {
@@ -164,21 +130,20 @@ export function useUserController() {
     loading.value = true
     try {
       const result = await toggleUserActive(id)
-      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
-      return result
+      
+      // Обновляем локальное состояние пользователя
+      const userIndex = users.value.findIndex(user => user.id === id)
+      if (userIndex !== -1) {
+        // API возвращает { message: string, is_active: boolean }
+        const newActiveStatus = result.is_active
+        users.value[userIndex].is_active = newActiveStatus
+        return { is_active: newActiveStatus }
+      } else {
+        return { is_active: result.is_active }
+      }
     } finally {
       loading.value = false
     }
-  }
-
-  // Функция для получения метки роли
-  function getRoleLabel(role: string): string {
-    return getRoleLabelFromUtils(role)
-  }
-
-  // Функция для получения класса бейджа роли
-  function getRoleBadgeClass(role: string, roleData?: Role, stagesData?: Stage[]): string {
-    return getRoleColorClasses(role, roleData, stagesData)
   }
 
   return {
@@ -196,7 +161,5 @@ export function useUserController() {
     update,
     remove,
     toggleActive,
-    getRoleLabel,
-    getRoleBadgeClass,
   }
 }

@@ -8,18 +8,19 @@
           :key="comment.id"
           class="flex gap-3 items-start group relative"
         >
-          <div
-            class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base shadow"
-          >
+          <div class="w-8 h-8 rounded-full overflow-hidden shadow">
             <img
-              v-if="userImageUrls[comment.user.name]"
-              :src="userImageUrls[comment.user.name]"
+              v-if="comment.user?.name && userImageUrls[comment.user.name]"
+              :src="comment.user?.name ? userImageUrls[comment.user.name] : ''"
               :alt="comment.user?.name"
               class="w-8 h-8 rounded-full object-cover"
             />
-            <span v-else>
+            <div
+              v-else
+              class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-extrabold text-base"
+            >
               {{ comment.user?.name ? comment.user.name[0] : '?' }}
-            </span>
+            </div>
           </div>
           <div class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative">
             <button
@@ -45,24 +46,32 @@
             </button>
             <div class="flex items-center gap-2 mb-0.5">
               <span class="font-bold text-sm text-gray-900">{{ comment.user.name }}</span>
-              <span v-if="comment.user.roles && comment.user.roles.length">
+              <span v-if="comment.user?.roles && comment.user.roles.length">
                 <span
-                  v-for="role in comment.user.roles"
-                  :key="role.name"
+                  v-for="(role, index) in comment.user.roles"
+                  :key="index"
                   class="text-[10px] rounded px-2 py-0.5 font-semibold mr-1"
-                  :class="getRoleBadgeClass(role.name)"
-                  :style="getRoleBadgeStyle(role.name)"
+                  :class="
+                    getRoleBadgeClass(
+                      typeof role === 'string' ? role : (role as any)?.name || '',
+                    )
+                  "
                 >
-                  {{ getRoleLabel(role.display_name || role.name) }}
+                  {{
+                    getRoleLabel(
+                      typeof role === 'string'
+                        ? role
+                        : (role as any)?.display_name || (role as any)?.name || '',
+                    )
+                  }}
                 </span>
               </span>
               <span v-else>
                 <span
                   class="text-[10px] rounded px-2 py-0.5 font-semibold"
-                  :class="getRoleBadgeClass(comment.user.role || '')"
-                  :style="getRoleBadgeStyle(comment.user.role || '')"
+                  :class="getRoleBadgeClass(comment.user?.role || '')"
                 >
-                  {{ getRoleLabel(comment.user.role || '') }}
+                  {{ getRoleLabel(comment.user?.role || '') }}
                 </span>
               </span>
               <span class="text-[10px] text-gray-400 ml-auto">{{
@@ -154,42 +163,46 @@ function formatDate(date: string) {
 }
 
 function getRoleLabel(role: string) {
-  // Ищем в динамически загруженных ролях
-  const dynamicRole = props.roles.find((r: Role) => r.name === role)
-  if (dynamicRole && dynamicRole.display_name) {
-    return dynamicRole.display_name
-  }
-
-  // Если роль не найдена, возвращаем оригинальное имя
-  return role
-}
-
-function getRoleBadgeStyle(role: string) {
-  // Получаем цвет роли из props.roles если есть
-  const roleData = props.roles.find((r: Role) => r.name === role)
-
-  if (roleData?.color) {
-    return {
-      backgroundColor: roleData.color,
-      color: '#ffffff',
-    }
-  }
-
-  // Fallback к серому цвету
-  return {
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
+  switch (role) {
+    case 'admin':
+      return 'Администратор'
+    case 'manager':
+      return 'Менеджер'
+    case 'designer':
+      return 'Дизайнер'
+    case 'print_worker':
+      return 'Печатник'
+    case 'engraver':
+      return 'Гравер'
+    case 'workshop_worker':
+      return 'Цехник'
+    case 'client':
+      return 'Клиент'
+    default:
+      return role
   }
 }
+
 
 function getRoleBadgeClass(role: string) {
-  const roleData = props.roles.find((r: Role) => r.name === role)
-
-  if (roleData?.color) {
-    return 'text-white font-semibold'
+  switch (role) {
+    case 'admin':
+      return 'bg-red-100 text-red-800'
+    case 'manager':
+      return 'bg-purple-100 text-purple-800'
+    case 'designer':
+      return 'bg-blue-100 text-blue-800'
+    case 'print_worker':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'engraver':
+      return 'bg-orange-100 text-orange-800'
+    case 'workshop_worker':
+      return 'bg-green-100 text-green-800'
+    case 'client':
+      return 'bg-gray-100 text-gray-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
   }
-
-  return 'bg-gray-100 text-gray-800'
 }
 
 async function loadUserImageUrl(user: User) {
@@ -204,12 +217,13 @@ async function loadUserImageUrl(user: User) {
         is_active: true, // fallback
         created_at: '', // fallback
         updated_at: '', // fallback
+        image: (user as any).image || '', // добавляем поле image
         roles: user.roles?.map((r) => ({ ...r, id: 0, created_at: '', updated_at: '' })) || [],
       }
       const { getUserImageUrl } = await import('../../../utils/user')
       const url = await getUserImageUrl(apiUser)
       userImageUrls.value[user.name] = url
-    } catch {
+    } catch (error) {
       userImageUrls.value[user.name] = ''
     }
   }

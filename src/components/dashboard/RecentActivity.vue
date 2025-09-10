@@ -184,7 +184,7 @@ onMounted(async () => {
   try {
     const data = (await safeApiRequest<ApiActivity[]>('/recent-activity')) || []
     if (Array.isArray(data)) {
-      activities.value = safeProcessActivityData(data).map((activity: unknown) => ({
+      activities.value = safeProcessActivityData(data).map((activity: any) => ({
         ...(activity as ApiActivity),
         ...getIconStyles((activity as ApiActivity).icon),
       }))
@@ -192,7 +192,6 @@ onMounted(async () => {
       activities.value = []
     }
   } catch (error) {
-    console.error('RecentActivity: Error loading data:', error)
     activities.value = []
   }
 })

@@ -60,13 +60,10 @@ export function validateAuth(): boolean {
  * Handle 401 Unauthorized errors - clear auth and redirect to login
  */
 export function handle401Error(message?: string): void {
-  // console.log('🚨 401 Unauthorized - clearing auth and redirecting to login')
-
   clearAuth()
 
   // Show message if provided
   if (message) {
-    console.warn('Auth error:', message)
 
     // Try to show toast notification if available
     try {

@@ -318,7 +318,7 @@ async function onDrop(event: DragEvent, newStage: string) {
 
     // Эмитим событие change-status для OrdersView
     emit('change-status', { order, newStatus: newStage })
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = (err as Error)?.message || 'Ошибка смены стадии'
 
     // При ошибке откатываем заказ к исходной стадии

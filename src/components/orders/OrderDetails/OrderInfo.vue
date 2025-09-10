@@ -153,7 +153,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  'update-field': [field: string, value: unknown]
+  'update-field': [field: string, value: any]
 }>()
 
 const showDeadlineInput = ref(false)
@@ -200,7 +200,6 @@ async function confirmDeadline() {
     showDeadlineInput.value = false
     toast.show('Дедлайн обновлен успешно!')
   } catch (error) {
-    console.error('Ошибка обновления дедлайна:', error)
     toast.show('Ошибка при обновлении дедлайна', 'error')
   }
 }
@@ -214,7 +213,6 @@ async function clearDeadline() {
     tempDeadline.value = ''
     toast.show('Дедлайн очищен!')
   } catch (error) {
-    console.error('Ошибка очистки дедлайна:', error)
     toast.show('Ошибка при очистке дедлайна', 'error')
   }
 }

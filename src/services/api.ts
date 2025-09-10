@@ -72,8 +72,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = localStorage.getItem('auth_token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
-  } else {
-    console.warn('⚠️ No auth token found in localStorage')
   }
 
   // Только если не FormData, добавляем Content-Type
@@ -196,7 +194,6 @@ async function cachedApiRequest<T>(
   // Проверяем кэш
   const cachedData = frontendCache.get<T>(key)
   if (cachedData) {
-    // console.log(`📦 Cache hit for ${endpoint}`)
     return cachedData
   }
 
@@ -214,7 +211,6 @@ async function cachedApiRequest<T>(
 
   // Сохраняем в кэш
   frontendCache.set(key, result, ttl)
-  // console.log(`💾 Cached response for ${endpoint}`)
 
   return result
 }
@@ -311,7 +307,7 @@ export const authApi = {
         if (user) {
           return JSON.parse(user)
         }
-        throw new Error('Пользователь не найден')
+        throw new Error('Сотрудник не найден')
       } else {
         throw error
       }
@@ -417,8 +413,6 @@ export async function updateClient(id: number, data: Partial<Client>): Promise<C
 }
 
 export async function deleteClient(id: number): Promise<void> {
-  // console.log('🗑️ Deleting client with ID:', id)
-
   const res = await fetch(`${API_CONFIG.BASE_URL}/clients/${id}`, {
     method: 'DELETE',
     headers: {
@@ -427,20 +421,17 @@ export async function deleteClient(id: number): Promise<void> {
     },
   })
 
-  // console.log('📡 Delete response status:', res.status, res.statusText)
-
   if (!res.ok) {
     let errorMessage = 'Ошибка удаления клиента'
     let errorData = null
 
     try {
       errorData = await res.json()
-      // console.log('❌ Error response data:', errorData)
       if (errorData.message) {
         errorMessage = errorData.message
       }
     } catch (e) {
-      // console.log('❌ Could not parse error response')
+      // Could not parse error response
     }
 
     const error = new Error(errorMessage)
@@ -449,8 +440,6 @@ export async function deleteClient(id: number): Promise<void> {
     ;(error as any).data = errorData
     throw error
   }
-
-  // console.log('✅ Client deleted successfully')
 }
 
 // Создать контакт клиента
@@ -722,11 +711,6 @@ export async function getByRole(role: string): Promise<{ data: User[] }> {
 
   if (!res.ok) {
     const errorText = await res.text()
-    // console.log('Ошибка загрузки пользователей по роли:', {
-    //   status: res.status,
-    //   statusText: res.statusText,
-    //   response: errorText,
-    // })
     throw new Error(`Ошибка загрузки пользователей по роли: ${res.status} ${res.statusText}`)
   }
 
@@ -983,60 +967,51 @@ export async function toggleUserActive(id: number): Promise<any> {
   return res
 }
 
-export async function updateUser(id: number, data: UpdateUserData): Promise<User> {
-  const token = localStorage.getItem('auth_token')
+export async function updateUser(id: number, data: UpdateUserData & { image?: File }): Promise<User> {
   if (data.image instanceof File) {
+    
     const formData = new FormData()
+    
+    // Добавляем только переданные поля
     if (data.name !== undefined) formData.append('name', data.name)
     if (data.username !== undefined) formData.append('username', data.username)
     if (data.phone !== undefined) formData.append('phone', data.phone === null ? '' : data.phone)
     if (data.password) formData.append('password', data.password)
     if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString())
+    
+    // Добавляем изображение
     formData.append('image', data.image)
+    
+    // Добавляем роли если переданы
     if (data.roles && Array.isArray(data.roles)) {
-      data.roles.forEach((role: number, idx: number) => {
-        formData.append(`roles[${idx}]`, role.toString())
+      data.roles.forEach((role: number) => {
+        formData.append('roles[]', role.toString())
       })
     }
 
     // Добавляем _method: PUT для Laravel
     formData.append('_method', 'PUT')
 
-    const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
-      method: 'POST', // Используем POST вместо PATCH
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+    const res = await apiRequest(`/users/${id}`, {
+      method: 'POST',
       body: formData,
     })
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}))
-      throw new Error(`Ошибка обновления пользователя: ${errorData.message || res.statusText}`)
-    }
-
-    const responseData = await res.json()
-    return responseData
+    return res as User
   } else {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/users/${id}`, {
+    // Для обновления без изображения используем обычный PUT
+    const res = await apiRequest(`/users/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(data),
     })
-    if (!res.ok) throw new Error('Ошибка обновления пользователя')
-    return await res.json()
+    return res as User
   }
 }
 
 export async function getRoles(): Promise<
   Array<{ id: number; name: string; display_name?: string }>
 > {
-  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.VERY_LONG)) as { data?: unknown[] } | any[]
+  const res = (await cachedApiRequest('/roles', {}, CacheKeys.ROLES, CacheTTL.VERY_LONG)) as { data?: any[] } | any[]
   return (res as any).data || res // поддержка разных форматов ответа
 }
 
@@ -1051,7 +1026,7 @@ export async function getAllStages(): Promise<any> {
   return res
 }
 
-export async function createStage(data: unknown): Promise<any> {
+export async function createStage(data: any): Promise<any> {
   const res = await apiRequest('/stages', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1059,7 +1034,7 @@ export async function createStage(data: unknown): Promise<any> {
   return res
 }
 
-export async function updateStage(id: number, data: unknown): Promise<any> {
+export async function updateStage(id: number, data: any): Promise<any> {
   const res = await apiRequest(`/stages/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -1110,7 +1085,7 @@ export async function getRolesWithStages(): Promise<any> {
   return res
 }
 
-export async function createRole(data: unknown): Promise<any> {
+export async function createRole(data: any): Promise<any> {
   const res = await apiRequest('/roles', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1118,7 +1093,7 @@ export async function createRole(data: unknown): Promise<any> {
   return res
 }
 
-export async function updateRole(id: number, data: unknown): Promise<any> {
+export async function updateRole(id: number, data: any): Promise<any> {
   const res = await apiRequest(`/roles/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -1170,7 +1145,7 @@ export async function getProductAssignments(productId: number): Promise<any> {
   return res
 }
 
-export async function createProductAssignment(productId: number, data: unknown): Promise<any> {
+export async function createProductAssignment(productId: number, data: any): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1181,7 +1156,7 @@ export async function createProductAssignment(productId: number, data: unknown):
 export async function updateProductAssignment(
   productId: number,
   assignmentId: number,
-  data: unknown,
+  data: any,
 ): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments/${assignmentId}`, {
     method: 'PUT',
@@ -1199,7 +1174,7 @@ export async function deleteProductAssignment(
   })
 }
 
-export async function bulkAssignProductUsers(productId: number, data: unknown): Promise<any> {
+export async function bulkAssignProductUsers(productId: number, data: any): Promise<any> {
   const res = await apiRequest(`/products/${productId}/assignments/bulk`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1213,7 +1188,7 @@ export async function getAvailableUsersForProduct(productId: number): Promise<an
 }
 
 // --- Назначения заказов (Order Assignments) ---
-export async function assignOrderToUser(orderId: number, data: unknown): Promise<any> {
+export async function assignOrderToUser(orderId: number, data: any): Promise<any> {
   const res = await apiRequest(`/orders/${orderId}/assign`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1221,7 +1196,7 @@ export async function assignOrderToUser(orderId: number, data: unknown): Promise
   return res
 }
 
-export async function bulkAssignOrders(orderId: number, data: unknown): Promise<any> {
+export async function bulkAssignOrders(orderId: number, data: any): Promise<any> {
   const res = await apiRequest(`/orders/${orderId}/bulk-assign`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1257,7 +1232,7 @@ export async function deleteOrderAssignment(assignmentId: number): Promise<void>
 }
 
 // Массовые операции с назначениями
-export async function bulkAssignGlobal(data: unknown): Promise<any> {
+export async function bulkAssignGlobal(data: any): Promise<any> {
   const res = await apiRequest('/assignments/bulk-assign', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1265,7 +1240,7 @@ export async function bulkAssignGlobal(data: unknown): Promise<any> {
   return res
 }
 
-export async function bulkReassignOrders(data: unknown): Promise<any> {
+export async function bulkReassignOrders(data: any): Promise<any> {
   const res = await apiRequest('/assignments/bulk-reassign', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1273,7 +1248,7 @@ export async function bulkReassignOrders(data: unknown): Promise<any> {
   return res
 }
 
-export async function bulkUpdateAssignments(data: unknown): Promise<any> {
+export async function bulkUpdateAssignments(data: any): Promise<any> {
   const res = await apiRequest('/assignments/bulk-update', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1324,7 +1299,7 @@ export async function getAllCategories(): Promise<any[]> {
   return Array.isArray(categories) ? categories : []
 }
 
-export async function createCategory(data: unknown): Promise<any> {
+export async function createCategory(data: any): Promise<any> {
   const res = await apiRequest('/categories', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1332,7 +1307,7 @@ export async function createCategory(data: unknown): Promise<any> {
   return res
 }
 
-export async function updateCategory(id: number, data: unknown): Promise<any> {
+export async function updateCategory(id: number, data: any): Promise<any> {
   const res = await apiRequest(`/categories/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),

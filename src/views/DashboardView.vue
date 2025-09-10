@@ -291,7 +291,7 @@ const dashboardStats = ref<{
     user_id: number
     user_name: string
     total: number
-    orders: unknown[]
+    orders: any[]
   }>
   closed_last_30_days: number
   delayed_assignments: number
@@ -336,7 +336,7 @@ const currentUser = computed(() => getCurrentUser())
 const hasAdminOrManagerRole = computed(() => {
   const user = currentUser.value
   if (!user || !user.roles) return false
-  return user.roles.some((role: unknown) => role.name === 'admin' || role.name === 'manager')
+  return user.roles.some((role: any) => role.name === 'admin' || role.name === 'manager')
 })
 
 function openOrderDetailsModal(orderId: number) {
@@ -462,12 +462,9 @@ onMounted(async () => {
     // Активность (только для admin и manager)
     // Убираем дублирование - RecentActivity уже показывает эту информацию
     // if (hasAdminOrManagerRole.value) {
-    //   // console.log('DashboardView: Loading activity data...')
     //   const activityData = await safeApiRequest<any[]>('/activity')
-    //   // console.log('DashboardView: Activity API response:', activityData)
     //   if (Array.isArray(activityData)) {
     //     staffActivity.value = safeProcessActivityData(activityData) as any[]
-    //     // console.log('DashboardView: Processed staff activity:', staffActivity.value)
     //   } else {
     //     staffActivity.value = [] as any[]
     //   }
@@ -500,7 +497,6 @@ onMounted(async () => {
         )
       }
     } catch (notificationError) {
-      console.error('Ошибка загрузки уведомлений:', notificationError)
       notifications.value = []
     }
 
@@ -550,7 +546,7 @@ onMounted(async () => {
         // Подсчитываем заказы по стадиям из назначений сотрудника
         const ordersByStage: Record<string, number> = {}
         if (res.recent_assignments) {
-          Object.values(res.recent_assignments).forEach((assignment: unknown) => {
+          Object.values(res.recent_assignments).forEach((assignment: any) => {
             const stage = assignment.stage || 'unknown'
             ordersByStage[stage] = (ordersByStage[stage] || 0) + 1
           })
@@ -580,7 +576,7 @@ onMounted(async () => {
 
         // Для сотрудников показываем их собственные задержанные назначения
         if (res.recent_assignments) {
-          const delayed = Object.values(res.recent_assignments).filter((assignment: unknown) => {
+          const delayed = Object.values(res.recent_assignments).filter((assignment: any) => {
             if (!assignment.deadline) return false
             const deadline = new Date(assignment.deadline)
             const now = new Date()
@@ -591,7 +587,7 @@ onMounted(async () => {
             )
           })
 
-          delayedAssignmentsList.value = delayed.map((assignment: unknown) => ({
+          delayedAssignmentsList.value = delayed.map((assignment: any) => ({
             id: assignment.id,
             user_name: currentUser.value?.name,
             order_id: assignment.id,
@@ -607,7 +603,6 @@ onMounted(async () => {
         delayedAssignmentsList.value = res.delayed_assignments_list || []
       }
     } catch (e) {
-      console.error('Ошибка загрузки dashboard stats:', e)
       // Устанавливаем значения по умолчанию при ошибке
       dashboardStats.value = {
         orders_by_stage: {},
@@ -620,7 +615,6 @@ onMounted(async () => {
       }
     }
   } catch (e) {
-    console.error('Ошибка загрузки данных дашборда:', e)
     // Устанавливаем значения по умолчанию
     stats.value = {
       users: 0,
@@ -637,7 +631,6 @@ const handleLogout = async () => {
     await authApi.logout()
     router.push('/login')
   } catch (error) {
-    console.error('Ошибка выхода:', error)
     // Even if API logout fails, clear local storage and redirect
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user')

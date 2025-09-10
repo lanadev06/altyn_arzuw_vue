@@ -665,7 +665,7 @@
                 <!-- Простой компонент назначений -->
                 <div class="space-y-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Назначенные пользователи</span>
+                    <span class="text-sm font-medium text-gray-700">Назначенные сотрудники</span>
                     <UIButton
                       type="button"
                       variant="secondary"
@@ -852,7 +852,7 @@ const errors = reactive({
   bulk_orders: '',
 })
 
-// Пользователи по ролям (динамическая структура)
+// Сотрудники по ролям (динамическая структура)
 const allUsers = reactive<Record<string, User[]>>({})
 
 // Локальный тип назначений, не требующий всех полей API
@@ -1334,7 +1334,6 @@ onMounted(async () => {
     ) {
       projects.value = (projectsData as any).data
     } else {
-      console.warn('⚠️ Invalid projects data format:', projectsData)
       projects.value = []
     }
 
@@ -1447,15 +1446,15 @@ onMounted(async () => {
 
           if (users.length > 0 && users[0].roles) {
             // Если у пользователей есть роли, распределяем их по ролям
-            users.forEach((user: unknown) => {
+            users.forEach((user: any) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: unknown) => {
+                user.roles.forEach((role: any) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1468,15 +1467,15 @@ onMounted(async () => {
           // Обрабатываем случай, когда данные приходят напрямую (без обертки)
           if (Array.isArray(roleData)) {
             // Если это массив пользователей, распределяем их по ролям
-            roleData.forEach((user: unknown) => {
+            roleData.forEach((user: any) => {
               if (user.roles && Array.isArray(user.roles)) {
-                user.roles.forEach((role: unknown) => {
+                user.roles.forEach((role: any) => {
                   const roleName = role.name || role
                   if (allRoles.has(roleName)) {
                     if (!dynamicUsers[roleName]) {
                       dynamicUsers[roleName] = []
                     }
-                    const existingUser = dynamicUsers[roleName].find((u: unknown) => u.id === user.id)
+                    const existingUser = dynamicUsers[roleName].find((u: any) => u.id === user.id)
                     if (!existingUser) {
                       dynamicUsers[roleName].push(user)
                     }
@@ -1512,13 +1511,13 @@ onMounted(async () => {
 
     // Final allUsers object
 
-    // Проверяем, загрузились ли пользователи
+    // Проверяем, загрузились ли сотрудники
     const totalUsers =
       allUsers && typeof allUsers === 'object'
         ? Object.keys(allUsers).reduce((sum, role) => sum + (allUsers[role]?.length || 0), 0)
         : 0
 
-    // Если пользователи не загрузились, пробуем загрузить через альтернативный API
+    // Если сотрудники не загрузились, пробуем загрузить через альтернативный API
     if (totalUsers === 0) {
       // No users from API, trying alternative method
 
@@ -1529,14 +1528,14 @@ onMounted(async () => {
 
         if (allUsersResponse && Array.isArray(allUsersResponse)) {
           // Распределяем пользователей по ролям
-          allUsersResponse.forEach((user: unknown) => {
+          allUsersResponse.forEach((user: any) => {
             if (user.roles && Array.isArray(user.roles)) {
-              user.roles.forEach((role: unknown) => {
+              user.roles.forEach((role: any) => {
                 const roleName = role.name || role
                 if (!allUsers[roleName]) {
                   allUsers[roleName] = []
                 }
-                const existingUser = allUsers[roleName].find((u: unknown) => u.id === user.id)
+                const existingUser = allUsers[roleName].find((u: any) => u.id === user.id)
                 if (!existingUser) {
                   allUsers[roleName].push(user)
                 }
@@ -1564,7 +1563,7 @@ onMounted(async () => {
 
       // Загружаем стадии заказа
       if (props.order.stages) {
-        selectedOrderStages.value = props.order.stages.map((stage: unknown) =>
+        selectedOrderStages.value = props.order.stages.map((stage: any) =>
           typeof stage === 'number' ? stage : stage?.id,
         )
       }
@@ -1588,7 +1587,6 @@ onMounted(async () => {
       }
     }
   } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
     toast.show('Ошибка загрузки данных', 'error')
   }
 })
@@ -1752,7 +1750,6 @@ async function handleSubmit() {
           projectId = createdProject.id
           // Project created for bulk orders
         } catch (error) {
-          console.error('❌ Error creating project for bulk orders:', error)
           toast.show('Ошибка при создании проекта', 'error')
           return
         }
@@ -1822,7 +1819,6 @@ async function handleSubmit() {
     emit('submit')
     emit('close')
   } catch (error) {
-    console.error('Ошибка сохранения заказа:', error)
     toast.show('Ошибка при сохранении заказа', 'error')
   } finally {
     loading.value = false
@@ -1919,7 +1915,7 @@ async function onBulkOrderProductChange(index: number) {
       // Группируем назначения продукта по ролям
       const productAssignmentsByRole: Record<string, ProductAssignment[]> = {}
 
-      productAssignmentsResponse.assignments.forEach((assignment: unknown) => {
+      productAssignmentsResponse.assignments.forEach((assignment: any) => {
         const roleType = assignment.role_type
 
         if (!productAssignmentsByRole[roleType]) {
@@ -1945,7 +1941,7 @@ async function onBulkOrderProductChange(index: number) {
           if (Array.isArray(assignments)) {
             // Находим стадии, которые используют эту роль
             const stagesWithRole = availableStages.value.filter((stage) => {
-              return stage.roles && stage.roles.some((role: unknown) => role.name === roleType)
+              return stage.roles && stage.roles.some((role: any) => role.name === roleType)
             })
 
             // Копируем назначения для каждой стадии с этой ролью
@@ -2185,7 +2181,6 @@ async function handleDelete() {
     emit('delete', props.order.id)
     emit('close')
   } catch (error) {
-    console.error('Ошибка удаления заказа:', error)
     toast.show('Ошибка при удалении заказа', 'error')
   }
 }
@@ -2258,7 +2253,6 @@ function onProductCreated() {
     })
     .catch(() => {
       // В случае ошибки просто показываем уведомление
-      console.warn('Не удалось загрузить обновленный список продуктов')
     })
 }
 

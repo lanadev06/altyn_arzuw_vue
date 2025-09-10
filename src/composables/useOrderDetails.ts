@@ -89,7 +89,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       : (orderData.stage as { name: string })?.name || ''
   }
 
-  function normalizeUser(u: unknown): User {
+  function normalizeUser(u: any): User {
     if (typeof u === 'object' && u !== null) {
       const user = u as Record<string, unknown>
 
@@ -227,11 +227,9 @@ export function useOrderDetails(orderId: number | null | undefined) {
         // Обновляем массив комментариев
         comments.value = processedComments
       } catch (error) {
-        console.error('Ошибка обработки комментариев:', error)
         comments.value = []
       }
     } else {
-      console.error('Ошибка загрузки комментариев:', commentsResult.reason)
       comments.value = []
     }
 
@@ -305,11 +303,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
           let allUsers: User[] = []
 
           if (data && typeof data === 'object' && !Array.isArray(data)) {
-            Object.values(data).forEach((stageData: unknown) => {
+            Object.values(data).forEach((stageData: any) => {
               if (stageData && typeof stageData === 'object' && stageData !== null) {
                 const stage = stageData as Record<string, unknown>
                 if (stage.users_by_role) {
-                  Object.values(stage.users_by_role).forEach((roleData: unknown) => {
+                  Object.values(stage.users_by_role).forEach((roleData: any) => {
                     if (roleData && typeof roleData === 'object' && roleData !== null) {
                       const role = roleData as Record<string, unknown>
                       if (role.users && Array.isArray(role.users)) {
@@ -371,13 +369,13 @@ export function useOrderDetails(orderId: number | null | undefined) {
       await loadComments()
       
       // Отправляем глобальное событие добавления комментария
-      if (result && result.id) {
+      if (result && (result as any).id) {
         emitOrderCommentAdded(
           orderId as number,
-          result.id,
+          (result as any).id,
           text.trim(),
-          result.user_id || 0,
-          result.user?.name || 'Пользователь',
+          (result as any).user_id || 0,
+          (result as any).user?.name || 'Сотрудник',
           'modal'
         )
       }
@@ -390,7 +388,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
       // Удаляем временный комментарий при ошибке
       comments.value = comments.value.filter(c => c.id !== tempId)
       
-      console.error('Ошибка добавления комментария:', error)
       toast.show('Ошибка добавления комментария', 'error')
     }
   }
@@ -419,7 +416,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
         comments.value.push(commentToDelete)
       }
       
-      console.error('Ошибка удаления комментария:', error)
       toast.show('Ошибка удаления комментария', 'error')
     }
   }
@@ -450,7 +446,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       )
 
       if (existingAssignment) {
-        toast.show('Этот пользователь уже назначен на данную роль', 'error')
+        toast.show('Этот сотрудник уже назначен на данную роль', 'error')
         return
       }
 
@@ -469,7 +465,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
         await forceRefresh()
         
-        toast.show('Пользователь успешно назначен', 'success')
+        toast.show('Сотрудник успешно назначен', 'success')
         
         window.dispatchEvent(new CustomEvent('order-updated', {
           detail: { orderId }
@@ -517,7 +513,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
           await forceRefresh()
           resetPolling()
         } catch (error) {
-          console.error('Error refreshing data after status update:', error)
         }
       }, 500)
 
@@ -532,7 +527,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
         assignments.value[assignmentIndex].status = oldStatus
       }
 
-      console.error('Error updating assignment status:', error)
       
       // Показываем понятное сообщение об ошибке
       let errorMessage = 'Ошибка обновления назначения'
@@ -610,13 +604,13 @@ export function useOrderDetails(orderId: number | null | undefined) {
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
       }))
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : 'Ошибка смены стадии'
       toast.show(msg, 'error')
     }
   }
 
-  async function updateOrderField(field: string, value: unknown) {
+  async function updateOrderField(field: string, value: any) {
     if (!order.value) return
     const payload: Record<string, unknown> = {}
     payload[field] = value
@@ -750,7 +744,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
       }))
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : 'Ошибка при отмене заказа!'
       toast.show(msg, 'error')
     }
