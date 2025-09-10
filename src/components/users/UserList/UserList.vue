@@ -253,7 +253,19 @@ const editingUser = ref<any>(null)
 const currentPage = ref(1)
 const perPage = ref(30)
 
-const columns = ref([
+// Константы для localStorage
+const SORT_KEY = 'userList_sortBy'
+const ORDER_KEY = 'userList_sortOrder'
+const COLUMNS_KEY = 'userList_columns'
+
+// Загружаем сохраненные настройки
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const savedPerPage = localStorage.getItem('userList_perPage')
+
+// Базовые колонки
+const baseColumns = [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: 'Имя', sortable: true },
   { key: 'username', label: 'Логин', sortable: true },
@@ -262,7 +274,23 @@ const columns = ref([
   { key: 'is_active', label: 'Статус', sortable: false },
   { key: 'created_at', label: 'Создано', sortable: true },
   { key: 'updated_at', label: 'Обновлено', sortable: false },
-])
+]
+
+// Инициализируем колонки из localStorage или используем базовые
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : [...baseColumns])
+
+// Инициализируем сортировку из localStorage
+if (savedSortBy && sortBy.value !== savedSortBy) {
+  sortBy.value = savedSortBy
+}
+if (savedSortOrder && sortOrder.value !== savedSortOrder) {
+  sortOrder.value = savedSortOrder as 'asc' | 'desc'
+}
+
+// Инициализируем perPage из localStorage
+if (savedPerPage) {
+  perPage.value = parseInt(savedPerPage)
+}
 
 function setSort(key: string) {
   if (sortBy.value === key) {
@@ -271,6 +299,11 @@ function setSort(key: string) {
     sortBy.value = key
     sortOrder.value = 'asc'
   }
+  
+  // Сохраняем в localStorage
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  
   currentPage.value = 1
   fetchUsers(1, props.search || '', key, sortOrder.value, perPage.value, props.role, getActiveFilter())
 }
@@ -280,6 +313,20 @@ function getActiveFilter(): boolean | null {
   if (props.activeFilter === 'active') return true
   if (props.activeFilter === 'inactive') return false
   return null
+}
+
+// Функция сброса настроек
+function resetSettings() {
+  columns.value = [...baseColumns]
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  sortBy.value = 'id'
+  sortOrder.value = 'asc'
+  localStorage.setItem(SORT_KEY, sortBy.value)
+  localStorage.setItem(ORDER_KEY, sortOrder.value)
+  perPage.value = 30
+  localStorage.setItem('userList_perPage', perPage.value.toString())
+  currentPage.value = 1
+  fetchUsers(1, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
 }
 
 const columnsHeader = ref<HTMLElement | null>(null)
@@ -299,7 +346,7 @@ function formatDate(date: string | null | undefined) {
 function getUserImageUrl(user: any) {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) return `http://localhost:8000/storage/${user.image}`
+  if (user.image) return `/storage/${user.image}`
   return ''
 }
 
@@ -350,6 +397,9 @@ function goToPage(page: number) {
 }
 
 function changePerPage() {
+  // Сохраняем perPage в localStorage
+  localStorage.setItem('userList_perPage', perPage.value.toString())
+  
   currentPage.value = 1
   fetchUsers(1, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
 }
@@ -366,6 +416,9 @@ onMounted(async () => {
         if (oldIndex === undefined || newIndex === undefined) return
         const moved = columns.value.splice(oldIndex, 1)[0]
         columns.value.splice(newIndex, 0, moved)
+        
+        // Сохраняем новый порядок колонок в localStorage
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
   }

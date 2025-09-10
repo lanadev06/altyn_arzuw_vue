@@ -117,7 +117,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { isAdmin } from '../../../utils/permissions'
-import type { User as ApiUser } from '../../../types/api'
 import type { OrderComment, Role, User } from '../../../types/orderDetails'
 
 
@@ -205,25 +204,20 @@ function getRoleBadgeClass(role: string) {
   }
 }
 
-async function loadUserImageUrl(user: User) {
+function loadUserImageUrl(user: User) {
   if (!user || !user.name) return
   if (!userImageUrls.value[user.name]) {
-    try {
-      // Преобразуем User в ApiUser для getUserImageUrl
-      const apiUser: ApiUser = {
-        id: user.id,
-        name: user.name,
-        username: user.name, // fallback
-        is_active: true, // fallback
-        created_at: '', // fallback
-        updated_at: '', // fallback
-        image: (user as any).image || '', // добавляем поле image
-        roles: user.roles?.map((r) => ({ ...r, id: 0, created_at: '', updated_at: '' })) || [],
+    // Используем image_url если есть, иначе строим путь к изображению
+    if ((user as any)?.image_url) {
+      userImageUrls.value[user.name] = (user as any).image_url
+    } else if ((user as any)?.image) {
+      const image = (user as any).image
+      if (image.startsWith('http')) {
+        userImageUrls.value[user.name] = image
+      } else {
+        userImageUrls.value[user.name] = `/storage/${image}`
       }
-      const { getUserImageUrl } = await import('../../../utils/user')
-      const url = await getUserImageUrl(apiUser)
-      userImageUrls.value[user.name] = url
-    } catch (error) {
+    } else {
       userImageUrls.value[user.name] = ''
     }
   }

@@ -574,12 +574,13 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
     const oldStage = getCurrentStage(order.value)
     
+    // Оптимистичное обновление UI - сразу меняем стадию на экране
+    if (order.value) {
+      order.value.stage = newStatus
+    }
+    
     try {
       await updateStage(order.value.id, newStatus)
-      
-      if (order.value) {
-        order.value.stage = newStatus
-      }
       
       if (orderId) {
         const cacheKey = `order_details_${orderId}`
@@ -605,6 +606,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
         detail: { orderId }
       }))
     } catch (err: any) {
+      // Откатываем изменения в случае ошибки
+      if (order.value) {
+        order.value.stage = oldStage
+      }
+      
       const msg = err instanceof Error ? err.message : 'Ошибка смены стадии'
       toast.show(msg, 'error')
     }
@@ -717,6 +723,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
     
     const oldStage = getCurrentStage(order.value)
     
+    // Оптимистичное обновление UI - сразу меняем стадию на экране
+    if (order.value) {
+      order.value.stage = 'cancelled'
+    }
+    
     try {
       await updateStage(order.value.id, 'cancelled')
       
@@ -745,6 +756,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
         detail: { orderId }
       }))
     } catch (err: any) {
+      // Откатываем изменения в случае ошибки
+      if (order.value) {
+        order.value.stage = oldStage
+      }
+      
       const msg = err instanceof Error ? err.message : 'Ошибка при отмене заказа!'
       toast.show(msg, 'error')
     }

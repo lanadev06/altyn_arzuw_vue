@@ -155,15 +155,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       }
     }
 
-    const responseData = await response.json()
+    // Проверяем, есть ли контент для парсинга
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      const responseData = await response.json()
 
-    // Laravel API может возвращать данные в формате {data: {...}}
-    // Проверяем, есть ли обертка data
-    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+      // Laravel API может возвращать данные в формате {data: {...}}
+      // Проверяем, есть ли обертка data
+      if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        return responseData
+      }
+
       return responseData
+    } else {
+      // Для ответов без контента (например, 204 No Content) возвращаем null
+      return null
     }
-
-    return responseData
   } catch (error) {
     clearTimeout(timeoutId)
 

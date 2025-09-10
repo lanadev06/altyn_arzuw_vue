@@ -179,12 +179,28 @@ const defaultColumns = [
   { key: 'updated_at', label: 'Обновлено', sortable: false },
 ]
 
-const savedColumns = localStorage.getItem('clientList_columns')
+// Константы для localStorage
+const SORT_KEY = 'clientList_sortBy'
+const ORDER_KEY = 'clientList_sortOrder'
+const COLUMNS_KEY = 'clientList_columns'
+
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('clientList_perPage')
+const savedSortBy = localStorage.getItem(SORT_KEY)
+const savedSortOrder = localStorage.getItem(ORDER_KEY)
+
 const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
 const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
   ClientController()
+
+// Инициализируем сортировку из localStorage
+if (savedSortBy && sortBy.value !== savedSortBy) {
+  sortBy.value = savedSortBy
+}
+if (savedSortOrder && sortOrder.value !== savedSortOrder) {
+  sortOrder.value = savedSortOrder as 'asc' | 'desc'
+}
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)

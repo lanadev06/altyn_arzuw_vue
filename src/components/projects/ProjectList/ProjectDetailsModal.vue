@@ -452,7 +452,6 @@ import flatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils/permissions'
-import { getUserImageUrl } from '@/utils/user'
 import { deleteProject } from '@/services/api'
 import { toast } from '@/stores/toast'
 
@@ -774,16 +773,22 @@ function getRoleLabel(role: string) {
   }
 }
 
-// Исправление getUserImageUrl (ожидает Promise)
-// Используем v-if="userImageUrls[comment.user.name]" и асинхронно загружаем аватарки
+// Загружаем изображения пользователей синхронно
 const userImageUrls = ref<Record<string, string>>({})
-async function loadUserImageUrl(user: any) {
+function loadUserImageUrl(user: any) {
   if (!user || !user.name) return
   if (!userImageUrls.value[user.name]) {
-    try {
-      const url = await getUserImageUrl(user)
-      userImageUrls.value[user.name] = url
-    } catch (error) {
+    // Используем image_url если есть, иначе строим путь к изображению
+    if (user?.image_url) {
+      userImageUrls.value[user.name] = user.image_url
+    } else if (user?.image) {
+      const image = user.image
+      if (image.startsWith('http')) {
+        userImageUrls.value[user.name] = image
+      } else {
+        userImageUrls.value[user.name] = `/storage/${image}`
+      }
+    } else {
       userImageUrls.value[user.name] = ''
     }
   }

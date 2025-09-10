@@ -13,8 +13,8 @@ export async function getUserImageUrl(user: User | null | undefined): Promise<st
     if (anyUser.image.startsWith('http')) {
       return anyUser.image
     }
-    // Если это путь к файлу, добавляем базовый URL
-    return `http://localhost:8000/storage/${anyUser.image}`
+    // Если это путь к файлу, используем относительный путь
+    return `/storage/${anyUser.image}`
   }
   
   return ''

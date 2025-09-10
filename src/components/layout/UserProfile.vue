@@ -208,6 +208,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { API_CONFIG } from '../../config/api'
+import { apiRequest } from '../../services/api'
 
 defineOptions({
   name: 'UserProfile'
@@ -266,7 +267,10 @@ const validationErrors = ref({
 const getUserImageUrl = (user: { image_url?: string; image?: string }) => {
   if (user.image_url) return user.image_url
   if (user.image && user.image.startsWith('http')) return user.image
-  if (user.image) return `http://localhost:8000/storage/${user.image}`
+  if (user.image) {
+    // Используем относительный путь для работы в production
+    return `/storage/${user.image}`
+  }
   return ''
 }
 
@@ -339,10 +343,27 @@ const handleImageUpload = async (event: Event) => {
 }
 
 // Удаление фото
-const removePhoto = () => {
-  userImageUrl.value = ''
-  if (fileInput.value) {
-    fileInput.value.value = ''
+const removePhoto = async () => {
+  try {
+    const result = await apiRequest('/user/profile', {
+      method: 'POST',
+      body: JSON.stringify({
+        remove_image: true
+      })
+    })
+    
+    // Обновляем данные пользователя
+    if (result.user) {
+      emit('profile-updated', result.user)
+    }
+    
+    // Очищаем локальное состояние
+    userImageUrl.value = ''
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+  } catch (error) {
+    console.error('Ошибка при удалении фото:', error)
   }
 }
 
@@ -440,20 +461,14 @@ const validateForm = async () => {
     } else {
       // Проверяем текущий пароль через API
       try {
-        const response = await fetch('http://localhost:8000/api/validate-password', {
+        const result = await apiRequest('/validate-password', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
           body: JSON.stringify({
             current_password: passwordData.value.currentPassword
           })
         })
         
-        const result = await response.json()
-        
-        if (!response.ok || !result.valid) {
+        if (!result.valid) {
           validationErrors.value.currentPassword = 'Неверный текущий пароль'
           isValid = false
         }
@@ -509,40 +524,31 @@ const saveProfile = async () => {
     }
 
     // Отправляем запрос на обновление профиля
-    const response = await fetch('/api/user/profile', {
+    const result = await apiRequest('/user/profile', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      },
       body: formData,
     })
-
-    if (response.ok) {
-      const result = await response.json()
-      
-      // Обновляем данные пользователя
-      if (result.user) {
-        // Обновляем данные в родительском компоненте
-        emit('profile-updated', result.user)
-      }
-      
-      // Сбрасываем форму паролей
-      passwordData.value = {
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      }
-      
-      // Перезагружаем данные пользователя с небольшой задержкой
-      setTimeout(() => {
-        loadUserData()
-      }, 100)
-      
-      // Закрываем dropdown после успешного сохранения
-      isDropdownOpen.value = false
-    } else {
-      const error = await response.json()
+    
+    // Обновляем данные пользователя
+    if (result.user) {
+      // Обновляем данные в родительском компоненте
+      emit('profile-updated', result.user)
     }
+    
+    // Сбрасываем форму паролей
+    passwordData.value = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    }
+    
+    // Перезагружаем данные пользователя с небольшой задержкой
+    setTimeout(() => {
+      loadUserData()
+    }, 100)
+    
+    // Закрываем dropdown после успешного сохранения
+    isDropdownOpen.value = false
   } catch (error) {
   } finally {
     isSaving.value = false

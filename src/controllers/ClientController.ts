@@ -79,6 +79,11 @@ export function useClientController() {
       sortBy.value = key
       sortOrder.value = 'asc'
     }
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('clientList_sortBy', sortBy.value)
+    localStorage.setItem('clientList_sortOrder', sortOrder.value)
+    
     fetchClients(1, search, sortBy.value, sortOrder.value)
   }
 
