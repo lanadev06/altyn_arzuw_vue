@@ -24,16 +24,9 @@
             class="inline-block px-2 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-medium"
             >{{ getStatusText(log.to_status) }}</span
           >
-          <span class="text-xs text-gray-500 ml-2"
-            >{{ log.user?.name || 'Неизвестно'
-            }}<span
-              v-if="log.user?.role"
-              class="inline-block rounded px-1 py-0.5 text-xs font-semibold ml-1"
-              :style="getRoleBadgeStyle(log.user.role)"
-            >
-              {{ getRoleLabel(log.user.role) }}</span
-            ></span
-          >
+          <span class="text-xs text-gray-500 ml-2">
+            {{ log.user?.name || 'Неизвестно' }}
+          </span>
         </div>
         <div class="ml-3 flex-shrink-0">
           <div
