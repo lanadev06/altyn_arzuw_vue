@@ -232,12 +232,17 @@ const emit = defineEmits(['logout', 'profile-updated'])
 
 // Ensure we always have a safe user object
 const safeUser = computed(() => ({
+  id: props.user?.id || 0,
   name: props.user?.name || '',
+  username: props.user?.username || '',
   role: props.user?.role || '',
   image: props.user?.image || null,
   image_url: props.user?.image_url || null,
   roles: props.user?.roles || [],
   phone: props.user?.phone || '',
+  is_active: props.user?.is_active ?? true,
+  created_at: props.user?.created_at || new Date().toISOString(),
+  updated_at: props.user?.updated_at || new Date().toISOString(),
 }))
 
 const isDropdownOpen = ref(false)
@@ -348,8 +353,8 @@ const removePhoto = async () => {
     })
     
     // Обновляем данные пользователя
-    if (result.user) {
-      emit('profile-updated', result.user)
+    if ((result as any).user) {
+      emit('profile-updated', (result as any).user)
     }
     
     // Очищаем локальное состояние
@@ -463,7 +468,7 @@ const validateForm = async () => {
           })
         })
         
-        if (!result.valid) {
+        if (!(result as any).valid) {
           validationErrors.value.currentPassword = 'Неверный текущий пароль'
           isValid = false
         }
@@ -525,9 +530,9 @@ const saveProfile = async () => {
     })
     
     // Обновляем данные пользователя
-    if (result.user) {
+    if ((result as any).user) {
       // Обновляем данные в родительском компоненте
-      emit('profile-updated', result.user)
+      emit('profile-updated', (result as any).user)
     }
     
     // Сбрасываем форму паролей

@@ -36,6 +36,7 @@
               <!-- Заголовок заказа -->
               <OrderHeader
                 :order="order"
+                :stages="stages"
               />
 
               <!-- Информация о заказе -->

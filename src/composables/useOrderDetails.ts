@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { toast } from '../stores/toast'
 import { frontendCache } from '../services/cacheService'
+import { getCurrentUser } from '../utils/permissions'
 import {
   getOrderDetails,
   getOrderComments,
@@ -55,7 +56,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
   const { updateStage, update } = OrderController()
   
   // Система событий
-  const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted } = useOrderEvents()
+  const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted, onOrderStageChanged } = useOrderEvents()
 
   // Smart polling
   const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
@@ -579,6 +580,21 @@ export function useOrderDetails(orderId: number | null | undefined) {
       order.value.stage = newStatus
     }
     
+    // Оптимистичное обновление timeline - добавляем новый лог сразу
+    const currentUser = getCurrentUser()
+    const newLog: StatusLog = {
+      id: Date.now(), // Временный ID
+      from_status: oldStage,
+      to_status: newStatus,
+      changed_at: new Date().toISOString(),
+      user: currentUser ? {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.roles?.[0]?.name || 'staff'
+      } : undefined
+    }
+    statusLogs.value.unshift(newLog)
+    
     try {
       await updateStage(order.value.id, newStatus)
       
@@ -599,7 +615,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
         stageDisplayName
       )
 
-      fetchAll()
+      // Timeline обновится автоматически через глобальные события
       
       // Оставляем старое событие для совместимости
       window.dispatchEvent(new CustomEvent('order-updated', {
@@ -610,6 +626,9 @@ export function useOrderDetails(orderId: number | null | undefined) {
       if (order.value) {
         order.value.stage = oldStage
       }
+      
+      // Убираем оптимистично добавленный лог
+      statusLogs.value = statusLogs.value.filter(log => log.id !== newLog.id)
       
       const msg = err instanceof Error ? err.message : 'Ошибка смены стадии'
       toast.show(msg, 'error')
@@ -750,7 +769,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
         frontendCache.delete(cacheKey)
       }
       
-      await fetchAll()
+      // Timeline обновится автоматически через глобальные события
       
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }
@@ -807,6 +826,14 @@ export function useOrderDetails(orderId: number | null | undefined) {
     },
     { immediate: true },
   )
+
+  // Слушаем глобальные события смены стадии для обновления timeline
+  onOrderStageChanged((event) => {
+    // Обновляем timeline только если событие относится к текущему заказу
+    if (orderId && event.orderId === orderId) {
+      loadComments()
+    }
+  })
 
   watch(
     () => order.value?.stage,

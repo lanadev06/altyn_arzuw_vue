@@ -31,8 +31,15 @@
 import type { OrderInfo as OrderInfoType } from '../../../types/orderDetails'
 
 
+interface Stage {
+  value: string
+  label: string
+  color?: string
+}
+
 interface Props {
   order: OrderInfoType | null
+  stages?: Stage[]
 }
 
 const props = defineProps<Props>()
@@ -64,6 +71,18 @@ function statusBadge(stage: string) {
 }
 
 function getStatusBadgeStyle(stage: string) {
+  // Сначала ищем цвет в данных стадий
+  if (props.stages) {
+    const stageData = props.stages.find((s) => s.value === stage)
+    if (stageData?.color) {
+      return {
+        backgroundColor: stageData.color,
+        color: '#ffffff',
+      }
+    }
+  }
+
+  // Fallback цвета, если данные стадий недоступны
   const fallbackColors: Record<string, string> = {
     draft: '#6b7280',
     design: '#3b82f6',

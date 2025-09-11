@@ -8,7 +8,7 @@
         'rounded-l-full',
         idx === stages.length - 1 ? 'rounded-r-full' : 'chevron-right',
         getStageColor(stage.value, currentStage, completedStages),
-        'hover:brightness-110',
+        canViewAllOrders() ? 'hover:brightness-110 cursor-pointer' : 'cursor-default',
         'min-w-[120px] text-center',
         idx !== 0 ? '-ml-2' : '',
         'transition-all duration-150',
@@ -19,6 +19,7 @@
         zIndex: stages.length - idx,
         ...getStageStyle(stage.value, currentStage, completedStages),
       }"
+      :title="!canViewAllOrders() ? 'Только администраторы и менеджеры могут менять стадии' : ''"
     >
       {{ stage.label }}
       <span
@@ -30,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { canViewAllOrders } from '../../../utils/permissions'
 
 interface Stage {
   value: string
@@ -49,27 +51,27 @@ const emit = defineEmits<{
 }>()
 
 function handleStageClick(stageValue: string) {
+  // Сотрудники не могут менять стадии
+  if (!canViewAllOrders()) {
+    return
+  }
+  
   emit('stageClick', stageValue)
 }
 
 function getStageColor(stage: string, current: string, completed: string[]) {
   const stageData = props.stages.find((s) => s.value === stage)
 
+  // Всегда возвращаем базовые классы, цвета будут применяться через getStageStyle
   if (current === stage) {
-    if (stageData && stageData.color) {
-      return `text-white font-semibold`
-    }
-    return 'bg-blue-600 text-white font-semibold'
+    return 'text-white font-semibold'
   }
 
   if (completed.includes(stage)) {
-    if (stageData && stageData.color) {
-      return `text-[${stageData.color}]`
-    }
-    return 'bg-green-100 text-green-800'
+    return 'font-medium'
   }
 
-  return 'bg-gray-100 text-gray-400'
+  return 'text-gray-400'
 }
 
 function getStageStyle(stage: string, current: string, completed: string[]) {
@@ -104,7 +106,11 @@ function getStageStyle(stage: string, current: string, completed: string[]) {
     }
   }
 
-  return {}
+  // Для неактивных стадий возвращаем серый фон
+  return {
+    backgroundColor: '#f3f4f6',
+    color: '#9ca3af',
+  }
 }
 </script>
 
