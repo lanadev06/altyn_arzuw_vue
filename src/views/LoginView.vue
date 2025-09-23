@@ -48,7 +48,7 @@ const handleLogin = async (formData) => {
     if (data.token) {
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
-      router.push('/')
+      router.push('/orders')
     } else {
       throw new Error('Токен не получен')
     }

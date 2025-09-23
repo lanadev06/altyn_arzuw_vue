@@ -218,7 +218,7 @@ const logoUrl = ref(logoDataUrl.value || '/logo.svg')
 
 // Обработчик ошибки загрузки логотипа
 const handleLogoError = () => {
-  // При ошибке загрузки основного логотипа, используем fallback
-  logoUrl.value = '/logo.svg'
+  // При ошибке загрузки основного логотипа, используем fallback с версией
+  logoUrl.value = `/logo.svg?v=${Date.now()}`
 }
 </script>

@@ -1,7 +1,7 @@
 import { ref, onMounted } from 'vue'
 
-const LOGO_KEY = 'altyn_arzuw_logo'
-const LOGO_URL = '/logo.svg' // Убираем Date.now() для стабильного кэширования
+const LOGO_VERSION = '3.0' // Версия для обхода кэша - увеличивайте при обновлении логотипа
+const LOGO_URL = `/logo.svg?v=${LOGO_VERSION}&t=${Date.now()}` // URL с версией и timestamp
 
 // Глобальные переменные для предотвращения повторной загрузки
 let globalLogoDataUrl = ''
@@ -10,80 +10,50 @@ let globalError = ''
 let isInitialized = false
 
 export function useLogo() {
-  // Синхронно загружаем из localStorage при инициализации
-  if (!globalLogoDataUrl && !isInitialized) {
-    const cached = localStorage.getItem(LOGO_KEY)
-    if (cached) {
-      try {
-        // Пытаемся распарсить как JSON (новая версия)
-        const logoData = JSON.parse(cached)
-        if (logoData.dataUrl) {
-          globalLogoDataUrl = logoData.dataUrl
-        } else {
-          // Fallback для старого формата
-          globalLogoDataUrl = cached
-        }
-      } catch {
-        // Fallback для старого формата (просто строка)
-        globalLogoDataUrl = cached
-      }
-      globalIsLoading = false
-      isInitialized = true
-    }
-  }
-
   const logoDataUrl = ref<string>(globalLogoDataUrl)
   const isLoading = ref<boolean>(globalIsLoading)
   const error = ref<string>(globalError)
 
-  // Загружаем логотип в localStorage
-  const loadLogoToStorage = async (): Promise<void> => {
-    // Если уже загружаем, не делаем повторный запрос
-    if (globalIsLoading) {
+  // Автоматически очищаем старый кэш при инициализации
+  if (typeof window !== 'undefined') {
+    try {
+      // Очищаем старый localStorage кэш
+      localStorage.removeItem('altyn_arzuw_logo')
+      
+      // Очищаем старые версии в localStorage
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('logo') && key !== 'altyn_arzuw_logo') {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch (e) {
+      // Игнорируем ошибки очистки localStorage
+    }
+  }
+
+  // Загружаем логотип
+  const loadLogo = async (): Promise<void> => {
+    // Если уже загружаем или загружен, не делаем повторный запрос
+    if (globalIsLoading || isInitialized) {
       return
     }
 
     try {
-      // Проверяем, есть ли уже логотип в localStorage
-      const cached = localStorage.getItem(LOGO_KEY)
-      if (cached) {
-        try {
-          // Пытаемся распарсить как JSON (новая версия)
-          const logoData = JSON.parse(cached)
-          if (logoData.dataUrl) {
-            globalLogoDataUrl = logoData.dataUrl
-            logoDataUrl.value = logoData.dataUrl
-          } else {
-            // Fallback для старого формата
-            globalLogoDataUrl = cached
-            logoDataUrl.value = cached
-          }
-        } catch {
-          // Fallback для старого формата (просто строка)
-          globalLogoDataUrl = cached
-          logoDataUrl.value = cached
-        }
-        globalIsLoading = false
-        isLoading.value = false
-        isInitialized = true
-        return
-      }
-
-      // Если уже инициализированы, не загружаем повторно
-      if (isInitialized) {
-        return
-      }
-
       globalIsLoading = true
       isLoading.value = true
       globalError = ''
       error.value = ''
 
-      // Если нет в кэше, загружаем и сохраняем
+      // Загружаем логотип с версией для обхода кэша
       const response = await fetch(LOGO_URL, {
-        cache: 'force-cache', // Принудительное использование кэша браузера
+        cache: 'no-cache', // Отключаем кэш для получения актуальной версии
         headers: {
-          'Cache-Control': 'max-age=86400' // Кэш на 24 часа
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       })
 
@@ -99,18 +69,6 @@ export function useLogo() {
         const dataUrl = reader.result as string
         globalLogoDataUrl = dataUrl
         logoDataUrl.value = dataUrl
-
-        // Сохраняем в localStorage с меткой времени
-        try {
-          const logoData = {
-            dataUrl,
-            timestamp: Date.now(),
-            version: '1.0'
-          }
-          localStorage.setItem(LOGO_KEY, JSON.stringify(logoData))
-        } catch (e) {
-          // Не удалось сохранить логотип в localStorage
-        }
 
         globalIsLoading = false
         isLoading.value = false
@@ -130,26 +88,21 @@ export function useLogo() {
     }
   }
 
-  // Очищаем логотип из localStorage
-  const clearLogoFromStorage = (): void => {
-    try {
-      localStorage.removeItem(LOGO_KEY)
-      globalLogoDataUrl = ''
-      logoDataUrl.value = ''
-      isInitialized = false
-    } catch (e) {
-      // Не удалось очистить логотип из localStorage
-    }
+  // Очищаем логотип
+  const clearLogo = (): void => {
+    globalLogoDataUrl = ''
+    logoDataUrl.value = ''
+    globalIsLoading = false
+    isLoading.value = false
+    globalError = ''
+    error.value = ''
+    isInitialized = false
   }
 
   // Принудительно перезагружаем логотип
   const reloadLogo = async (): Promise<void> => {
-    clearLogoFromStorage()
-    globalIsLoading = true
-    isLoading.value = true
-    globalError = ''
-    error.value = ''
-    await loadLogoToStorage()
+    clearLogo()
+    await loadLogo()
   }
 
   // Получаем URL логотипа (из кэша или оригинальный)
@@ -160,26 +113,125 @@ export function useLogo() {
   // Инициализируем только один раз
   if (!isInitialized) {
     onMounted(() => {
-      loadLogoToStorage()
+      loadLogo()
     })
   }
 
-  // Очищаем кэш для загрузки нового логотипа
-  const clearCacheForNewLogo = (): void => {
-    clearLogoFromStorage()
+  // Принудительно обновляем логотип (для администраторов)
+  const forceUpdateLogo = async (): Promise<void> => {
+    // Очищаем localStorage
+    try {
+      localStorage.removeItem('altyn_arzuw_logo')
+      // Очищаем все ключи связанные с логотипом
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('logo')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch (e) {
+      // Игнорируем ошибки
+    }
+
+    // Очищаем кэш браузера
+    if ('caches' in window) {
+      try {
+        const cacheNames = await caches.keys()
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName)
+          const requests = await cache.keys()
+          for (const request of requests) {
+            if (request.url.includes('logo.svg') || request.url.includes('logo')) {
+              await cache.delete(request)
+            }
+          }
+        }
+      } catch (e) {
+        // Игнорируем ошибки кэша
+      }
+    }
+
+    // Очищаем sessionStorage
+    try {
+      const keysToRemove = []
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i)
+        if (key && key.includes('logo')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key))
+    } catch (e) {
+      // Игнорируем ошибки
+    }
+    
+    // Очищаем и перезагружаем логотип
+    clearLogo()
+    
+    // Принудительно обновляем глобальные переменные
+    globalLogoDataUrl = ''
     globalIsLoading = false
-    isLoading.value = false
+    globalError = ''
     isInitialized = false
+    
+    await loadLogo()
   }
 
   return {
     logoDataUrl,
     isLoading,
     error,
-    loadLogoToStorage,
-    clearLogoFromStorage,
+    loadLogo,
+    clearLogo,
     reloadLogo,
     getLogoUrl,
-    clearCacheForNewLogo,
+    forceUpdateLogo,
   }
+}
+
+// Глобальная функция для обновления логотипа (доступна в консоли браузера)
+if (typeof window !== 'undefined') {
+  (window as any).updateLogo = async () => {
+    console.log('🔄 Обновляем логотип...')
+    
+    // Очищаем все кэши
+    try {
+      localStorage.removeItem('altyn_arzuw_logo')
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('logo')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch (e) {
+      console.warn('Ошибка очистки localStorage:', e)
+    }
+
+    // Очищаем кэш браузера
+    if ('caches' in window) {
+      try {
+        const cacheNames = await caches.keys()
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName)
+          const requests = await cache.keys()
+          for (const request of requests) {
+            if (request.url.includes('logo.svg') || request.url.includes('logo')) {
+              await cache.delete(request)
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Ошибка очистки кэша:', e)
+      }
+    }
+
+    console.log('✅ Кэш очищен. Перезагружаем страницу...')
+    window.location.reload()
+  }
+  
+  console.log('💡 Для принудительного обновления логотипа используйте: updateLogo()')
 }
