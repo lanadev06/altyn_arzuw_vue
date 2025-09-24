@@ -193,13 +193,13 @@
       </div>
 
       <!-- Третий ряд: заказы по сотрудникам -->
-      <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[480px] overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[600px] overflow-y-auto">
         <div class="font-extrabold text-xl mb-6 text-gray-900 tracking-wide">
           Заказы по сотрудникам
         </div>
         <div class="flex flex-col gap-6">
           <div
-            v-for="emp in dashboardStats.orders_by_user"
+            v-for="emp in dashboardStats.orders_by_user.filter(emp => emp.orders && emp.orders.length > 0)"
             :key="emp.user_id"
             class="bg-white/80 rounded-2xl p-5 flex flex-col gap-2 shadow group hover:scale-[1.01] hover:shadow-lg transition-all duration-300"
           >
@@ -209,10 +209,18 @@
                 class="ml-auto px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm shadow"
                 >{{ emp.total }} заказ{{ emp.total === 1 ? '' : emp.total < 5 ? 'а' : 'ов' }}</span
               >
+              <button
+                v-if="emp.orders && emp.orders.length > 0"
+                @click="toggleEmployeeOrders(emp.user_id)"
+                class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
+                :title="expandedEmployees.includes(emp.user_id) ? 'Свернуть заказы' : 'Показать все заказы'"
+              >
+                {{ expandedEmployees.includes(emp.user_id) ? 'Свернуть' : 'Все заказы' }}
+              </button>
             </div>
-            <div v-if="emp.orders && emp.orders.length" class="flex flex-col gap-1">
+            <div v-if="emp.orders && emp.orders.length" class="flex flex-col gap-1 overflow-y-auto" :class="expandedEmployees.includes(emp.user_id) ? 'max-h-[400px]' : 'max-h-[200px]'">
               <span
-                v-for="order in emp.orders"
+                v-for="order in (expandedEmployees.includes(emp.user_id) ? emp.orders : emp.orders.slice(0, 8))"
                 :key="order.id"
                 class="flex items-center gap-2 text-blue-600 hover:underline group cursor-pointer"
                 title="Открыть детали заказа"
@@ -233,6 +241,12 @@
                   }}</span
                 >
               </span>
+              <!-- Показываем индикатор, если заказов больше чем помещается и не развернуто -->
+              <div v-if="!expandedEmployees.includes(emp.user_id) && emp.orders.length > 8" class="text-center text-gray-500 text-sm py-2 border-t border-gray-200 mt-2">
+                <span class="bg-gray-100 px-3 py-1 rounded-full">
+                  И еще {{ emp.orders.length - 8 }} заказ{{ emp.orders.length - 8 === 1 ? '' : emp.orders.length - 8 < 5 ? 'а' : 'ов' }}
+                </span>
+              </div>
             </div>
             <span v-else class="text-gray-400">Нет назначенных заказов</span>
           </div>
@@ -329,6 +343,7 @@ const stagesData = ref<Stage[]>([])
 
 const showOrderDetailsModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
+const expandedEmployees = ref<number[]>([])
 
 // Функция для проверки ролей пользователя
 const currentUser = computed(() => getCurrentUser())
@@ -342,6 +357,15 @@ const hasAdminOrManagerRole = computed(() => {
 function openOrderDetailsModal(orderId: number) {
   selectedOrderId.value = orderId
   showOrderDetailsModal.value = true
+}
+
+function toggleEmployeeOrders(userId: number) {
+  const index = expandedEmployees.value.indexOf(userId)
+  if (index > -1) {
+    expandedEmployees.value.splice(index, 1)
+  } else {
+    expandedEmployees.value.push(userId)
+  }
 }
 
 function hasRole(user: User, roleName: string) {

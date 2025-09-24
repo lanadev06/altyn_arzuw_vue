@@ -194,7 +194,6 @@ export function useLogo() {
 // Глобальная функция для обновления логотипа (доступна в консоли браузера)
 if (typeof window !== 'undefined') {
   (window as any).updateLogo = async () => {
-    console.log('🔄 Обновляем логотип...')
     
     // Очищаем все кэши
     try {
@@ -208,7 +207,7 @@ if (typeof window !== 'undefined') {
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
     } catch (e) {
-      console.warn('Ошибка очистки localStorage:', e)
+      // Ошибка очистки localStorage
     }
 
     // Очищаем кэш браузера
@@ -225,13 +224,11 @@ if (typeof window !== 'undefined') {
           }
         }
       } catch (e) {
-        console.warn('Ошибка очистки кэша:', e)
+        // Ошибка очистки кэша
       }
     }
 
-    console.log('✅ Кэш очищен. Перезагружаем страницу...')
     window.location.reload()
   }
   
-  console.log('💡 Для принудительного обновления логотипа используйте: updateLogo()')
 }

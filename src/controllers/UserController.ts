@@ -8,6 +8,7 @@ import {
   toggleUserActive,
   getUsersByRole,
 } from '@/services/api'
+import { frontendCache, CacheKeys } from '@/services/cacheService'
 import type { User, CreateUserData, UpdateUserData } from '@/types/api'
 
 export function useUserController() {
@@ -98,8 +99,20 @@ export function useUserController() {
     loading.value = true
     try {
       const created = await createUser(userData)
+      
+      // Инвалидируем кэш пользователей по ролям стадий
+      frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return created
+    } catch (e: any) {
+      // Если есть ошибки валидации полей, пробрасываем их дальше
+      if (e.fieldErrors) {
+        throw e
+      }
+      // Для других ошибок используем стандартную обработку
+      error.value = e instanceof Error ? e.message : 'Ошибка создания пользователя'
+      throw e
     } finally {
       loading.value = false
     }
@@ -109,6 +122,10 @@ export function useUserController() {
     loading.value = true
     try {
       const updated = await updateUser(id, userData)
+      
+      // Инвалидируем кэш пользователей по ролям стадий (на случай изменения ролей)
+      frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
       return updated
     } finally {
@@ -120,6 +137,10 @@ export function useUserController() {
     loading.value = true
     try {
       await deleteUser(id)
+      
+      // Инвалидируем кэш пользователей по ролям стадий
+      frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      
       await fetchUsers(page, '', sortBy.value, sortOrder.value)
     } finally {
       loading.value = false
@@ -130,6 +151,9 @@ export function useUserController() {
     loading.value = true
     try {
       const result = await toggleUserActive(id)
+      
+      // Инвалидируем кэш пользователей по ролям стадий (активность влияет на отображение)
+      frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
       
       // Обновляем локальное состояние пользователя
       const userIndex = users.value.findIndex(user => user.id === id)

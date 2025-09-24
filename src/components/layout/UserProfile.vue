@@ -363,7 +363,7 @@ const removePhoto = async () => {
       fileInput.value.value = ''
     }
   } catch (error) {
-    console.error('Ошибка при удалении фото:', error)
+    // Ошибка при удалении фото
   }
 }
 

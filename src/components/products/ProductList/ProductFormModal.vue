@@ -1183,25 +1183,24 @@ async function handleSubmit() {
       })
     })
 
-    if (allAssignments.length > 0) {
-      try {
-        const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
-      } catch (error) {
+    // Всегда отправляем запрос, даже если массив пустой (для удаления всех назначений)
+    try {
+      const result = await bulkAssignProductUsers(productId, { assignments: allAssignments })
+    } catch (error) {
 
-        // Показываем более детальную ошибку
-        let errorMessage = 'Ошибка при сохранении назначений'
-        if (error instanceof Error) {
-          if (error.message.includes('422')) {
-            errorMessage = 'Ошибка валидации назначений - проверьте роли пользователей'
-          } else {
-            errorMessage = `Ошибка при сохранении назначений: ${error.message}`
-          }
+      // Показываем более детальную ошибку
+      let errorMessage = 'Ошибка при сохранении назначений'
+      if (error instanceof Error) {
+        if (error.message.includes('422')) {
+          errorMessage = 'Ошибка валидации назначений - проверьте роли пользователей'
+        } else {
+          errorMessage = `Ошибка при сохранении назначений: ${error.message}`
         }
+      }
 
         toast.show(errorMessage, 'error')
         // Не прерываем сохранение продукта, только показываем ошибку
       }
-    }
 
     // Проверяем, что стадии действительно сохранились
     try {

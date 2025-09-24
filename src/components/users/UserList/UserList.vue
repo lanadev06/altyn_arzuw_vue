@@ -197,12 +197,14 @@
     <UserFormModal
       v-if="props.showCreateModal"
       :user="null"
+      :validation-errors="validationErrors"
       @close="$emit('close-create-modal')"
       @submit="handleCreateUser"
     />
     <UserFormModal
       v-if="showEditModal"
       :user="editingUser"
+      :validation-errors="validationErrors"
       @close="showEditModal = false"
       @submit="handleUpdateUser"
       @delete="handleDeleteUser"
@@ -253,6 +255,7 @@ const showEditModal = ref(false)
 const editingUser = ref<any>(null)
 const currentPage = ref(1)
 const perPage = ref(30)
+const validationErrors = ref<Record<string, string>>({})
 
 // Константы для localStorage
 const SORT_KEY = 'userList_sortBy'
@@ -432,33 +435,59 @@ watch([sortBy, sortOrder], () => {
 // Обработчики событий от UserFormModal
 async function handleCreateUser(userData: any) {
   try {
+    // Очищаем предыдущие ошибки валидации
+    validationErrors.value = {}
+    
     await create(userData)
     emit('close-create-modal')
     toast.show('Сотрудник создан!', 'success')
     fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
-  } catch (err) {
-    toast.show('Ошибка при создании сотрудника', 'error')
+  } catch (err: any) {
+    // Если есть ошибки валидации полей, передаем их в модальное окно
+    if (err.fieldErrors) {
+      validationErrors.value = err.fieldErrors
+      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+    } else {
+      toast.show('Ошибка при создании сотрудника', 'error')
+    }
   }
 }
 
 async function handleUpdateUser(userData: any) {
   try {
     if (!editingUser.value) return
+    
+    // Очищаем предыдущие ошибки валидации
+    validationErrors.value = {}
+    
     await updateUser(editingUser.value.id, userData)
     showEditModal.value = false
     toast.show('Сотрудник обновлён!', 'success')
     fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
-  } catch (err) {
-    toast.show('Ошибка при обновлении сотрудника', 'error')
+  } catch (err: any) {
+    // Если есть ошибки валидации полей, передаем их в модальное окно
+    if (err.fieldErrors) {
+      validationErrors.value = err.fieldErrors
+      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+    } else {
+      toast.show('Ошибка при обновлении сотрудника', 'error')
+    }
   }
 }
 
 async function handleDeleteUser(userId: number) {
   try {
-    await deleteUser(userId)
+    await deleteUser(userId, currentPage.value)
     showEditModal.value = false
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
-  } catch (err) {
+    toast.show('Сотрудник успешно удалён!', 'success')
+  } catch (err: any) {
+    let message = 'Произошла неизвестная ошибка при удалении сотрудника'
+    if (err?.response?.data?.message) {
+      message = err.response.data.message
+    } else if (err instanceof Error && err.message) {
+      message = `Ошибка удаления сотрудника: ${err.message}`
+    }
+    toast.show(message, 'error')
   }
 }
 

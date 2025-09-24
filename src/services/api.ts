@@ -113,6 +113,23 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
       // Обработка Laravel validation errors
       if (response.status === 422 && errorData.errors) {
+        // Создаем объект с ошибками по полям
+        const fieldErrors: Record<string, string> = {}
+        Object.keys(errorData.errors).forEach(field => {
+          const fieldErrorArray = errorData.errors[field]
+          if (Array.isArray(fieldErrorArray) && fieldErrorArray.length > 0) {
+            fieldErrors[field] = fieldErrorArray[0] // Берем первую ошибку для поля
+          }
+        })
+        
+        // Если есть ошибки полей, создаем специальный объект ошибки
+        if (Object.keys(fieldErrors).length > 0) {
+          const error = new Error('Validation failed')
+          ;(error as any).fieldErrors = fieldErrors
+          throw error
+        }
+        
+        // Fallback к старому поведению
         const validationErrors = Object.values(errorData.errors).flat().join(', ')
         throw new Error(validationErrors)
       }

@@ -128,6 +128,7 @@ import { getCurrentUser } from '@/utils/auth'
 
 const props = defineProps<{
   user?: any
+  validationErrors?: Record<string, string>
 }>()
 
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -184,6 +185,21 @@ watch(
       form.roles = []
       form.password = ''
       form.image = null
+    }
+  },
+  { immediate: true },
+)
+
+// Обрабатываем ошибки валидации из props
+watch(
+  () => props.validationErrors,
+  (newErrors) => {
+    if (newErrors) {
+      Object.keys(newErrors).forEach(field => {
+        if (field in errors) {
+          errors[field as keyof typeof errors] = newErrors[field]
+        }
+      })
     }
   },
   { immediate: true },
@@ -358,6 +374,12 @@ const convertHeicToJpg = async (file: File): Promise<File> => {
 const handleSubmit = async () => {
   if (!validateForm()) return
   loading.value = true
+  
+  // Очищаем предыдущие ошибки
+  Object.keys(errors).forEach((key) => {
+    errors[key as keyof typeof errors] = ''
+  })
+  
   try {
     const dataToSend: any = {
       name: form.name,
@@ -387,8 +409,19 @@ const handleSubmit = async () => {
     }
 
     emit('submit', dataToSend)
-  } catch (error) {
-    toast.show('Ошибка при подготовке данных', 'error')
+  } catch (error: any) {
+    // Обрабатываем ошибки валидации полей
+    if (error.fieldErrors) {
+      Object.keys(error.fieldErrors).forEach(field => {
+        if (field in errors) {
+          errors[field as keyof typeof errors] = error.fieldErrors[field]
+        }
+      })
+      // Показываем общее сообщение об ошибке валидации
+      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+    } else {
+      toast.show('Ошибка при подготовке данных', 'error')
+    }
   } finally {
     loading.value = false
   }
