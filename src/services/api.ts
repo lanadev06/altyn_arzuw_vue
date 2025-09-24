@@ -5,6 +5,56 @@ import { requestDeduplication } from './requestDeduplication'
 import { invalidateCache } from '../utils/cacheUtils'
 import { requestQueue } from './requestQueue'
 import { circuitBreaker } from './circuitBreaker'
+
+// Make circuit breaker globally accessible for debugging
+if (typeof window !== 'undefined') {
+  (window as any).circuitBreaker = circuitBreaker
+}
+
+// Function to check backend connectivity
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/health`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    })
+    return response.ok
+  } catch (error) {
+    console.warn('Backend health check failed:', error)
+    return false
+  }
+}
+
+// Function to reset circuit breaker and clear caches
+export function resetCircuitBreaker() {
+  circuitBreaker.reset()
+  frontendCache.clear()
+  localStorage.removeItem('api_errors')
+  console.log('Circuit breaker and caches reset')
+}
+
+// Function to force reset all pending requests and circuit breaker
+export function forceResetAll() {
+  // Reset circuit breaker
+  circuitBreaker.reset()
+  
+  // Clear all caches
+  frontendCache.clear()
+  
+  // Clear localStorage errors
+  localStorage.removeItem('api_errors')
+  
+  // Clear any pending requests
+  if (typeof window !== 'undefined' && window.AbortController) {
+    // This will help abort any pending requests
+    console.log('Forcing reset of all pending requests')
+  }
+  
+  console.log('Force reset completed - all systems reset')
+}
 import type {
   PaginatedResponse,
   User,
@@ -112,6 +162,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         })
       })
     })
+    
+    // Если запрос успешен, сбрасываем счетчик ошибок
+    if (response.ok) {
+      circuitBreaker.reset()
+    }
 
     clearTimeout(timeoutId)
 

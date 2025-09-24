@@ -18,7 +18,7 @@ export class AuditController {
     if (filters.page) params.append('page', filters.page.toString())
     if (filters.per_page) params.append('per_page', filters.per_page.toString())
 
-    const response = await fetch(`${API_CONFIG.BASE_URL}/audit-logs?${params.toString()}`, {
+    const response = await fetch(`https://crm.ltm.studio/api/audit-logs?${params.toString()}`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -36,7 +36,7 @@ export class AuditController {
    * Получить статистику аудит-логов
    */
   static async getAuditStats(): Promise<AuditLogStats> {
-    const response = await fetch(`${API_CONFIG.BASE_URL}/audit-logs/stats`, {
+    const response = await fetch(`https://crm.ltm.studio/api/audit-logs/stats`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -69,7 +69,7 @@ export class AuditController {
     if (filters.per_page) params.append('per_page', filters.per_page.toString())
 
     const response = await fetch(
-      `${API_CONFIG.BASE_URL}/audit-logs/entity?auditable_type=${auditableType}&auditable_id=${auditableId}&${params.toString()}`,
+      `https://crm.ltm.studio/api/audit-logs/entity?auditable_type=${auditableType}&auditable_id=${auditableId}&${params.toString()}`,
       {
         headers: {
           Accept: 'application/json',
@@ -89,7 +89,7 @@ export class AuditController {
    * Получить детальную информацию о конкретной записи аудит-лога
    */
   static async getAuditLog(id: number): Promise<AuditLog> {
-    const response = await fetch(`${API_CONFIG.BASE_URL}/audit-logs/${id}`, {
+    const response = await fetch(`https://crm.ltm.studio/api/audit-logs/${id}`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -118,7 +118,7 @@ export class AuditController {
     if (filters.search) params.append('search', filters.search)
 
     const response = await fetch(
-      `${API_CONFIG.BASE_URL}/audit-logs/export/csv?${params.toString()}`,
+      `https://crm.ltm.studio/api/audit-logs/export/csv?${params.toString()}`,
       {
         headers: {
           Accept: 'application/json',
@@ -149,7 +149,7 @@ export class AuditController {
     if (filters.search) params.append('search', filters.search)
 
     const response = await fetch(
-      `${API_CONFIG.BASE_URL}/audit-logs/export/json?${params.toString()}`,
+      `https://crm.ltm.studio/api/audit-logs/export/json?${params.toString()}`,
       {
         headers: {
           Accept: 'application/json',

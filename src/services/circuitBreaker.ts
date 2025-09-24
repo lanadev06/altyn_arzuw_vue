@@ -32,7 +32,8 @@ class CircuitBreaker {
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     if (this.state === 'OPEN') {
       if (Date.now() < this.nextAttempt) {
-        throw new Error('Circuit breaker is OPEN - too many failures')
+        const remainingTime = Math.ceil((this.nextAttempt - Date.now()) / 1000)
+        throw new Error(`Circuit breaker is OPEN - too many failures. Retry in ${remainingTime}s`)
       }
       this.state = 'HALF_OPEN'
     }
@@ -43,6 +44,12 @@ class CircuitBreaker {
       return result
     } catch (error) {
       this.onFailure()
+      
+      // Add more context to the error
+      if (error instanceof Error && error.message.includes('CORS')) {
+        throw new Error('Backend server is not accessible. Please check if the Laravel server is running on port 8000.')
+      }
+      
       throw error
     }
   }
@@ -85,7 +92,7 @@ class CircuitBreaker {
 }
 
 export const circuitBreaker = new CircuitBreaker({
-  failureThreshold: 3, // Открываем после 3 ошибок
-  resetTimeout: 30000, // 30 секунд до попытки сброса
-  monitoringPeriod: 60000 // 1 минута мониторинга
+  failureThreshold: 5, // Увеличиваем порог до 5 ошибок
+  resetTimeout: 15000, // Уменьшаем время до 15 секунд
+  monitoringPeriod: 30000 // Уменьшаем период мониторинга до 30 секунд
 })

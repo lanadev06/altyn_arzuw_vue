@@ -502,7 +502,7 @@ onMounted(async () => {
     // Уведомления
     try {
       const token = localStorage.getItem('auth_token')
-      const res = await axios.get(`${API_CONFIG.BASE_URL}/notifications/unread`, {
+      const res = await axios.get(`https://crm.ltm.studio/api/notifications/unread`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -511,7 +511,7 @@ onMounted(async () => {
       if (notifications.value.length > 0) {
         // Пометить все как прочитанные
         await axios.post(
-          `${API_CONFIG.BASE_URL}/notifications/read-all`,
+          `https://crm.ltm.studio/api/notifications/read-all`,
           {},
           {
             headers: {
