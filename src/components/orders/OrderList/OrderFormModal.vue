@@ -2335,7 +2335,7 @@ h3:hover svg {
 
 /* Исправляем проблему с dropdown под другими элементами */
 .vs__dropdown-menu {
-  max-height: 120px !important;
+  max-height: 200px !important;
   overflow-y: auto !important;
   padding: 0 !important;
   z-index: 9999 !important;
@@ -2358,7 +2358,7 @@ h3:hover svg {
 
 /* Специальные стили для массового режима */
 .orderMode-bulk .vs__dropdown-menu {
-  max-height: 150px !important;
+  max-height: 200px !important;
   min-width: 300px !important;
 }
 
@@ -2395,5 +2395,31 @@ h3:hover svg {
 
 .border.border-gray-200.rounded-lg:hover {
   transform: none !important;
+}
+
+/* Кастомные стили для скроллбара в выпадающем списке */
+.vs__dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Улучшенная прокрутка для Firefox */
+.vs__dropdown-menu {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 </style>

@@ -58,7 +58,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
   // Система событий
   const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted, onOrderStageChanged } = useOrderEvents()
 
-  // Smart polling
+  // Smart polling - более консервативные настройки
   const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
     `order-details-${orderId}`,
     async () => {
@@ -67,9 +67,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
     },
     {
-      interval: 2000,
-      maxInterval: 8000,
-      minInterval: 1000,
+      interval: 5000, // Увеличиваем базовый интервал до 5 секунд
+      maxInterval: 30000, // Максимальный интервал 30 секунд
+      minInterval: 3000, // Минимальный интервал 3 секунды
+      backoffMultiplier: 2, // Более агрессивное увеличение интервала при ошибках
+      maxBackoff: 60000, // Максимальный интервал при ошибках 1 минута
       enabled: !!orderId
     }
   )
@@ -138,7 +140,8 @@ export function useOrderDetails(orderId: number | null | undefined) {
       const orderData = await getOrderDetails(orderId)
       order.value = orderData as OrderInfoType
       loading.value = false // Показываем основную информацию сразу
-    } catch {
+    } catch (error) {
+      console.error('Error loading order details:', error)
       toast.show('Ошибка загрузки заказа', 'error')
       loading.value = false
       return
@@ -197,6 +200,9 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
     }
 
+    // Загружаем пользователей и роли в фоне (важно для селектора назначений)
+    loadUsersAndRolesAsync()
+
     // Загружаем комментарии и логи в фоне
     await loadComments()
   }
@@ -240,9 +246,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
     } else {
       statusLogs.value = []
     }
-
-    // Загружаем пользователей и роли в фоне (не критично)
-    loadUsersAndRolesAsync()
 
     // Обрабатываем назначения
     if (order.value && order.value.assignments) {
@@ -301,12 +304,17 @@ export function useOrderDetails(orderId: number | null | undefined) {
       if (users.length === 0) {
         try {
           const data = await getAllUsersByStageRoles()
+          console.log('getAllUsersByStageRoles response:', data)
           let allUsers: User[] = []
 
           if (data && typeof data === 'object' && !Array.isArray(data)) {
-            Object.values(data).forEach((stageData: any) => {
-              if (stageData && typeof stageData === 'object' && stageData !== null) {
-                const stage = stageData as Record<string, unknown>
+            Object.values(data).forEach((stageUsers: any) => {
+              if (Array.isArray(stageUsers)) {
+                // Новый формат: stageId -> [user1, user2, ...]
+                allUsers = allUsers.concat(stageUsers as User[])
+              } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
+                // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
+                const stage = stageUsers as Record<string, unknown>
                 if (stage.users_by_role) {
                   Object.values(stage.users_by_role).forEach((roleData: any) => {
                     if (roleData && typeof roleData === 'object' && roleData !== null) {
@@ -324,6 +332,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
           users = allUsers.filter(
             (user, index, self) => index === self.findIndex((u) => u.id === user.id),
           )
+          console.log('Processed users from getAllUsersByStageRoles:', users)
         } catch {
           // Игнорируем ошибку
         }
@@ -464,6 +473,9 @@ export function useOrderDetails(orderId: number | null | undefined) {
           frontendCache.delete(cacheKey)
         }
 
+        // Принудительно обновляем список пользователей для селектора
+        await fetchAvailableUsers()
+        
         await forceRefresh()
         
         toast.show('Сотрудник успешно назначен', 'success')
@@ -511,6 +523,8 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
       setTimeout(async () => {
         try {
+          // Обновляем список пользователей при изменении статуса
+          await fetchAvailableUsers()
           await forceRefresh()
           resetPolling()
         } catch (error) {

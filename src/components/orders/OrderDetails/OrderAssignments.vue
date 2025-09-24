@@ -80,6 +80,13 @@
         :reduce="(user) => user.id"
         placeholder="Добавить сотрудника..."
         class="w-80"
+        :searchable="true"
+        :clearable="true"
+        :no-drop="false"
+        :close-on-select="true"
+        :preserve-search="false"
+        :autoscroll="true"
+        :dropdown-offset="8"
         @update:modelValue="assignUser"
       />
       <span class="text-xs text-gray-400"> ({{ getCurrentStageRolesText() }}) </span>
@@ -474,22 +481,36 @@ watch(
 }
 
 .vs__dropdown-menu {
-  max-height: 70px !important;
+  max-height: 200px !important;
   overflow-y: auto !important;
-  min-width: 220px !important;
+  min-width: 280px !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
   transition: max-height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 9999 !important;
 }
 
 .vs__dropdown-menu .vs__dropdown-option,
 .vs__dropdown-menu .vs__dropdown-option--selected {
-  min-height: 24px !important;
-  padding: 2px 10px !important;
-  font-size: 15px !important;
-  line-height: 1.2 !important;
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
   color: #374151 !important;
   background: #fff !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  transition: all 0.2s ease !important;
+}
+
+.vs__dropdown-menu .vs__dropdown-option:hover {
+  background: #f8fafc !important;
+  color: #1f2937 !important;
+}
+
+.vs__dropdown-menu .vs__dropdown-option--selected {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+  font-weight: 500 !important;
 }
 
 /* Ensure Vue3Select input has good visibility */
@@ -505,5 +526,31 @@ watch(
 .vs__dropdown-toggle {
   background: white !important;
   border: 1px solid #d1d5db !important;
+}
+
+/* Кастомные стили для скроллбара в выпадающем списке */
+.vs__dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.vs__dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Улучшенная прокрутка для Firefox */
+.vs__dropdown-menu {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 </style>

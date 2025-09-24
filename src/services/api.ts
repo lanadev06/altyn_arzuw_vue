@@ -3,6 +3,8 @@ import { handle401Error } from '../utils/auth'
 import { frontendCache, CacheKeys, CacheTTL } from './cacheService'
 import { requestDeduplication } from './requestDeduplication'
 import { invalidateCache } from '../utils/cacheUtils'
+import { requestQueue } from './requestQueue'
+import { circuitBreaker } from './circuitBreaker'
 import type {
   PaginatedResponse,
   User,
@@ -101,9 +103,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
 
   try {
-    const response = await fetch(url, {
-      ...config,
-      signal: controller.signal,
+    // Используем circuit breaker и очередь запросов
+    const response = await circuitBreaker.execute(async () => {
+      return await requestQueue.add(async () => {
+        return await fetch(url, {
+          ...config,
+          signal: controller.signal,
+        })
+      })
     })
 
     clearTimeout(timeoutId)

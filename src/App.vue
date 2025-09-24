@@ -16,11 +16,13 @@
     :visible="toast.visible?.value || false"
     :type="toast.type?.value || 'success'"
   />
+  <SystemStatus />
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import Toast from './components/ui/Toast.vue'
+import SystemStatus from './components/debug/SystemStatus.vue'
 import { toast } from './stores/toast'
 
 // Глобальный обработчик unhandledrejection для перехвата 401 ошибок

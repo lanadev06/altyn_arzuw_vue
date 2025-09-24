@@ -211,7 +211,7 @@ function onOverlayClick() {
 }
 
 // Слушаем глобальные события обновления
-onMounted(() => {
+onMounted(async () => {
   const handleGlobalUpdate = (event: CustomEvent) => {
     if (event.detail?.orderId === props.orderId) {
       forceRefresh()
@@ -219,6 +219,15 @@ onMounted(() => {
   }
   
   window.addEventListener('order-updated', handleGlobalUpdate as EventListener)
+  
+  // Принудительно обновляем список пользователей при открытии модального окна
+  // Это гарантирует, что новые сотрудники будут доступны в селекторе
+  try {
+    // Используем уже существующий composable
+    await forceRefresh()
+  } catch (error) {
+    // Игнорируем ошибку, если пользователи не загрузились
+  }
   
   onUnmounted(() => {
     window.removeEventListener('order-updated', handleGlobalUpdate as EventListener)
