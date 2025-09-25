@@ -29,7 +29,7 @@ const handleLogin = async (formData) => {
   loading.value = true
 
   try {
-    const response = await fetch(`https://crm.ltm.studio/api/login`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

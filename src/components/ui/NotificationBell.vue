@@ -206,7 +206,7 @@ function toggleDropdown() {
 async function fetchNotifications() {
   loading.value = true
   try {
-    const res = await fetch(`https://crm.ltm.studio/api/notifications`, {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/notifications`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -246,7 +246,7 @@ async function fetchNotifications() {
 }
 
 async function markAllRead() {
-  await fetch(`https://crm.ltm.studio/api/notifications/read-all`, {
+  await fetch(`${API_CONFIG.BASE_URL}/notifications/read-all`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -260,7 +260,7 @@ async function handleClick(notif: any) {
   // Отмечаем уведомление как прочитанное только для этого конкретного уведомления
   if (!notif.read_at) {
     try {
-      await fetch(`https://crm.ltm.studio/api/notifications/${notif.id}/read`, {
+      await fetch(`${API_CONFIG.BASE_URL}/notifications/${notif.id}/read`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',

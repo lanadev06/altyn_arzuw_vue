@@ -449,6 +449,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import EditableField from '@/components/ui/EditableField.vue'
 import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
+import { API_CONFIG } from '@/config/api'
 import 'flatpickr/dist/flatpickr.css'
 import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils/permissions'
@@ -579,7 +580,7 @@ async function updateProjectField(field: ProjectField, value: any) {
   payload[field] = value
   
   try {
-    const res = await fetch(`/api/projects/${props.project.id}`, {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${props.project.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

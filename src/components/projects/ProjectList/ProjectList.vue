@@ -170,6 +170,7 @@ import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
+import { API_CONFIG } from '@/config/api'
 import ProjectFormModal from './ProjectFormModal.vue'
 import ProjectDetailsModal from './ProjectDetailsModal.vue'
 import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
@@ -332,7 +333,7 @@ function getPaymentClass(project: Project) {
 }
 
 async function openProjectDetails(project: Project) {
-  const res = await fetch(`/api/projects/${project.id}`, {
+  const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${project.id}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -400,7 +401,7 @@ function closeOrderModal() {
 }
 async function onOrderCreated(order: any) {
   if (!selectedProject.value) return
-  const res = await fetch(`/api/projects/${selectedProject.value.id}`, {
+  const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -412,7 +413,7 @@ async function onOrderCreated(order: any) {
 }
 
 async function getProjectComments(projectId: number) {
-  const res = await fetch(`/api/comments?project_id=${projectId}`, {
+  const res = await fetch(`${API_CONFIG.BASE_URL}/comments?project_id=${projectId}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -435,7 +436,7 @@ async function addProjectComment(projectId: number, text: string) {
   return await res.json()
 }
 async function deleteProjectComment(commentId: number) {
-  const res = await fetch(`/api/comments/${commentId}`, {
+  const res = await fetch(`${API_CONFIG.BASE_URL}/comments/${commentId}`, {
     method: 'DELETE',
     headers: {
       Accept: 'application/json',
