@@ -404,6 +404,8 @@ function changePerPage() {
 
 onMounted(async () => {
   await nextTick()
+  // Загружаем пользователей при инициализации
+  fetchUsers(1, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {
       animation: 150,

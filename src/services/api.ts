@@ -6,7 +6,7 @@ import { invalidateCache } from '../utils/cacheUtils'
 import { requestQueue } from './requestQueue'
 import { circuitBreaker } from './circuitBreaker'
 
-// Make circuit breaker globally accessible for debugging
+// Make circuit breaker globally accessible
 if (typeof window !== 'undefined') {
   (window as any).circuitBreaker = circuitBreaker
 }
@@ -23,7 +23,6 @@ export async function checkBackendHealth(): Promise<boolean> {
     })
     return response.ok
   } catch (error) {
-    console.warn('Backend health check failed:', error)
     return false
   }
 }
@@ -33,7 +32,6 @@ export function resetCircuitBreaker() {
   circuitBreaker.reset()
   frontendCache.clear()
   localStorage.removeItem('api_errors')
-  console.log('Circuit breaker and caches reset')
 }
 
 // Function to force reset all pending requests and circuit breaker
@@ -50,10 +48,7 @@ export function forceResetAll() {
   // Clear any pending requests
   if (typeof window !== 'undefined' && window.AbortController) {
     // This will help abort any pending requests
-    console.log('Forcing reset of all pending requests')
   }
-  
-  console.log('Force reset completed - all systems reset')
 }
 import type {
   PaginatedResponse,
@@ -976,10 +971,17 @@ export async function getProjectDetails(projectId: number) {
   return await apiRequest(`/projects/${projectId}`)
 }
 
-export async function updateOrderStage(orderId: number, stage: string): Promise<void> {
+export async function updateOrderStage(orderId: number, stage: string, additionalData?: Record<string, any>): Promise<void> {
+  const payload: Record<string, any> = { stage }
+  
+  // Добавляем дополнительные данные если они переданы
+  if (additionalData) {
+    Object.assign(payload, additionalData)
+  }
+  
   await apiRequest(`/orders/${orderId}/stage`, {
     method: 'PUT',
-    body: JSON.stringify({ stage }),
+    body: JSON.stringify(payload),
   })
 }
 
@@ -1036,7 +1038,9 @@ export async function getUsers({
     per_page: per_page.toString(),
   })
   if (role) params.append('role', role)
-  if (is_active !== null) params.append('is_active', String(is_active))
+  if (is_active !== null) {
+    params.append('is_active', String(is_active))
+  }
   const res = await apiRequest(`/users?${params.toString()}`)
   return res as PaginatedResponse<User>
 }
@@ -1154,7 +1158,14 @@ export async function getUsersByStageRoles(stageId: number): Promise<any> {
 }
 
 // Получить всех пользователей по ролям всех стадий
-export async function getAllUsersByStageRoles(): Promise<any> {
+export async function getAllUsersByStageRoles(forceRefresh = false): Promise<any> {
+  // Если принудительное обновление, очищаем кэш
+  if (forceRefresh) {
+    frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+    frontendCache.invalidatePattern('users_by_stage_roles')
+    frontendCache.invalidatePattern('stages_users_by_roles')
+  }
+  
   const res = await cachedApiRequest('/stages/users-by-roles/all', {}, CacheKeys.USERS_BY_STAGE_ROLES, CacheTTL.VERY_LONG)
   return res
 }

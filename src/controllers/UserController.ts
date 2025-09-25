@@ -100,10 +100,18 @@ export function useUserController() {
     try {
       const created = await createUser(userData)
       
-      // Инвалидируем кэш пользователей по ролям стадий
+      // Агрессивная инвалидация кэша пользователей
       frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern(CacheKeys.USERS)
+      frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern('users_by_stage_roles')
+      frontendCache.invalidatePattern('stages_users_by_roles')
       
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
+      
+      // Отправляем глобальное событие обновления пользователей
+      window.dispatchEvent(new CustomEvent('users-updated'))
+      
       return created
     } catch (e: any) {
       // Если есть ошибки валидации полей, пробрасываем их дальше
@@ -123,10 +131,18 @@ export function useUserController() {
     try {
       const updated = await updateUser(id, userData)
       
-      // Инвалидируем кэш пользователей по ролям стадий (на случай изменения ролей)
+      // Агрессивная инвалидация кэша пользователей
       frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern(CacheKeys.USERS)
+      frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern('users_by_stage_roles')
+      frontendCache.invalidatePattern('stages_users_by_roles')
       
       await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
+      
+      // Отправляем глобальное событие обновления пользователей
+      window.dispatchEvent(new CustomEvent('users-updated'))
+      
       return updated
     } finally {
       loading.value = false
@@ -138,10 +154,17 @@ export function useUserController() {
     try {
       await deleteUser(id)
       
-      // Инвалидируем кэш пользователей по ролям стадий
+      // Агрессивная инвалидация кэша пользователей
       frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern(CacheKeys.USERS)
+      frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern('users_by_stage_roles')
+      frontendCache.invalidatePattern('stages_users_by_roles')
       
       await fetchUsers(page, '', sortBy.value, sortOrder.value)
+      
+      // Отправляем глобальное событие обновления пользователей
+      window.dispatchEvent(new CustomEvent('users-updated'))
     } finally {
       loading.value = false
     }
@@ -152,8 +175,12 @@ export function useUserController() {
     try {
       const result = await toggleUserActive(id)
       
-      // Инвалидируем кэш пользователей по ролям стадий (активность влияет на отображение)
+      // Агрессивная инвалидация кэша пользователей
       frontendCache.delete(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern(CacheKeys.USERS)
+      frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+      frontendCache.invalidatePattern('users_by_stage_roles')
+      frontendCache.invalidatePattern('stages_users_by_roles')
       
       // Обновляем локальное состояние пользователя
       const userIndex = users.value.findIndex(user => user.id === id)
@@ -163,6 +190,8 @@ export function useUserController() {
         users.value[userIndex].is_active = newActiveStatus
         return { is_active: newActiveStatus }
       } else {
+        // Отправляем глобальное событие обновления пользователей
+        window.dispatchEvent(new CustomEvent('users-updated'))
         return { is_active: result.is_active }
       }
     } finally {

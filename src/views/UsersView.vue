@@ -20,8 +20,8 @@
           style="min-width: 180px"
         >
           <option value="">Все сотрудники</option>
-          <option value="1">Только активные</option>
-          <option value="0">Только неактивные</option>
+          <option value="active">Только активные</option>
+          <option value="inactive">Только неактивные</option>
         </select>
       </div>
       <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> Добавить сотрудника </UIButton>
@@ -50,7 +50,7 @@ import { canCreateUsers } from '../utils/permissions'
 
 const showCreateModal = ref(false)
 const selectedRole = ref('')
-const activeFilter = ref('')
+const activeFilter = ref('active')
 const availableRoles = ref<any[]>([])
 const loadingRoles = ref(false)
 const stagesData = ref<any[]>([])

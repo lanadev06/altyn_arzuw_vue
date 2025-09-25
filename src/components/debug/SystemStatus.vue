@@ -145,7 +145,6 @@ const resetAll = async () => {
   circuitBreakerState.value = 'CLOSED'
   
   // Show success message
-  console.log('System reset completed')
   
   // Reload the page to reset all states
   setTimeout(() => {
@@ -157,7 +156,6 @@ const resetCircuitBreaker = () => {
   if (window.circuitBreaker) {
     window.circuitBreaker.reset()
     circuitBreakerState.value = 'CLOSED'
-    console.log('Circuit breaker reset manually')
   }
 }
 

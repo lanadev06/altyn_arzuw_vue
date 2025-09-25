@@ -66,7 +66,6 @@ class CircuitBreaker {
     if (this.failureCount >= this.options.failureThreshold) {
       this.state = 'OPEN'
       this.nextAttempt = Date.now() + this.options.resetTimeout
-      console.warn(`Circuit breaker opened after ${this.failureCount} failures`)
     }
   }
 

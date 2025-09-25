@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { toast } from '../stores/toast'
-import { frontendCache } from '../services/cacheService'
+import { frontendCache, CacheKeys } from '../services/cacheService'
 import { getCurrentUser } from '../utils/permissions'
 import {
   getOrderDetails,
@@ -141,7 +141,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
       order.value = orderData as OrderInfoType
       loading.value = false // Показываем основную информацию сразу
     } catch (error) {
-      console.error('Error loading order details:', error)
       toast.show('Ошибка загрузки заказа', 'error')
       loading.value = false
       return
@@ -289,9 +288,17 @@ export function useOrderDetails(orderId: number | null | undefined) {
     }
   }
 
-  async function fetchAvailableUsers() {
+  async function fetchAvailableUsers(forceRefresh = false) {
     try {
       let users = []
+
+      // Если принудительное обновление, очищаем кэш
+      if (forceRefresh) {
+        frontendCache.invalidatePattern(CacheKeys.USERS)
+        frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+        frontendCache.invalidatePattern('users_by_stage_roles')
+        frontendCache.invalidatePattern('stages_users_by_roles')
+      }
 
       try {
         const { apiRequest } = await import('../services/api')
@@ -303,8 +310,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
       if (users.length === 0) {
         try {
-          const data = await getAllUsersByStageRoles()
-          console.log('getAllUsersByStageRoles response:', data)
+          const data = await getAllUsersByStageRoles(forceRefresh)
           let allUsers: User[] = []
 
           if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -332,7 +338,6 @@ export function useOrderDetails(orderId: number | null | undefined) {
           users = allUsers.filter(
             (user, index, self) => index === self.findIndex((u) => u.id === user.id),
           )
-          console.log('Processed users from getAllUsersByStageRoles:', users)
         } catch {
           // Игнорируем ошибку
         }
@@ -474,7 +479,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
         }
 
         // Принудительно обновляем список пользователей для селектора
-        await fetchAvailableUsers()
+        await fetchAvailableUsers(true)
         
         await forceRefresh()
         
@@ -524,7 +529,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       setTimeout(async () => {
         try {
           // Обновляем список пользователей при изменении статуса
-          await fetchAvailableUsers()
+          await fetchAvailableUsers(true)
           await forceRefresh()
           resetPolling()
         } catch (error) {
@@ -584,7 +589,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
   }
 
   // Функции для работы со стадиями
-  async function changeStatus(newStatus: string) {
+  async function changeStatus(newStatus: string, additionalData?: Record<string, any>) {
     if (!order.value || getCurrentStage(order.value) === newStatus) return
 
     const oldStage = getCurrentStage(order.value)
@@ -610,7 +615,17 @@ export function useOrderDetails(orderId: number | null | undefined) {
     statusLogs.value.unshift(newLog)
     
     try {
-      await updateStage(order.value.id, newStatus)
+      await updateStage(order.value.id, newStatus, additionalData)
+      
+      // Обновляем локальные данные заказа если переданы дополнительные данные
+      if (additionalData && order.value) {
+        if (additionalData.reason !== undefined) {
+          order.value.reason = additionalData.reason
+        }
+        if (additionalData.reason_status !== undefined) {
+          order.value.reason_status = additionalData.reason_status
+        }
+      }
       
       if (orderId) {
         const cacheKey = `order_details_${orderId}`
@@ -754,46 +769,18 @@ export function useOrderDetails(orderId: number | null | undefined) {
       return
     }
     
-    const oldStage = getCurrentStage(order.value)
-    
-    // Оптимистичное обновление UI - сразу меняем стадию на экране
-    if (order.value) {
-      order.value.stage = 'cancelled'
-    }
-    
     try {
-      await updateStage(order.value.id, 'cancelled')
-      
-      // Отправляем глобальное событие о смене стадии
-      emitOrderStageChanged(
-        order.value.id,
-        oldStage,
-        'cancelled',
-        'modal',
-        'Отменен'
-      )
+      // Передаем причину отмены в API через changeStatus
+      await changeStatus('cancelled', {
+        reason: cancelReason.value,
+        reason_status: cancelReasonStatus.value
+      })
       
       toast.show('Заказ отменён!')
       showCancelForm.value = false
       cancelReason.value = ''
       cancelReasonStatus.value = 'refused'
-      
-      if (orderId) {
-        const cacheKey = `order_details_${orderId}`
-        frontendCache.delete(cacheKey)
-      }
-      
-      // Timeline обновится автоматически через глобальные события
-      
-      window.dispatchEvent(new CustomEvent('order-updated', {
-        detail: { orderId }
-      }))
     } catch (err: any) {
-      // Откатываем изменения в случае ошибки
-      if (order.value) {
-        order.value.stage = oldStage
-      }
-      
       const msg = err instanceof Error ? err.message : 'Ошибка при отмене заказа!'
       toast.show(msg, 'error')
     }
@@ -849,6 +836,15 @@ export function useOrderDetails(orderId: number | null | undefined) {
     }
   })
 
+  // Слушаем глобальные события обновления пользователей
+  window.addEventListener('users-updated', async () => {
+    try {
+      await fetchAvailableUsers(true)
+    } catch {
+      // Игнорируем ошибку
+    }
+  })
+
   watch(
     () => order.value?.stage,
     async (newStage) => {
@@ -859,7 +855,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
 
       try {
-        await fetchAvailableUsers()
+        await fetchAvailableUsers(true)
       } catch {
         // Игнорируем ошибку
       }

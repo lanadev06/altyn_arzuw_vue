@@ -194,6 +194,7 @@ async function confirmCancel(reason: string, reasonStatus: string) {
     
     emit('updated')
   } catch (error) {
+    // Игнорируем ошибку
   }
 }
 

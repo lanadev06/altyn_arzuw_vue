@@ -11,6 +11,7 @@ export const invalidateCache = {
   // Инвалидировать кэш пользователей
   users: () => {
     frontendCache.invalidatePattern(CacheKeys.USERS)
+    frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
   },
 
   // Инвалидировать кэш заказов
