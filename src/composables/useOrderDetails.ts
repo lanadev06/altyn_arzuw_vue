@@ -290,7 +290,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
   async function fetchAvailableUsers(forceRefresh = false) {
     try {
-      let users = []
+      let users: User[] = []
 
       // Если принудительное обновление, очищаем кэш
       if (forceRefresh) {
@@ -300,47 +300,48 @@ export function useOrderDetails(orderId: number | null | undefined) {
         frontendCache.invalidatePattern('stages_users_by_roles')
       }
 
+      // Источник 1: все пользователи (увеличенный per_page, чтобы не терять пользователей на последующих страницах)
       try {
         const { apiRequest } = await import('../services/api')
-        const data = await apiRequest('/users')
-        users = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
+        const data = await apiRequest('/users?per_page=1000&sort_by=id&sort_order=asc')
+        const paged = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
+        users = Array.isArray(paged) ? (paged as User[]) : []
       } catch {
-        // Продолжаем к варианту 2
+        // Продолжаем ко второму источнику
       }
 
-      if (users.length === 0) {
-        try {
-          const data = await getAllUsersByStageRoles(forceRefresh)
-          let allUsers: User[] = []
+      // Источник 2: пользователи по ролям стадий — помогает подтянуть только активных и точно ролевых
+      try {
+        const data = await getAllUsersByStageRoles(forceRefresh)
+        let allUsers: User[] = []
 
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            Object.values(data).forEach((stageUsers: any) => {
-              if (Array.isArray(stageUsers)) {
-                // Новый формат: stageId -> [user1, user2, ...]
-                allUsers = allUsers.concat(stageUsers as User[])
-              } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
-                // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
-                const stage = stageUsers as Record<string, unknown>
-                if (stage.users_by_role) {
-                  Object.values(stage.users_by_role).forEach((roleData: any) => {
-                    if (roleData && typeof roleData === 'object' && roleData !== null) {
-                      const role = roleData as Record<string, unknown>
-                      if (role.users && Array.isArray(role.users)) {
-                        allUsers = allUsers.concat(role.users as User[])
-                      }
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          Object.values(data).forEach((stageUsers: any) => {
+            if (Array.isArray(stageUsers)) {
+              // Новый формат: stageId -> [user1, user2, ...]
+              allUsers = allUsers.concat(stageUsers as User[])
+            } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
+              // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
+              const stage = stageUsers as Record<string, unknown>
+              if (stage.users_by_role) {
+                Object.values(stage.users_by_role).forEach((roleData: any) => {
+                  if (roleData && typeof roleData === 'object' && roleData !== null) {
+                    const role = roleData as Record<string, unknown>
+                    if (role.users && Array.isArray(role.users)) {
+                      allUsers = allUsers.concat(role.users as User[])
                     }
-                  })
-                }
+                  }
+                })
               }
-            })
-          }
-
-          users = allUsers.filter(
-            (user, index, self) => index === self.findIndex((u) => u.id === user.id),
-          )
-        } catch {
-          // Игнорируем ошибку
+            }
+          })
         }
+
+        // Объединяем оба источника и убираем дубликаты по id
+        const merged = [...users, ...allUsers]
+        users = merged.filter((user, index, self) => index === self.findIndex((u) => u.id === user.id))
+      } catch {
+        // Игнорируем ошибку, остаёмся на users из первого источника
       }
 
       availableUsers.value = users
