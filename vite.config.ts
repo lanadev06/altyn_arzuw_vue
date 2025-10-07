@@ -17,14 +17,15 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
+          const verbose = process.env.VITE_VERBOSE_PROXY === '1';
           proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
+            if (verbose) console.log('proxy error', err);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
+            if (verbose) console.log('Sending Request to the Target:', req.method, req.url);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            if (verbose) console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
           });
         },
       },
@@ -44,10 +45,8 @@ export default defineConfig({
       'vue-router', 
       'pinia',
       'axios',
-      '@heroicons/vue',
       '@tabler/icons-vue',
       '@vueform/multiselect',
-      '@vuepic/vue-datepicker',
       'chart.js',
       'sortablejs'
     ],
@@ -66,9 +65,9 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['vue', 'vue-router', 'pinia'],
-          ui: ['@heroicons/vue', '@tabler/icons-vue'],
+          ui: ['@tabler/icons-vue'],
           charts: ['chart.js'],
-          forms: ['@vueform/multiselect', '@vuepic/vue-datepicker'],
+          forms: ['@vueform/multiselect'],
         },
       },
     },
