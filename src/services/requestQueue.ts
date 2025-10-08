@@ -2,7 +2,7 @@
 class RequestQueue {
   private queue: Array<() => Promise<any>> = []
   private activeRequests = 0
-  private maxConcurrentRequests = 5 // Максимальное количество одновременных запросов
+  private maxConcurrentRequests = 10 // Увеличено с 5 до 10 для лучшей производительности
   private isProcessing = false
 
   async add<T>(requestFn: () => Promise<T>): Promise<T> {

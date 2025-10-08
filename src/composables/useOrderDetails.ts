@@ -58,7 +58,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
   // Система событий
   const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted, onOrderStageChanged } = useOrderEvents()
 
-  // Smart polling - более консервативные настройки
+  // Smart polling - оптимизированные настройки с учетом бэкенд кэширования
   const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
     `order-details-${orderId}`,
     async () => {
@@ -67,10 +67,10 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
     },
     {
-      interval: 5000, // Увеличиваем базовый интервал до 5 секунд
+      interval: 10000, // 10 секунд - оптимальный баланс с учетом бэкенд кэша (900 сек)
       maxInterval: 30000, // Максимальный интервал 30 секунд
-      minInterval: 3000, // Минимальный интервал 3 секунды
-      backoffMultiplier: 2, // Более агрессивное увеличение интервала при ошибках
+      minInterval: 5000, // Минимальный интервал 5 секунд
+      backoffMultiplier: 1.5, // Умеренное увеличение интервала при ошибках
       maxBackoff: 60000, // Максимальный интервал при ошибках 1 минута
       enabled: !!orderId
     }
