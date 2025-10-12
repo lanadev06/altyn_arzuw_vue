@@ -59,7 +59,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
   const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted, onOrderStageChanged } = useOrderEvents()
 
   // Smart polling - оптимизированные настройки с учетом бэкенд кэширования
-  const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
+  const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling, stop: stopPolling } = useSmartPolling(
     `order-details-${orderId}`,
     async () => {
       if (orderId) {
@@ -805,14 +805,19 @@ export function useOrderDetails(orderId: number | null | undefined) {
     try {
       await deleteOrder(order.value.id)
       
+      // Останавливаем polling перед удалением данных
+      stopPolling()
+      
       if (orderId) {
         const cacheKey = `order_details_${orderId}`
         frontendCache.delete(cacheKey)
       }
       
-      window.dispatchEvent(new CustomEvent('order-updated', {
-        detail: { orderId }
-      }))
+      // НЕ отправляем событие order-updated после удаления,
+      // так как это вызовет попытку загрузить удаленный заказ
+      // window.dispatchEvent(new CustomEvent('order-updated', {
+      //   detail: { orderId }
+      // }))
       
       toast.show('Заказ удален!', 'success')
     } catch (error) {

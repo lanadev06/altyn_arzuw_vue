@@ -97,7 +97,7 @@
                         :title="contact.type + ': ' + contact.value"
                       >
                         <span class="flex items-center gap-2">
-                          <ContactTypeIcon :type="contact.type" class="mr-2" />
+                          <ContactTypeIcon :type="contact.type" />
                           <span class="text-gray-700">{{ contact.value }}</span>
                         </span>
                       </span>
@@ -194,13 +194,7 @@ const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
   ClientController()
 
-// Инициализируем сортировку из localStorage
-if (savedSortBy && sortBy.value !== savedSortBy) {
-  sortBy.value = savedSortBy
-}
-if (savedSortOrder && sortOrder.value !== savedSortOrder) {
-  sortOrder.value = savedSortOrder as 'asc' | 'desc'
-}
+// Сортировка уже инициализирована в контроллере из localStorage
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -234,7 +228,7 @@ function goToPage(page: number) {
   // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
   localStorage.setItem('clientList_currentPage', page.toString())
-  fetchClients(page, props.search, sortBy.value, sortOrder.value)
+  fetchClients(page, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function editClient(client: Client) {
@@ -245,13 +239,15 @@ function editClient(client: Client) {
 async function handleCreateClient() {
   showCreateModal.value = false
   currentPage.value = 1
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  localStorage.setItem('clientList_currentPage', '1')
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleUpdateClient(updatedClient: Client) {
   await update(updatedClient.id, updatedClient)
   showEditModal.value = false
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  // Сохраняем текущее состояние (страницу, сортировку, perPage)
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleDeleteClient(clientId: number) {
@@ -271,8 +267,9 @@ async function handleDeleteClient(clientId: number) {
     editingClient.value = null
     if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
       currentPage.value--
+      localStorage.setItem('clientList_currentPage', currentPage.value.toString())
     }
-    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
   } catch (err: any) {
     // Если ошибка 404 (клиент не найден), считаем это успешным удалением
     if (
@@ -283,7 +280,7 @@ async function handleDeleteClient(clientId: number) {
     ) {
       toast.show('Клиент успешно удален!', 'success')
       // Обновляем список
-      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value)
+      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
       return
     }
 
@@ -313,7 +310,8 @@ watch(
   () => props.search,
   (newVal) => {
     currentPage.value = 1
-    fetchClients(1, newVal, sortBy.value, sortOrder.value)
+    localStorage.setItem('clientList_currentPage', '1')
+    fetchClients(1, newVal, sortBy.value, sortOrder.value, perPage.value)
   },
 )
 
@@ -344,8 +342,9 @@ onMounted(async () => {
 watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('clientList_perPage', perPage.value.toString())
-  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
   currentPage.value = 1
+  localStorage.setItem('clientList_currentPage', '1')
+  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
 })
 
 onUnmounted(() => {
