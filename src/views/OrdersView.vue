@@ -53,9 +53,11 @@
         :count="kanbanSelectedIds.length"
         :is-processing="kanbanIsProcessing"
         :show-status-selector="true"
+        :show-delete-button="canDeletePermission()"
         :stages="kanbanStatuses.map((s, idx) => ({ id: idx, name: s.key, display_name: s.label }))"
         @clear="kanbanSelectedIds = []"
         @update-status="handleKanbanBulkStatusUpdate"
+        @delete="handleKanbanBulkDelete"
       />
 
       <OrderDetailsModal
@@ -80,7 +82,7 @@ import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
-import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff } from '../utils/permissions'
+import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff, canDelete } from '../utils/permissions'
 import { getAllStages, apiRequest } from '../services/api'
 import { useToast } from '../stores/toast'
 import { useOrderEvents } from '../composables/useOrderEvents'
@@ -198,7 +200,101 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
 
     // Показываем результат
     if (result.updated > 0) {
-      toast.success(`Обновлено заказов: ${result.updated}`)
+      const totalRequested = result.total_requested || kanbanSelectedIds.value.length
+      if (result.updated === totalRequested) {
+        toast.success(`Успешно обновлено заказов: ${result.updated}`)
+      } else {
+        toast.show(`Обновлено заказов: ${result.updated} из ${totalRequested}`, 'warning')
+      }
+    } else if (result.errors && result.errors.length > 0) {
+      // No orders were updated, but we have errors
+      const totalRequested = result.total_requested || kanbanSelectedIds.value.length
+      toast.error(`Не удалось обновить ни одного заказа из ${totalRequested}. Проверьте назначения.`)
+    }
+
+    // Показываем ошибки если есть (но не все сразу, чтобы не спамить)
+    if (result.errors && result.errors.length > 0) {
+      setTimeout(() => {
+        if (result.errors!.length <= 3) {
+          // Показываем каждую ошибку если их немного
+          result.errors!.forEach(error => {
+            toast.error(error)
+          })
+        } else {
+          // Если ошибок много, показываем только первые 2 и общее количество
+          result.errors!.slice(0, 2).forEach(error => {
+            toast.error(error)
+          })
+          toast.error(`... и еще ${result.errors!.length - 2} ошибок. Проверьте назначения заказов.`)
+        }
+      }, 1000)
+    }
+
+    return result
+  } catch (error: any) {
+    console.error('Bulk status update error:', error)
+    
+    const toast = useToast()
+    
+    // Parse the error message to extract order IDs and provide better feedback
+    let errorMessage = error.message || 'Ошибка при обновлении статуса заказов'
+    
+    // If it's a validation error with multiple orders, show a summary
+    if (errorMessage.includes('нельзя завершить, пока есть неодобренные назначения')) {
+      const orderIds = errorMessage.match(/Заказ ID (\d+)/g) || []
+      const totalOrders = orderIds.length
+      const selectedCount = kanbanSelectedIds.value.length
+      
+      if (totalOrders === selectedCount) {
+        // All selected orders have the same issue
+        toast.error(`Все выбранные заказы (${totalOrders}) нельзя завершить - есть неодобренные назначения. Сначала одобрите все назначения.`)
+      } else {
+        // Some orders succeeded, some failed
+        toast.error(`${totalOrders} из ${selectedCount} заказов нельзя завершить - есть неодобренные назначения.`)
+      }
+    } else {
+      // Generic error message
+      toast.error(errorMessage)
+    }
+
+    return { updated: 0, errors: [error.message] }
+  } finally {
+    kanbanIsProcessing.value = false
+  }
+}
+
+// Функция для массового удаления заказов в канбане
+async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] }> {
+  if (kanbanSelectedIds.value.length === 0) {
+    return { deleted: 0 }
+  }
+
+  kanbanIsProcessing.value = true
+
+  try {
+    const toast = useToast()
+
+    const response = await apiRequest('/bulk-delete/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        ids: kanbanSelectedIds.value
+      })
+    })
+
+    const result = response as {
+      message: string
+      deleted: number
+      skipped: number
+      errors?: string[]
+    }
+
+    // Показываем результат
+    if (result.deleted > 0) {
+      if (result.skipped > 0) {
+        toast.show(`Успешно удалено: ${result.deleted}. Пропущено: ${result.skipped}`, 'error')
+      } else {
+        toast.success(`Успешно удалено: ${result.deleted}`)
+      }
     }
 
     // Показываем ошибки если есть
@@ -212,9 +308,12 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
 
     return result
   } catch (error: any) {
-    console.error('Bulk status update error:', error)
+    console.error('Bulk delete error:', error)
+    
+    const toast = useToast()
+    toast.error(error.message || 'Ошибка при удалении заказов')
 
-    return { updated: 0, errors: [error.message] }
+    return { deleted: 0, errors: [error.message] }
   } finally {
     kanbanIsProcessing.value = false
   }
@@ -484,6 +583,18 @@ async function handleKanbanBulkStatusUpdate(stage: string) {
   }
 }
 
+async function handleKanbanBulkDelete() {
+  if (kanbanSelectedIds.value.length === 0) return
+  
+  const result = await bulkDeleteKanban()
+  if (result.deleted > 0) {
+    // Очищаем выбранные элементы
+    kanbanSelectedIds.value = []
+    // Обновляем данные
+    loadOrders()
+  }
+}
+
 function closeCreateOrderModal() {
   showCreateModal.value = false
 }
@@ -537,4 +648,7 @@ async function handleChangeStatus({ order, newStatus }: { order: any; newStatus:
     alert(`Ошибка обновления стадии: ${errorMessage}`)
   }
 }
+
+// Create local reference for template access
+const canDeletePermission = canDelete
 </script>

@@ -224,6 +224,7 @@
       :count="selectedCount"
       :is-processing="isProcessing"
       :show-status-selector="true"
+      :show-delete-button="canDelete()"
       :stages="stages"
       @clear="clearSelection"
       @delete="handleBulkDelete"
@@ -242,7 +243,7 @@ import Pagination from '../../users/UserList/Pagination.vue'
 import UIButton from '../../ui/UIButton.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import type { Order } from '../../../types/order'
-import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
+import { canCreateEdit, canViewPrices, canDelete } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
 import { useOrderEvents } from '../../../composables/useOrderEvents'
 import { useBulkActions } from '../../../composables/useBulkActions'

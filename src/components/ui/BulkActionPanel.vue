@@ -72,6 +72,7 @@
           </button>
           
           <button
+            v-if="showDeleteButton"
             @click="$emit('delete')"
             :disabled="isProcessing"
             class="px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
@@ -100,6 +101,7 @@ const props = defineProps<{
   count: number
   isProcessing?: boolean
   showStatusSelector?: boolean
+  showDeleteButton?: boolean
   stages?: Array<{ id: number; name: string; display_name?: string; color?: string }>
 }>()
 

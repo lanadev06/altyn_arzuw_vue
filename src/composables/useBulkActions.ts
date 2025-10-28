@@ -132,15 +132,33 @@ export function useBulkActions<T extends { id: number }>(items: Ref<T[]> | Compu
 
       // Показываем результат
       if (result.updated > 0) {
-        toast.success(`Обновлено заказов: ${result.updated}`)
+        const totalRequested = result.total_requested || selectedIds.value.length
+        if (result.updated === totalRequested) {
+          toast.success(`Успешно обновлено заказов: ${result.updated}`)
+        } else {
+          toast.show(`Обновлено заказов: ${result.updated} из ${totalRequested}`, 'warning')
+        }
+      } else if (result.errors && result.errors.length > 0) {
+        // No orders were updated, but we have errors
+        const totalRequested = result.total_requested || selectedIds.value.length
+        toast.error(`Не удалось обновить ни одного заказа из ${totalRequested}. Проверьте назначения.`)
       }
 
-      // Показываем ошибки если есть
+      // Показываем ошибки если есть (но не все сразу, чтобы не спамить)
       if (result.errors && result.errors.length > 0) {
         setTimeout(() => {
-          result.errors?.forEach(error => {
-            toast.error(error)
-          })
+          if (result.errors!.length <= 3) {
+            // Показываем каждую ошибку если их немного
+            result.errors!.forEach(error => {
+              toast.error(error)
+            })
+          } else {
+            // Если ошибок много, показываем только первые 2 и общее количество
+            result.errors!.slice(0, 2).forEach(error => {
+              toast.error(error)
+            })
+            toast.error(`... и еще ${result.errors!.length - 2} ошибок. Проверьте назначения заказов.`)
+          }
         }, 1000)
       }
 
@@ -151,7 +169,26 @@ export function useBulkActions<T extends { id: number }>(items: Ref<T[]> | Compu
     } catch (error: any) {
       console.error('Bulk status update error:', error)
       
-      toast.error(error.message || 'Ошибка при обновлении статуса')
+      // Parse the error message to provide better feedback
+      let errorMessage = error.message || 'Ошибка при обновлении статуса заказов'
+      
+      // If it's a validation error with multiple orders, show a summary
+      if (errorMessage.includes('нельзя завершить, пока есть неодобренные назначения')) {
+        const orderIds = errorMessage.match(/Заказ ID (\d+)/g) || []
+        const totalOrders = orderIds.length
+        const selectedCount = selectedIds.value.length
+        
+        if (totalOrders === selectedCount) {
+          // All selected orders have the same issue
+          toast.error(`Все выбранные заказы (${totalOrders}) нельзя завершить - есть неодобренные назначения. Сначала одобрите все назначения.`)
+        } else {
+          // Some orders succeeded, some failed
+          toast.error(`${totalOrders} из ${selectedCount} заказов нельзя завершить - есть неодобренные назначения.`)
+        }
+      } else {
+        // Generic error message
+        toast.error(errorMessage)
+      }
 
       return { updated: 0, errors: [error.message] }
     } finally {
