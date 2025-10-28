@@ -857,8 +857,6 @@ function toggleSelectAllOrders() {
 async function detachSelectedOrders() {
   if (selectedOrdersForDetach.value.length === 0) return
   
-  if (!confirm(`Отвязать ${selectedOrdersForDetach.value.length} заказ(ов) от проекта?`)) return
-  
   try {
     for (const orderId of selectedOrdersForDetach.value) {
       const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
@@ -889,7 +887,6 @@ async function detachSelectedOrders() {
 
 // Отвязываем заказ от проекта
 async function detachOrder(orderId: number) {
-  if (!confirm('Отвязать заказ от проекта?')) return
   
   try {
     const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {

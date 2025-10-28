@@ -204,7 +204,7 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
       if (result.updated === totalRequested) {
         toast.success(`Успешно обновлено заказов: ${result.updated}`)
       } else {
-        toast.show(`Обновлено заказов: ${result.updated} из ${totalRequested}`, 'warning')
+        toast.show(`Обновлено заказов: ${result.updated} из ${totalRequested}`, 'error')
       }
     } else if (result.errors && result.errors.length > 0) {
       // No orders were updated, but we have errors
