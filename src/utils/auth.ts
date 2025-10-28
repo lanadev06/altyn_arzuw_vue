@@ -1,3 +1,5 @@
+import { toast } from '../stores/toast'
+
 // Authentication utility functions
 
 import type { User } from '../types/api'
@@ -64,20 +66,10 @@ export function handle401Error(message?: string): void {
 
   // Show message if provided
   if (message) {
-
-    // Try to show toast notification if available
     try {
-      // Import toast dynamically to avoid circular dependencies
-      import('../stores/toast')
-        .then(({ toast }) => {
-          toast.show(message, 'error')
-        })
-        .catch(() => {
-          // Fallback to alert if toast is not available
-          alert(message)
-        })
+      toast.show(message, 'error')
     } catch {
-      // Fallback to alert if dynamic import fails
+      // Fallback to alert if toast fails
       alert(message)
     }
   }

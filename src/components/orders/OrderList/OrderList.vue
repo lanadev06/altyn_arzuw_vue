@@ -61,6 +61,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 @click="col.sortable ? setSort(col.key) : null"
@@ -93,8 +104,19 @@
               @click="openDetailsModal(item)"
             >
               <td
-                v-for="col in columns"
-                :key="col.key"
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="item.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <td
+                v-for="(col, colIndex) in columns"
+                :key="`${item.id}-${col.key}-${colIndex}`"
                 class="border-r border-gray-200 px-4 py-4 text-base whitespace-nowrap align-middle"
               >
                 <template v-if="col.key === 'id'">
@@ -158,12 +180,12 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 Загрузка заказов...
               </td>
             </tr>
             <tr v-if="!loading && orders.length === 0">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 Заказы не найдены
               </td>
             </tr>
@@ -196,6 +218,17 @@
       @close="closeDetailsModal"
       @updated="handleOrderUpdatedFromModal"
     />
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      :show-status-selector="true"
+      :stages="stages"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+      @update-status="handleBulkStatusUpdate"
+    />
   </div>
 </template>
 
@@ -212,6 +245,8 @@ import type { Order } from '../../../types/order'
 import { canCreateEdit, canViewPrices } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
 import { useOrderEvents } from '../../../composables/useOrderEvents'
+import { useBulkActions } from '../../../composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps<{
   search?: string
@@ -221,6 +256,32 @@ const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderC
 
 // Система событий для синхронизации
 const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
+
+// Bulk actions
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete,
+  bulkUpdateOrderStatus
+} = useBulkActions(orders as any)
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('orders')
+  if (result.deleted > 0) {
+    loadOrders(currentPage.value)
+  }
+}
+
+async function handleBulkStatusUpdate(stage: string) {
+  const result = await bulkUpdateOrderStatus(stage)
+  if (result.updated > 0) {
+    loadOrders(currentPage.value)
+  }
+}
 
 const SORT_KEY = 'orderList_sortBy'
 const ORDER_KEY = 'orderList_sortOrder'
@@ -332,10 +393,8 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  // При изменении сортировки возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
-  loadOrders(1)
+  // При изменении сортировки остаемся на той же странице
+  loadOrders(currentPage.value)
 }
 
 function resetSettings() {
@@ -571,12 +630,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })

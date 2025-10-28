@@ -2,7 +2,7 @@
   <div class="relative" ref="rootRef">
     <button
       @click="toggleDropdown"
-      class="flex items-center gap-3 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all duration-200"
+      class="flex items-center gap-2 sm:gap-3 p-1 sm:p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all duration-200"
     >
       <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
         <img
@@ -15,7 +15,7 @@
           {{ safeUser.name ? safeUser.name.charAt(0).toUpperCase() : '?' }}
         </span>
       </div>
-      <div class="text-left">
+      <div class="text-left hidden sm:block">
         <p class="text-white text-sm font-medium">{{ safeUser.name || 'Загрузка...' }}</p>
         <p class="text-blue-100 text-xs">
           <template v-if="safeUser.roles && safeUser.roles.length">
@@ -58,19 +58,19 @@
     >
       <div
         v-if="isDropdownOpen"
-        class="absolute right-0 top-full mt-3 w-96 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 rounded-2xl shadow-2xl border border-purple-200 z-50"
+        class="absolute right-0 top-full mt-3 w-[calc(100vw-2rem)] max-w-[90vw] sm:w-96 sm:max-w-96 md:w-80 lg:w-96 lg:max-w-96 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 rounded-2xl shadow-2xl border border-purple-200 z-50"
       >
       
       <!-- Форма редактирования профиля -->
-      <div class="px-6 py-4 space-y-4">
+      <div class="px-4 py-3 sm:px-6 sm:py-4 space-y-4">
 
         <!-- Имя -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Имя</label>
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Имя</label>
           <input
             v-model="profileData.name"
             type="text"
-            class="w-full px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
+            class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
             :class="{ 'border-red-500': validationErrors.name }"
             placeholder="Введите ваше имя"
           />
@@ -79,16 +79,16 @@
 
         <!-- Загрузка фото -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-3">Фото профиля</label>
-          <div class="flex items-center gap-4">
-            <div class="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-3">Фото профиля</label>
+          <div class="flex items-center gap-2 sm:gap-4">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
               <img
                 v-if="userImageUrl"
                 :src="userImageUrl"
                 :alt="safeUser.name"
-                class="w-20 h-20 rounded-xl object-cover"
+                class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover"
               />
-              <span v-else class="text-gray-400 text-2xl font-medium">
+              <span v-else class="text-gray-400 text-lg sm:text-2xl font-medium">
                 {{ safeUser.name ? safeUser.name.charAt(0).toUpperCase() : '?' }}
               </span>
             </div>
@@ -103,14 +103,14 @@
               <div class="flex gap-2">
                 <button
                   @click.stop="fileInput?.click()"
-                  class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Изменить
                 </button>
                 <button
                   v-if="userImageUrl"
                   @click.stop="removePhoto"
-                  class="px-4 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                  class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                 >
                   Удалить
                 </button>
@@ -122,12 +122,12 @@
 
         <!-- Телефон -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Номер телефона</label>
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Номер телефона</label>
           <input
             v-model="profileData.phone"
             @input="handlePhoneChange"
             type="text"
-            class="w-full px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
+            class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
             :class="{ 'border-red-500': validationErrors.phone }"
             placeholder="+993 XX YYYYYY"
           />
@@ -137,12 +137,12 @@
 
         <!-- Смена пароля -->
         <div class="space-y-3">
-          <h3 class="text-sm font-medium text-gray-700">Смена пароля</h3>
+          <h3 class="text-xs sm:text-sm font-medium text-gray-700">Смена пароля</h3>
           <div>
             <input
               v-model="passwordData.currentPassword"
               type="password"
-              class="w-full px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
+              class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.currentPassword }"
               placeholder="Текущий пароль"
             />
@@ -152,7 +152,7 @@
             <input
               v-model="passwordData.newPassword"
               type="password"
-              class="w-full px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
+              class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.newPassword }"
               placeholder="Новый пароль"
             />
@@ -162,7 +162,7 @@
             <input
               v-model="passwordData.confirmPassword"
               type="password"
-              class="w-full px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
+              class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.confirmPassword }"
               placeholder="Подтвердите новый пароль"
             />
@@ -175,7 +175,7 @@
           <button
             @click="saveProfile"
             :disabled="isSaving"
-            class="w-full px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            class="w-full px-3 py-2 sm:px-4 text-xs sm:text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {{ isSaving ? 'Сохранение...' : 'Сохранить изменения' }}
           </button>
@@ -185,7 +185,7 @@
         <div class="border-t border-gray-200 pt-3 mt-3">
           <button
             @click="handleLogout"
-            class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            class="w-full flex items-center justify-center gap-2 px-3 py-2 sm:px-4 text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -574,3 +574,4 @@ onUnmounted(() => {
 // Watcher для обновления данных при изменении пользователя
 watch(() => safeUser.value, loadUserData, { immediate: true })
 </script>
+

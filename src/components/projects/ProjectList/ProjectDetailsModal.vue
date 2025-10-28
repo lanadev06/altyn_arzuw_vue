@@ -1,15 +1,17 @@
 <template>
-  <transition name="modal-fade">
-    <div
-      class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center"
-      v-if="props.project"
-      @click="onOverlayClick"
-    >
-      <transition name="modal-scale">
-        <div
-          class="relative w-[1100px] max-w-[98vw] h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-          @click.stop
-        >
+  <div>
+    <!-- Основная модалка проекта -->
+    <transition name="modal-fade">
+      <div
+        class="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center"
+        v-if="props.project"
+        @click="onOverlayClick"
+      >
+        <transition name="modal-scale">
+          <div
+            class="relative w-[1100px] max-w-[98vw] h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            @click.stop
+          >
           <button
             @click="emit('close')"
             class="absolute top-6 right-6 text-3xl text-gray-400 hover:text-red-500 transition font-bold z-10"
@@ -220,23 +222,76 @@
               <div
                 class="bg-white border border-blue-100 rounded-2xl shadow-lg p-6 mb-4 flex flex-col gap-4"
               >
-                <div
-                  class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2 group"
-                >
-                  <svg
-                    class="w-6 h-6 text-orange-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                    ></path>
-                  </svg>
-                  Связанные заказы
+                <div class="mb-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex-1">
+                      <div
+                        class="text-2xl font-extrabold text-blue-900 flex items-center gap-2"
+                      >
+                        <svg
+                          class="w-6 h-6 text-orange-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                          ></path>
+                        </svg>
+                        Связанные заказы
+                      </div>
+                      <!-- Чекбокс "Выбрать всё" -->
+                      <div v-if="canCreateEdit() && orders.length > 0" class="flex items-center gap-2 mt-2">
+                        <input
+                          type="checkbox"
+                          :checked="selectedOrdersForDetach.length === orders.length && orders.length > 0"
+                          @change="toggleSelectAllOrders"
+                          class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
+                        />
+                        <span class="text-sm text-gray-600 cursor-pointer" @click="toggleSelectAllOrders">Выбрать всё</span>
+                      </div>
+                    </div>
+                    <div v-if="canCreateEdit()" class="flex gap-2">
+                      <button
+                        @click="showAttachExistingModal = true"
+                        class="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+                      >
+                        + Добавить
+                      </button>
+                      <button
+                        @click="emit('create-and-attach-order')"
+                        class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition"
+                      >
+                        + Создать
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <!-- Информация о выбранных заказах для отвязки -->
+                  <div v-if="selectedOrdersForDetach.length > 0" class="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium text-red-800">
+                        Выбрано для отвязки: {{ selectedOrdersForDetach.length }}
+                      </span>
+                      <div class="flex gap-2">
+                        <button
+                          @click="detachSelectedOrders"
+                          class="px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition"
+                        >
+                          Отвязать все
+                        </button>
+                        <button
+                          @click="clearDetachSelection"
+                          class="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition"
+                        >
+                          Отмена
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div v-if="orders.length === 0" class="text-gray-500">Нет связанных заказов</div>
                 <div v-else class="flex flex-col gap-3">
@@ -244,37 +299,63 @@
                     v-for="order in orders"
                     :key="order.id"
                     :class="[
-                      'rounded-xl shadow p-4 border border-blue-100 flex flex-col gap-2',
+                      'rounded-xl shadow p-4 border border-blue-100 flex flex-col gap-2 transition-all duration-200',
                       order.stage ? orderStatusBadge(order.stage) : 'bg-gray-100',
+                      isOrderSelectedForDetach(order.id) ? 'ring-2 ring-red-400 border-red-400' : ''
                     ]"
                   >
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <span class="font-semibold text-blue-700 mr-2">{{ order.id }}</span>
-                        <span
-                          v-if="order.stage"
-                          :class="[
-                            'inline-block align-middle px-2 py-0.5 rounded-full text-xs font-semibold mr-2',
-                            orderStatusBadge(order.stage),
-                          ]"
-                        >
-                          {{ orderStatusText(order.stage) }}
-                        </span>
-                        <span class="text-gray-800 align-middle">{{
-                          order.product?.name || '—'
-                        }}</span>
+                    <div class="flex items-center gap-2">
+                      <!-- Чекбокс для выбора -->
+                      <div v-if="canCreateEdit()" class="flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          :checked="isOrderSelectedForDetach(order.id)"
+                          @change="toggleOrderDetachSelection(order.id)"
+                          class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                        />
                       </div>
-                      <button
-                        v-if="canCreateEdit() || isMyOrder(order)"
-                        @click="$emit('open-order', order)"
-                        class="text-blue-500 font-semibold hover:underline text-sm"
-                      >
-                        Открыть
-                      </button>
-                    </div>
+                      
+                      <!-- Информация о заказе -->
+                      <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <span class="font-semibold text-blue-700 mr-2">{{ order.id }}</span>
+                            <span
+                              v-if="order.stage"
+                              :class="[
+                                'inline-block align-middle px-2 py-0.5 rounded-full text-xs font-semibold mr-2',
+                                orderStatusBadge(order.stage),
+                              ]"
+                            >
+                              {{ orderStatusText(order.stage) }}
+                            </span>
+                            <span class="text-gray-800 align-middle">{{
+                              order.product?.name || '—'
+                            }}</span>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <button
+                              v-if="canCreateEdit() || isMyOrder(order)"
+                              @click="openOrderDetails(order)"
+                              class="text-blue-500 font-semibold hover:underline text-sm"
+                            >
+                              Открыть
+                            </button>
+                            <button
+                              v-if="canCreateEdit()"
+                              @click="detachOrder(order.id)"
+                              class="text-red-500 font-semibold hover:underline text-sm"
+                              title="Отвязать заказ от проекта"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
 
-                    <div class="text-xs text-gray-400 mt-1">
-                      {{ formatDateTime(order.created_at ? String(order.created_at) : '') }}
+                        <div class="text-xs text-gray-400 mt-1">
+                          {{ formatDateTime(order.created_at ? String(order.created_at) : '') }}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -438,10 +519,19 @@
               </div>
             </div>
           </div>
-        </div>
-      </transition>
-    </div>
-  </transition>
+          </div>
+        </transition>
+      </div>
+    </transition>
+    
+    <!-- Модалка для добавления существующего заказа -->
+    <AttachOrderModal
+      v-if="showAttachExistingModal && props.project"
+      :project-id="props.project.id"
+      @close="showAttachExistingModal = false"
+      @attach="handleAttachOrder"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -455,6 +545,7 @@ import { Russian } from 'flatpickr/dist/l10n/ru.js'
 import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils/permissions'
 import { deleteProject } from '@/services/api'
 import { toast } from '@/stores/toast'
+import AttachOrderModal from './AttachOrderModal.vue'
 
 interface Client {
   id: number
@@ -493,6 +584,9 @@ const emit = defineEmits([
   'edit-comment',
   'delete-comment',
   'open-order',
+  'detach-order',
+  'attach-order',
+  'create-and-attach-order',
 ])
 
 function getClientId(client: any): number | undefined {
@@ -518,6 +612,8 @@ const selectedClientId = ref<number | null>(null)
 const tempDeadline = ref<string | null>(null)
 const showClientSelect = ref(false)
 const showDeadlineInput = ref(false)
+const showAttachExistingModal = ref(false)
+const selectedOrdersForDetach = ref<number[]>([])
 
 // Прокси для v-model, чтобы не было null
 const selectedClientIdProxy = computed({
@@ -722,6 +818,145 @@ function isMyOrder(order: Order): boolean {
   if (!currentUser) return false
   if (!props.assignments) return false
   return props.assignments.some((a) => a.order_id === order.id && a.user_id === currentUser.id)
+}
+
+// Открываем заказ в новой модалке
+function openOrderDetails(order: Order) {
+  emit('open-order', order)
+}
+
+// Функции для работы с множественной отвязкой
+function toggleOrderDetachSelection(orderId: number) {
+  const index = selectedOrdersForDetach.value.indexOf(orderId)
+  if (index > -1) {
+    selectedOrdersForDetach.value.splice(index, 1)
+  } else {
+    selectedOrdersForDetach.value.push(orderId)
+  }
+}
+
+function isOrderSelectedForDetach(orderId: number): boolean {
+  return selectedOrdersForDetach.value.includes(orderId)
+}
+
+function clearDetachSelection() {
+  selectedOrdersForDetach.value = []
+}
+
+function toggleSelectAllOrders() {
+  if (selectedOrdersForDetach.value.length === props.orders.length) {
+    // Если все выбраны - снять выбор
+    selectedOrdersForDetach.value = []
+  } else {
+    // Выбрать все
+    selectedOrdersForDetach.value = props.orders.map(order => order.id)
+  }
+}
+
+// Отвязываем несколько заказов одновременно
+async function detachSelectedOrders() {
+  if (selectedOrdersForDetach.value.length === 0) return
+  
+  if (!confirm(`Отвязать ${selectedOrdersForDetach.value.length} заказ(ов) от проекта?`)) return
+  
+  try {
+    for (const orderId of selectedOrdersForDetach.value) {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({ project_id: null })
+      })
+      
+      if (response.ok) {
+        emit('detach-order', orderId)
+        window.dispatchEvent(new CustomEvent('order-updated', {
+          detail: { orderId }
+        }))
+      }
+    }
+    
+    toast.show(`Отвязано заказов: ${selectedOrdersForDetach.value.length}`, 'success')
+    selectedOrdersForDetach.value = []
+  } catch (error) {
+    console.error('Ошибка при отвязке заказов:', error)
+    toast.show('Ошибка при отвязке заказов', 'error')
+  }
+}
+
+// Отвязываем заказ от проекта
+async function detachOrder(orderId: number) {
+  if (!confirm('Отвязать заказ от проекта?')) return
+  
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+      body: JSON.stringify({ project_id: null })
+    })
+    
+    if (response.ok) {
+      toast.show('Заказ отвязан от проекта', 'success')
+      
+      // Отправляем событие в родительский компонент
+      // Родительский компонент сам обновит список
+      emit('detach-order', orderId)
+      
+      // Отправляем глобальное событие обновления заказа
+      window.dispatchEvent(new CustomEvent('order-updated', {
+        detail: { orderId }
+      }))
+    } else {
+      const errorData = await response.json().catch(() => ({ message: 'Ошибка при отвязке заказа' }))
+      console.error('Ошибка отвязки заказа:', response.status, errorData)
+      toast.show(`Ошибка: ${errorData.message || 'Не удалось отвязать заказ'}`, 'error')
+    }
+  } catch (error) {
+    console.error('Ошибка при отвязке заказа:', error)
+    toast.show('Ошибка при отвязке заказа', 'error')
+  }
+}
+
+// Привязываем существующий заказ к проекту
+async function handleAttachOrder(orderId: number) {
+  try {
+    // Загружаем данные обновленного заказа
+    const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+      body: JSON.stringify({ project_id: props.project.id })
+    })
+    
+    if (response.ok) {
+      const updatedOrder = await response.json()
+      
+      toast.show('Заказ добавлен в проект', 'success')
+      emit('attach-order', orderId)
+      
+      // Отправляем глобальное событие обновления заказа
+      window.dispatchEvent(new CustomEvent('order-updated', {
+        detail: { orderId }
+      }))
+    } else {
+      const errorData = await response.json().catch(() => ({ message: 'Ошибка при добавлении заказа' }))
+      console.error('Ошибка добавления заказа:', errorData)
+      toast.show('Ошибка при добавлении заказа', 'error')
+    }
+  } catch (error) {
+    console.error('Ошибка при добавлении заказа:', error)
+    toast.show('Ошибка при добавлении заказа', 'error')
+  }
 }
 
 // Добавляем функцию для поиска имени клиента по client_id

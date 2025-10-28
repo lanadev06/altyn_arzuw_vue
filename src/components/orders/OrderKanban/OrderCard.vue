@@ -1,11 +1,22 @@
 <template>
   <div
     class="order-card bitrix-order-card"
-    :class="[deadlineClass, stageClass, cardBgClass, { compact }]"
+    :class="[deadlineClass, stageClass, cardBgClass, { compact, 'order-card-selected': isSelected }]"
     @click="handleCardClick"
   >
     <div class="order-card-content">
-      <div class="order-id-badge">#{{ order.id }}</div>
+      <div class="order-top-bar">
+        <div class="order-id-badge">#{{ order.id }}</div>
+        <!-- Checkbox для массового выбора -->
+        <input
+          v-if="enableSelection"
+          type="checkbox"
+          :checked="isSelected"
+          @click.stop
+          @change="toggleSelection"
+          class="order-card-checkbox"
+        />
+      </div>
       <div class="order-card-header">
         <span
           class="order-title"
@@ -42,7 +53,6 @@
       <div v-if="order.description" class="order-description">
         {{ order.description }}
       </div>
-      <span class="order-card-menu"><span class="menu-dots">⋮</span></span>
     </div>
   </div>
 </template>
@@ -97,15 +107,23 @@ const props = defineProps<{
   }
   compact?: boolean
   dragging?: boolean
+  enableSelection?: boolean
+  isSelected?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'click', order: typeof props.order): void
+  (e: 'toggle-selection', orderId: number, selected: boolean): void
 }>()
 
 function handleCardClick() {
   if (!props.dragging) {
     emit('click', props.order)
   }
+}
+
+function toggleSelection(event: Event) {
+  const target = event.target as HTMLInputElement
+  emit('toggle-selection', props.order.id, target.checked)
 }
 
 function formatDeadline(deadline: string) {
@@ -260,11 +278,16 @@ const stageClass = computed(() => {
   gap: 2px;
   min-width: 0;
 }
+
+.order-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  position: relative;
+}
+
 .order-id-badge {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  z-index: 2;
   background-color: #f3f4f6;
   border-radius: 3px;
   padding: 1px 5px;
@@ -353,27 +376,31 @@ const stageClass = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.order-card-menu {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  z-index: 2;
-}
-.menu-dots {
-  font-size: 1em;
-  color: #bdbdbd;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s;
-}
-.menu-dots:hover {
-  color: #6366f1;
-}
 
 .bitrix-deadline-overdue.order-card.bitrix-order-card {
   background: #fee2e2 !important;
 }
 .bitrix-deadline-soon.order-card.bitrix-order-card {
   background: #fef9c3 !important;
+}
+
+.order-card-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #6366f1;
+  border-radius: 3px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.order-card-checkbox:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.order-card-selected {
+  border: 2px solid #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
 }
 </style>

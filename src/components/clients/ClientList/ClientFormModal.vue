@@ -150,6 +150,7 @@
         <UIButton
           type="submit"
           :loading="loading"
+          :disabled="loading"
           class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         >
           {{ client ? 'Сохранить изменения' : 'Создать клиента' }}
@@ -439,6 +440,10 @@ function validateForm() {
 
 async function handleSubmit() {
   if (!validateForm()) return
+  
+  // Защита от множественных нажатий
+  if (loading.value) return
+  
   loading.value = true
   try {
     let clientId = props.client?.id

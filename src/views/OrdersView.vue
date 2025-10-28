@@ -40,7 +40,24 @@
         @add-order="openCreateOrderModal"
         :orders="filteredKanbanOrders"
         @updated="handleOrderUpdatedFromModal"
+        :enable-selection="true"
+        :selected-ids="kanbanSelectedIds"
+        @toggle-selection="handleKanbanToggleSelection"
+        @select-all-in-stage="handleSelectAllInStage"
+        @deselect-all-in-stage="handleDeselectAllInStage"
       />
+      <!-- Bulk Action Panel для канбана -->
+      <BulkActionPanel
+        v-if="!isTableView && kanbanSelectedIds.length > 0"
+        :show="kanbanSelectedIds.length > 0"
+        :count="kanbanSelectedIds.length"
+        :is-processing="kanbanIsProcessing"
+        :show-status-selector="true"
+        :stages="kanbanStatuses.map((s, idx) => ({ id: idx, name: s.key, display_name: s.label }))"
+        @clear="kanbanSelectedIds = []"
+        @update-status="handleKanbanBulkStatusUpdate"
+      />
+
       <OrderDetailsModal
         v-if="detailsOrderId"
         :order-id="detailsOrderId"
@@ -58,16 +75,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed, defineAsyncComponent } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff } from '../utils/permissions'
-import { getAllStages } from '../services/api'
+import { getAllStages, apiRequest } from '../services/api'
+import { useToast } from '../stores/toast'
 import { useOrderEvents } from '../composables/useOrderEvents'
 import { useEntityEvents } from '../composables/useEntityEvents'
 import { useComponentOptimization } from '../composables/useComponentOptimization'
+import BulkActionPanel from '../components/ui/BulkActionPanel.vue'
 
 // Ленивая загрузка тяжелых компонентов
 const OrderList = defineAsyncComponent({
@@ -144,8 +163,62 @@ const filteredKanbanOrders = computed(() => {
 })
 
 const kanbanStatuses = ref([])
+const kanbanSelectedIds = ref<number[]>([])
+const kanbanIsProcessing = ref(false)
 
 const orderListRef = ref()
+
+// Функция для массового обновления статуса в канбане
+async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number; errors?: string[] }> {
+  if (kanbanSelectedIds.value.length === 0) {
+    return { updated: 0 }
+  }
+
+  kanbanIsProcessing.value = true
+
+  try {
+    const toast = useToast()
+
+    const payload: Record<string, any> = {
+      ids: kanbanSelectedIds.value,
+      stage
+    }
+
+    const response = await apiRequest('/orders/bulk-update-status', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+
+    const result = response as {
+      message: string
+      updated: number
+      total_requested: number
+      errors?: string[]
+    }
+
+    // Показываем результат
+    if (result.updated > 0) {
+      toast.success(`Обновлено заказов: ${result.updated}`)
+    }
+
+    // Показываем ошибки если есть
+    if (result.errors && result.errors.length > 0) {
+      setTimeout(() => {
+        result.errors?.forEach(error => {
+          toast.error(error)
+        })
+      }, 1000)
+    }
+
+    return result
+  } catch (error: any) {
+    console.error('Bulk status update error:', error)
+
+    return { updated: 0, errors: [error.message] }
+  } finally {
+    kanbanIsProcessing.value = false
+  }
+}
 
 const loadOrders = async () => {
   try {
@@ -186,6 +259,10 @@ watch(
 )
 
 watch(isTableView, (newValue) => {
+  // Очищаем выбранные элементы при переключении вида
+  if (newValue) {
+    kanbanSelectedIds.value = []
+  }
   loadOrders()
 })
 
@@ -211,9 +288,55 @@ async function loadStages() {
   }
 }
 
+// Обработчик для событий от NotificationBell
+const handleOpenOrderDetailsEvent = async (event: any) => {
+  const { orderId } = event.detail
+  if (orderId) {
+    try {
+      // Проверяем существование заказа перед открытием модалки
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+      
+      if (response.ok) {
+        detailsOrderId.value = orderId
+        detailsErrorMsg.value = ''
+      } else if (response.status === 404) {
+        // Заказ был удален - показываем toast
+        const { useToast } = await import('../stores/toast')
+        const toast = useToast()
+        toast.error('Заказ #' + orderId + ' был удалён')
+        detailsErrorMsg.value = ''
+      } else {
+        // Другие ошибки
+        const { useToast } = await import('../stores/toast')
+        const toast = useToast()
+        toast.error('Ошибка при загрузке заказа')
+        detailsErrorMsg.value = ''
+      }
+    } catch (error) {
+      const { useToast } = await import('../stores/toast')
+      const toast = useToast()
+      toast.error('Ошибка при загрузке заказа')
+      detailsErrorMsg.value = ''
+    }
+  }
+}
+
+// Очищаем обработчик при размонтировании компонента
+onUnmounted(() => {
+  document.removeEventListener('openOrderDetails', handleOpenOrderDetailsEvent as EventListener)
+})
+
 onMounted(async () => {
   await loadStages()
   loadOrders()
+  
+  // Добавляем обработчик для событий от NotificationBell
+  document.addEventListener('openOrderDetails', handleOpenOrderDetailsEvent)
   
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {
@@ -273,14 +396,6 @@ onMounted(async () => {
     }
   }
   
-  // Добавляем обработчик для событий от NotificationBell
-  document.addEventListener('openOrderDetails', (event: any) => {
-    const { orderId } = event.detail
-    if (orderId) {
-      detailsOrderId.value = orderId
-      detailsErrorMsg.value = ''
-    }
-  })
 })
 
 async function openOrderDetails(payload: any) {
@@ -319,6 +434,54 @@ function handleOrderUpdatedFromModal() {
 
 function openCreateOrderModal(stage: string) {
   showCreateModal.value = true
+}
+
+// Обработчики для канбана
+function handleKanbanToggleSelection(orderId: number, selected: boolean) {
+  if (selected) {
+    kanbanSelectedIds.value.push(orderId)
+  } else {
+    kanbanSelectedIds.value = kanbanSelectedIds.value.filter(id => id !== orderId)
+  }
+}
+
+function handleSelectAllInStage(stage: string) {
+  // Получаем все заказы в этой стадии
+  const ordersInStage = filteredKanbanOrders.value.filter(order => {
+    const orderStage = typeof order.stage === 'string' ? order.stage : (order.stage as any)?.name || ''
+    return orderStage === stage
+  })
+  
+  // Добавляем ID всех заказов, которые еще не выбраны
+  ordersInStage.forEach(order => {
+    if (!kanbanSelectedIds.value.includes(order.id)) {
+      kanbanSelectedIds.value.push(order.id)
+    }
+  })
+}
+
+function handleDeselectAllInStage(stage: string) {
+  // Получаем все заказы в этой стадии
+  const ordersInStage = filteredKanbanOrders.value.filter(order => {
+    const orderStage = typeof order.stage === 'string' ? order.stage : (order.stage as any)?.name || ''
+    return orderStage === stage
+  })
+  
+  // Удаляем ID всех заказов в этой стадии из выбранных
+  const ordersToDeselect = ordersInStage.map(order => order.id)
+  kanbanSelectedIds.value = kanbanSelectedIds.value.filter(id => !ordersToDeselect.includes(id))
+}
+
+async function handleKanbanBulkStatusUpdate(stage: string) {
+  if (kanbanSelectedIds.value.length === 0) return
+  
+  const result = await bulkUpdateKanbanStatus(stage)
+  if (result.updated > 0) {
+    // Очищаем выбранные элементы
+    kanbanSelectedIds.value = []
+    // Обновляем данные
+    loadOrders()
+  }
 }
 
 function closeCreateOrderModal() {

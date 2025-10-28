@@ -39,6 +39,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 :class="[
@@ -68,10 +79,21 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editCategory(category)"
               style="height: 44px"
+              @click="editCategory(category)"
             >
-              <template v-for="col in columns" :key="col.key">
+              <td
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="category.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <template v-for="(col, colIndex) in columns" :key="`${category.id}-${col.key}-${colIndex}`">
                 <td
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
@@ -111,17 +133,17 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 Загрузка категорий...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500 text-base">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && (!pagination.data || pagination.data.length === 0)">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? 'Категории не найдены' : 'Категории отсутствуют' }}
               </td>
             </tr>
@@ -152,6 +174,14 @@
       @delete="handleDeleteCategory"
       @saved="handleCategorySaved"
     />
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
   </div>
 </template>
 
@@ -165,6 +195,8 @@ import type { Category } from '@/types/category'
 import { canCreateEdit, canDelete } from '@/utils/permissions'
 import { toast } from '@/stores/toast'
 import Sortable from 'sortablejs'
+import { useBulkActions } from '@/composables/useBulkActions'
+import BulkActionPanel from '@/components/ui/BulkActionPanel.vue'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -201,6 +233,25 @@ const columns = ref(
 // Получаем переменные из контроллера
 const { pagination, loading, error, fetchCategories, sortBy, sortOrder, update, remove } =
   categoryController
+
+// Bulk actions
+const categories = computed(() => pagination.data || [])
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(categories as any)
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('categories')
+  if (result.deleted > 0) {
+    await goToPage(1)
+  }
+}
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
 if (savedSortOrder && sortOrder.value !== savedSortOrder)
@@ -246,10 +297,8 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  // При изменении сортировки возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('categoryList_currentPage', '1')
-  fetchCategories(1, search, sortBy.value, sortOrder.value, perPage.value)
+  // При изменении сортировки остаемся на той же странице
+  fetchCategories(currentPage.value, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
@@ -331,12 +380,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })

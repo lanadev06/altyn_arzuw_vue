@@ -58,7 +58,7 @@
 
 
               <!-- Информация о проекте и клиенте -->
-              <OrderProject :order="order" :project="project" />
+              <OrderProject :order="order" :project="project" @refresh="forceRefresh" />
             </div>
 
             <!-- Правая панель - комментарии и таймлайн -->
@@ -211,14 +211,15 @@ function onOverlayClick() {
   emit('close')
 }
 
+// Обработчик глобальных событий обновления
+function handleGlobalUpdate(event: CustomEvent) {
+  if (event.detail?.orderId === props.orderId) {
+    forceRefresh()
+  }
+}
+
 // Слушаем глобальные события обновления
 onMounted(async () => {
-  const handleGlobalUpdate = (event: CustomEvent) => {
-    if (event.detail?.orderId === props.orderId) {
-      forceRefresh()
-    }
-  }
-  
   window.addEventListener('order-updated', handleGlobalUpdate as EventListener)
   
   // Принудительно обновляем список пользователей при открытии модального окна
@@ -229,10 +230,10 @@ onMounted(async () => {
   } catch (error) {
     // Игнорируем ошибку, если пользователи не загрузились
   }
-  
-  onUnmounted(() => {
-    window.removeEventListener('order-updated', handleGlobalUpdate as EventListener)
-  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('order-updated', handleGlobalUpdate as EventListener)
 })
 
 defineOptions({

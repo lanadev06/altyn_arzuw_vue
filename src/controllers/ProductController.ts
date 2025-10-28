@@ -85,7 +85,7 @@ export function useProductController() {
     loading.value = true
     try {
       const created = await createProduct(product as any) // Type assertion for compatibility
-      await fetchProducts(pagination.current_page)
+      await fetchProducts(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page)
       return created
     } finally {
       loading.value = false
@@ -96,7 +96,7 @@ export function useProductController() {
     loading.value = true
     try {
       const updated = await updateProduct(id, product as any) // Type assertion for compatibility
-      await fetchProducts(pagination.current_page)
+      await fetchProducts(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page)
       return updated
     } finally {
       loading.value = false
@@ -107,7 +107,7 @@ export function useProductController() {
     loading.value = true
     try {
       await deleteProduct(id)
-      await fetchProducts(pagination.current_page)
+      await fetchProducts(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page)
     } finally {
       loading.value = false
     }

@@ -36,6 +36,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 @click="col.sortable ? setSort(col.key, props.search) : null"
@@ -64,10 +75,21 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="openProjectDetails(project)"
               style="height: 44px"
+              @click="openProjectDetails(project)"
             >
-              <td v-for="col in columns" :key="col.key"
+              <td
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="project.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <td v-for="(col, colIndex) in columns" :key="`${project.id}-${col.key}-${colIndex}`"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'client' ? 'max-w-[220px]' : '',
@@ -112,17 +134,17 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
                 Загрузка проектов...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
                 {{ props.search ? 'Проекты не найдены' : 'Проекты отсутствуют' }}
               </td>
             </tr>
@@ -159,9 +181,29 @@
       @open-order="onOpenOrder"
       @order-created="onOrderCreated"
       @delete-comment="onDeleteComment"
+      @detach-order="handleDetachOrder"
+      @attach-order="handleAttachOrder"
+      @create-and-attach-order="handleCreateAndAttachOrder"
     />
 
     <OrderDetailsModal v-if="showOrderModal" :order-id="selectedOrderId" @close="closeOrderModal" />
+    
+    <!-- Модалка создания заказа для проекта -->
+    <OrderFormModal
+      v-if="showOrderFormModal && selectedProject?.id"
+      :key="selectedProject.id"
+      :project-id="selectedProject.id"
+      @close="handleCloseOrderForm"
+      @submit="handleOrderFormSubmit"
+    />
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
   </div>
 </template>
 
@@ -174,10 +216,13 @@ import { API_CONFIG } from '@/config/api'
 import ProjectFormModal from './ProjectFormModal.vue'
 import ProjectDetailsModal from './ProjectDetailsModal.vue'
 import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
+import OrderFormModal from '@/components/orders/OrderList/OrderFormModal.vue'
 import projectController from '@/controllers/projectControllerInstance'
 import type { Project } from '@/types/project'
 import { canCreateEdit, canViewPrices } from '@/utils/permissions'
 import { useToast } from '@/stores/toast'
+import { useBulkActions } from '../../../composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -245,7 +290,21 @@ const selectedProjectAssignments = ref([])
 const showOrderModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
 
+const showOrderFormModal = ref(false)
+
 const allClients = ref<any[]>([])
+
+// Bulk actions - используем computed для создания реактивного источника
+const projectsList = computed(() => pagination.data || [])
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(projectsList as any)
 
 function setSort(key: string, search = '') {
   if (sortBy.value === key) {
@@ -256,10 +315,8 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  // При изменении сортировки возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('projectList_currentPage', '1')
-  fetchProjects(1, search, sortBy.value, sortOrder.value, perPage.value)
+  // При изменении сортировки остаемся на той же странице
+  fetchProjects(currentPage.value, search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 function goToPage(page: number) {
@@ -362,6 +419,11 @@ function closeProjectDetails() {
   showDetailsModal.value = false
   selectedProject.value = null
 }
+
+function handleCloseOrderForm() {
+  showOrderFormModal.value = false
+  selectedProject.value = null
+}
 async function onUpdateProject(updatedProject: any) {
   await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
   
@@ -410,6 +472,77 @@ async function onOrderCreated(order: any) {
   const freshProject = await res.json()
   selectedProject.value = freshProject
   selectedProjectOrders.value = freshProject.orders || []
+}
+
+// Обработчик отвязки заказа от проекта
+async function handleDetachOrder(orderId: number) {
+  // Перезагружаем проект с обновленным списком заказов
+  if (selectedProject.value) {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const freshProject = await res.json()
+    selectedProject.value = freshProject
+    selectedProjectOrders.value = freshProject.orders || []
+  }
+}
+
+// Обработчик привязки заказа к проекту
+async function handleAttachOrder(orderId: number) {
+  // Перезагружаем проект с обновленным списком заказов
+  if (selectedProject.value) {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const freshProject = await res.json()
+    selectedProject.value = freshProject
+    selectedProjectOrders.value = freshProject.orders || []
+  }
+}
+
+// Обработчик создания и привязки нового заказа
+function handleCreateAndAttachOrder() {
+  if (!selectedProject.value) return
+  
+  // Сохраняем ID проекта перед закрытием модалки
+  const projectId = selectedProject.value.id
+  
+  // Закрываем модалку деталей проекта
+  closeProjectDetails()
+  
+  // Небольшая задержка для корректного закрытия предыдущей модалки
+  setTimeout(() => {
+    // Открываем модалку создания заказа для этого проекта
+    selectedProject.value = { id: projectId } as Project
+    showOrderFormModal.value = true
+  }, 100)
+}
+
+// Обработчик submit из формы создания заказа
+async function handleOrderFormSubmit() {
+  showOrderFormModal.value = false
+  
+  // После создания заказа обновляем список проектов и заказов
+  if (selectedProject.value) {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const freshProject = await res.json()
+    selectedProject.value = freshProject
+    selectedProjectOrders.value = freshProject.orders || []
+    
+    // Открываем обратно модалку деталей проекта с обновленными данными
+    openProjectDetails(freshProject)
+  }
 }
 
 async function getProjectComments(projectId: number) {
@@ -500,19 +633,36 @@ watch(perPage, (newVal) => {
   goToPage(1)
 })
 
+async function handleBulkDelete() {
+  const result = await bulkDelete('projects')
+  if (result.deleted > 0) {
+    await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  }
+}
+
 onMounted(async () => {
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
-        // Сохраняем порядок колонок
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })

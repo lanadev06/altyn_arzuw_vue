@@ -194,12 +194,28 @@
 
       <!-- Третий ряд: заказы по сотрудникам -->
       <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[600px] overflow-y-auto">
-        <div class="font-extrabold text-xl mb-6 text-gray-900 tracking-wide">
-          Заказы по сотрудникам
+        <div class="flex items-center justify-between mb-6">
+          <div class="font-extrabold text-xl text-gray-900 tracking-wide">
+            Занятость сотрудников
+          </div>
+          <div class="flex items-center">
+            <select
+              v-model="selectedEmployeeFilter"
+              class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-gray-900 font-medium"
+            >
+              <option
+                v-for="emp in availableEmployees"
+                :key="emp.user_id"
+                :value="emp.user_id"
+              >
+                {{ emp.user_name }}{{ emp.roles && emp.roles.length > 0 ? ` (${emp.roles.map(r => r.display_name || r.name).join(', ')})` : '' }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="flex flex-col gap-6">
           <div
-            v-for="emp in dashboardStats.orders_by_user.filter(emp => emp.orders && emp.orders.length > 0)"
+            v-for="emp in filteredEmployees"
             :key="emp.user_id"
             class="bg-white/80 rounded-2xl p-5 flex flex-col gap-2 shadow group hover:scale-[1.01] hover:shadow-lg transition-all duration-300"
           >
@@ -250,12 +266,15 @@
             </div>
             <span v-else class="text-gray-400">Нет назначенных заказов</span>
           </div>
-          <div
-            v-if="!dashboardStats.orders_by_user || !dashboardStats.orders_by_user.length"
-            class="text-center text-gray-400 py-4"
-          >
-            Нет данных
-          </div>
+        </div>
+        <div v-if="filteredEmployees.length === 0 && dashboardStats.orders_by_user.length > 0" class="text-center text-gray-400 py-4">
+          Нет сотрудников с назначенными заказами
+        </div>
+        <div
+          v-if="!dashboardStats.orders_by_user || !dashboardStats.orders_by_user.length"
+          class="text-center text-gray-400 py-4"
+        >
+          Нет данных
         </div>
       </div>
     </div>
@@ -274,7 +293,7 @@ import RecentActivity from '../components/dashboard/RecentActivity.vue'
 import RevenueChart from '../components/dashboard/RevenueChart.vue'
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { authApi, getAllStages, apiRequest } from '../services/api'
 import { canViewAllUsers, canViewAllClients, canCreateEdit } from '../utils/permissions'
 import { safeApiRequest, safeProcessActivityData } from '../utils/safeData'
@@ -306,6 +325,7 @@ const dashboardStats = ref<{
     user_name: string
     total: number
     orders: any[]
+    roles?: Array<{ name: string; display_name: string }>
   }>
   closed_last_30_days: number
   delayed_assignments: number
@@ -344,6 +364,7 @@ const stagesData = ref<Stage[]>([])
 const showOrderDetailsModal = ref(false)
 const selectedOrderId = ref<number | null>(null)
 const expandedEmployees = ref<number[]>([])
+const selectedEmployeeFilter = ref<string | number>(0)
 
 // Функция для проверки ролей пользователя
 const currentUser = computed(() => getCurrentUser())
@@ -353,6 +374,29 @@ const hasAdminOrManagerRole = computed(() => {
   if (!user || !user.roles) return false
   return user.roles.some((role: any) => role.name === 'admin' || role.name === 'manager')
 })
+
+// Список доступных сотрудников для фильтра
+const availableEmployees = computed(() => {
+  return dashboardStats.value.orders_by_user.filter(emp => emp.orders && emp.orders.length > 0)
+})
+
+// Отфильтрованные сотрудники
+const filteredEmployees = computed(() => {
+  if (!selectedEmployeeFilter.value || selectedEmployeeFilter.value === 0) {
+    // Если фильтр пустой или 0, показываем первого сотрудника
+    return availableEmployees.value.slice(0, 1)
+  }
+  
+  const filtered = availableEmployees.value.filter(emp => emp.user_id === selectedEmployeeFilter.value)
+  return filtered.length > 0 ? filtered : availableEmployees.value.slice(0, 1)
+})
+
+// Устанавливаем первого сотрудника по умолчанию
+watch(availableEmployees, (newEmployees) => {
+  if (newEmployees && newEmployees.length > 0 && selectedEmployeeFilter.value === 0) {
+    selectedEmployeeFilter.value = newEmployees[0].user_id
+  }
+}, { immediate: true })
 
 function openOrderDetailsModal(orderId: number) {
   selectedOrderId.value = orderId

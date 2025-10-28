@@ -202,8 +202,8 @@
         <UIButton
           type="submit"
           :loading="loading"
+          :disabled="loading || !form.name.trim() || selectedStages.length === 0"
           class="flex-1"
-          :disabled="!form.name.trim() || selectedStages.length === 0"
         >
           {{ product ? 'Сохранить' : 'Создать' }}
         </UIButton>
@@ -1098,6 +1098,9 @@ async function handleSubmit() {
   if (!validateForm()) {
     return
   }
+  
+  // Защита от множественных нажатий
+  if (loading.value) return
 
   loading.value = true
   try {

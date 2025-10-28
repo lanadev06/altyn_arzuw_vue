@@ -44,7 +44,7 @@ export function ProjectController() {
     loading.value = true
     try {
       const created = await createProject(newProject)
-      await fetchProjects(pagination.current_page)
+      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
       return created
     } finally {
       loading.value = false
@@ -55,7 +55,7 @@ export function ProjectController() {
     loading.value = true
     try {
       const updated = await updateProject(id, updatedProject)
-      await fetchProjects(pagination.current_page)
+      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
       return updated
     } finally {
       loading.value = false
@@ -67,9 +67,9 @@ export function ProjectController() {
     try {
       await deleteProject(id)
       if (pagination.data.length === 1 && pagination.current_page > 1) {
-        await fetchProjects(pagination.current_page - 1)
+        await fetchProjects(pagination.current_page - 1, '', sortBy.value, sortOrder.value)
       } else {
-        await fetchProjects(pagination.current_page)
+        await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
       }
     } finally {
       loading.value = false

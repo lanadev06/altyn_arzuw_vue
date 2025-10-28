@@ -162,6 +162,7 @@
         <UIButton
           type="submit"
           :loading="loading"
+          :disabled="loading"
           class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 active:scale-95"
         >
           {{ project ? 'Сохранить изменения' : 'Создать проект' }}
@@ -320,6 +321,9 @@ function validateForm() {
 async function handleSubmit() {
   // Валидация происходит только в validateForm()
   if (!validateForm()) return
+  
+  // Защита от множественных нажатий
+  if (loading.value) return
 
   loading.value = true
   try {

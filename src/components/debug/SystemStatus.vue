@@ -161,7 +161,7 @@ const resetCircuitBreaker = () => {
 
 onMounted(() => {
   updateStats()
-  updateInterval = window.setInterval(updateStats, 2000)
+  updateInterval = window.setInterval(updateStats, 30000)
   
   // Слушаем события от навбара
   const handleToggleDebug = () => {

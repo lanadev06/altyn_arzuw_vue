@@ -1,16 +1,25 @@
 <template>
   <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-3">
-    <div class="text-2xl font-extrabold text-blue-900 mb-2">Проект</div>
-    <div class="text-base text-gray-800">
-      Название: <b>{{ project?.title }}</b>
+    <!-- Информация о проекте -->
+    <div v-if="project">
+      <div class="text-2xl font-extrabold text-blue-900 mb-2">Проект</div>
+      <div class="text-base text-gray-800">
+        Название: <b>{{ project?.title }}</b>
+      </div>
     </div>
+    
+    <!-- Информация о клиенте -->
+    <div class="text-2xl font-extrabold text-blue-900 mb-2">Клиент</div>
     <div class="text-base text-gray-800">
-      Клиент:
+      Имя:
       <b>
-        {{ order?.client?.name
-        }}<template v-if="order?.client?.company_name"> ({{ order.client.company_name }})</template
-        ><template v-else-if="!order?.client?.name">-</template>
+        {{ order?.client?.name || '-' }}
       </b>
+      <template v-if="order?.client?.company_name">
+        <span class="text-gray-600 ml-2">
+          ({{ order.client.company_name }})
+        </span>
+      </template>
     </div>
 
     <!-- Контакты клиента -->
@@ -72,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, type VNode } from 'vue'
+import { h, type VNode, onMounted, onUnmounted } from 'vue'
 import { toast } from '../../../stores/toast'
 import type { OrderInfo, ProjectInfo, ContactInfo } from '../../../types/orderDetails'
 
@@ -82,7 +91,29 @@ interface Props {
   project?: ProjectInfo | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  'refresh': []
+}>()
+
+// Обработчик глобального события обновления заказа
+function handleOrderUpdated(event: Event) {
+  const customEvent = event as CustomEvent<{ orderId: number }>
+  
+  // Если обновлённый заказ соответствует текущему заказу, обновляем проект
+  if (customEvent.detail.orderId === props.order?.id) {
+    // Запрашиваем обновление данных заказа у родителя
+    emit('refresh')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('order-updated', handleOrderUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('order-updated', handleOrderUpdated)
+})
 
 function getContactTypeLabel(type: string): string {
   const labels: Record<string, string> = {

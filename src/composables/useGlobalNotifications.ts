@@ -9,21 +9,29 @@ export function useGlobalNotifications() {
   const router = useRouter()
 
   function handleOpenOrderDetails(event: CustomEvent) {
-    const { orderId } = event.detail
-    if (orderId) {
-      // Если мы на странице заказов, открываем модалку
-      if (router.currentRoute.value.name === 'OrdersView' || router.currentRoute.value.path.includes('/orders')) {
-        // Отправляем событие для открытия модалки на странице заказов
-        document.dispatchEvent(new CustomEvent('openOrderDetails', {
-          detail: { orderId }
-        }))
-      } else {
-        // Если мы на другой странице, переходим на страницу заказов с открытой модалкой
-        router.push({
-          name: 'OrdersView',
-          query: { order: orderId }
-        })
-      }
+    const { orderId, commentId, highlightComments } = event.detail
+    if (!orderId) return
+    
+    // Сохраняем данные для открытия модалки
+    localStorage.setItem('openOrderModal', orderId.toString())
+    if (commentId) {
+      localStorage.setItem('highlightCommentId', commentId.toString())
+    }
+    if (highlightComments) {
+      sessionStorage.setItem('highlightComments', 'true')
+    }
+    
+    // Если мы на странице заказов, просто обновляем страницу
+    if (router.currentRoute.value.name === 'OrdersView' || router.currentRoute.value.path.includes('/orders')) {
+      // Удаляем обработчик перед перенаправлением, чтобы избежать рекурсии
+      const event = new CustomEvent('requestOrderModalOpen', { detail: { orderId, commentId, highlightComments } })
+      document.dispatchEvent(event)
+    } else {
+      // Если мы на другой странице, переходим на страницу заказов
+      router.push({
+        name: 'OrdersView',
+        query: { order: orderId }
+      })
     }
   }
 

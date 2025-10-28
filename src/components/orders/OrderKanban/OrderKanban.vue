@@ -21,17 +21,28 @@
         :class="{ 'first-col-header': idx === 0, 'last-col-header': idx === statuses.length - 1 }"
         :style="{ background: getStatusColor(stageObj.key), ...getStatusColorStyle(stageObj.key) }"
       >
-        <span class="bitrix-header-title">{{ stageObj.label }}</span>
-        <span
-          class="bitrix-counter-badge"
-          :style="{
-            borderColor: getStatusColor(stageObj.key),
-            color: getStatusColor(stageObj.key),
-            ...getStatusColorStyle(stageObj.key),
-          }"
-        >
-          {{ ordersByStage(stageObj.key).length }}
-        </span>
+        <div class="flex items-center gap-2">
+          <span class="bitrix-header-title">{{ stageObj.label }}</span>
+          <span
+            class="bitrix-counter-badge"
+            :style="{
+              borderColor: getStatusColor(stageObj.key),
+              color: getStatusColor(stageObj.key),
+              ...getStatusColorStyle(stageObj.key),
+            }"
+          >
+            {{ ordersByStage(stageObj.key).length }}
+          </span>
+        </div>
+        <!-- Кнопка выбора всех заказов в стадии -->
+        <input
+          v-if="enableSelection && ordersByStage(stageObj.key).length > 0"
+          type="checkbox"
+          :checked="isAllSelectedInStage(stageObj.key)"
+          @click.stop="toggleSelectAllInStage(stageObj.key)"
+          class="bitrix-select-all-checkbox"
+          title="Выбрать/снять все заказы в этой стадии"
+        />
       </div>
       <button
         v-if="stageObj.key === 'draft' && canCreateEdit()"
@@ -63,7 +74,10 @@
             <OrderCard
               :order="order"
               :dragging="draggingOrder && draggingOrder.id === order.id"
+              :enable-selection="props.enableSelection"
+              :is-selected="props.selectedIds?.includes(order.id)"
               @click="handleOrderCardClick"
+              @toggle-selection="handleToggleSelection"
             />
           </slot>
         </div>
@@ -175,6 +189,8 @@ onMounted(async () => {
 const props = defineProps<{
   statuses: { key: string; label: string }[]
   orders: Order[]
+  enableSelection?: boolean
+  selectedIds?: number[]
 }>()
 
 // Локальный ref для заказов, который мы можем обновлять
@@ -195,6 +211,9 @@ const emit = defineEmits<{
   (e: 'updated'): void
   (e: 'order-updated', orderId: string): void
   (e: 'change-status', payload: StatusChangePayload): void
+  (e: 'toggle-selection', orderId: number, selected: boolean): void
+  (e: 'select-all-in-stage', stage: string): void
+  (e: 'deselect-all-in-stage', stage: string): void
 }>()
 
 // Система событий
@@ -202,6 +221,36 @@ const { emitOrderStageChanged } = useOrderEvents()
 
 function handleOrderCardClick(order: Order) {
   emit('open-order', { order })
+}
+
+function handleToggleSelection(orderId: number, selected: boolean) {
+  emit('toggle-selection', orderId, selected)
+}
+
+function selectAllInStage(stage: string) {
+  emit('select-all-in-stage', stage)
+}
+
+function toggleSelectAllInStage(stage: string) {
+  const allSelected = isAllSelectedInStage(stage)
+  
+  if (allSelected) {
+    // Если все выбраны - снимаем выбор со всех заказов в этой стадии
+    emit('deselect-all-in-stage', stage)
+  } else {
+    // Если не все выбраны - выбираем все
+    emit('select-all-in-stage', stage)
+  }
+}
+
+function isAllSelectedInStage(stage: string): boolean {
+  if (!props.selectedIds || props.selectedIds.length === 0) return false
+  
+  const ordersInStage = ordersByStage(stage)
+  if (ordersInStage.length === 0) return false
+  
+  // Проверяем, выбраны ли ВСЕ заказы в этой стадии
+  return ordersInStage.every(order => props.selectedIds?.includes(order.id))
 }
 
 const draggingOrder = ref<Order | null>(null)
@@ -542,5 +591,20 @@ async function onDrop(event: DragEvent, newStage: string) {
     max-width: 100%;
     width: 100%;
   }
+}
+
+.bitrix-select-all-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: white;
+  border-radius: 3px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.bitrix-select-all-checkbox:hover {
+  opacity: 1;
 }
 </style>

@@ -39,6 +39,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 :class="[
@@ -68,10 +79,21 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editStage(stage)"
               style="height: 44px"
+              @click="editStage(stage)"
             >
-              <td v-for="col in columns" :key="col.key"
+              <td
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="stage.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <td v-for="(col, colIndex) in columns" :key="`${stage.id}-${col.key}-${colIndex}`"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'id' ? 'max-w-[100px]' : '',
@@ -119,17 +141,17 @@
               </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 Загрузка стадий...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500 text-base">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && stages.length === 0">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? 'Стадии не найдены' : 'Стадии отсутствуют' }}
               </td>
             </tr>
@@ -159,6 +181,14 @@
       @submit="handleUpdateStage"
       @delete="handleDeleteStage"
     />
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
   </div>
 </template>
 
@@ -166,6 +196,8 @@
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import Sortable from 'sortablejs'
 import StageFormModal from './StageFormModal.vue'
+import { useBulkActions } from '@/composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 import Pagination from '../../users/UserList/Pagination.vue'
 import StageController from '../../../controllers/StageController'
 import { canCreateEdit, canDelete } from '../../../utils/permissions'
@@ -258,6 +290,25 @@ const sortedStages = computed(() => {
   })
 })
 
+// Bulk actions
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(sortedStages as any)
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('stages')
+  if (result.deleted > 0) {
+    // Reload stages after deletion
+    await fetchStages()
+  }
+}
+
 function setSort(key: string) {
   if (sortBy.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
@@ -267,9 +318,7 @@ function setSort(key: string) {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  // При изменении сортировки возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('stageList_currentPage', '1')
+  // При изменении сортировки остаемся на той же странице
 }
 
 const columnsHeader = ref<HTMLElement | null>(null)
@@ -395,12 +444,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag', // Prevent dragging checkbox column
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })

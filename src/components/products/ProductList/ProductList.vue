@@ -54,6 +54,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 @click="col.sortable ? setSort(col.key, props.search) : null"
@@ -84,12 +95,23 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editProduct(product)"
               style="height: 44px"
+              @click="editProduct(product)"
             >
               <td
-                v-for="col in columns"
-                :key="col.key"
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="product.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <td
+                v-for="(col, colIndex) in columns"
+                :key="`${product.id}-${col.key}-${colIndex}`"
                 class="border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle"
               >
                 <template v-if="col.key === 'id'">
@@ -137,17 +159,17 @@
             </tr>
 
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
                 Загрузка товаров...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
                 {{ props.search ? 'Товары не найдены' : 'Товары отсутствуют' }}
               </td>
             </tr>
@@ -184,6 +206,14 @@
       @delete="handleDeleteProduct"
       @saved="handleProductSaved"
     />
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
   </div>
 </template>
 
@@ -200,6 +230,8 @@ import type { Stage } from '@/types/stage'
 import { canCreateEdit } from '@/utils/permissions'
 import { toast } from '@/stores/toast'
 import { getAllStages, getAllCategories } from '@/services/api'
+import { useBulkActions } from '../../../composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -240,6 +272,25 @@ const baseColumns: Column[] = [
 // Сначала определяем pagination и другие переменные из контроллера
 const { pagination, loading, error, fetchProducts, sortBy, sortOrder, update, remove } =
   productController
+
+// Bulk actions - используем computed для создания реактивного источника
+const products = computed(() => (pagination.data || []).filter((p) => p) as Product[])
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(products as any)
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('products')
+  if (result.deleted > 0) {
+    await goToPage(1)
+  }
+}
 
 // Теперь определяем dynamicColumns после pagination
 const dynamicColumns = computed<Column[]>(() => {
@@ -441,10 +492,8 @@ function setSort(key: string, search = '') {
   }
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
-  // При изменении сортировки возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('productList_currentPage', '1')
-  fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // При изменении сортировки остаемся на той же странице
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
 }
 
 function resetSettings() {
@@ -605,12 +654,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })

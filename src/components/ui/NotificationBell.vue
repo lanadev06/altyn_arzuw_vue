@@ -133,6 +133,20 @@
                   d="M5 13l4 4L19 7"
                 />
               </svg>
+              <svg
+                v-else-if="notif.data?.order_id || notif.data?.orderId || notif.data?.comment_id || notif.data?.commentId"
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke-width="2" />
               </svg>
@@ -274,6 +288,27 @@ async function handleClick(notif: any) {
   }
   
   // Обрабатываем разные типы уведомлений
+  // 1. Сначала проверяем уведомления о комментариях (они содержат order_id)
+  if (notif.data?.order_id || notif.data?.orderId) {
+    const orderId = notif.data.order_id || notif.data.orderId
+    
+    // Закрываем dropdown
+    dropdownOpen.value = false
+    
+    // Сохраняем данные в localStorage для открытия модалки
+    if (notif.data?.comment_id || notif.data?.commentId) {
+      localStorage.setItem('highlightCommentId', (notif.data.comment_id || notif.data.commentId).toString())
+      sessionStorage.setItem('highlightComments', 'true')
+    }
+    
+    // Отправляем простое событие для открытия модалки
+    document.dispatchEvent(new CustomEvent('openOrderDetails', {
+      detail: { orderId: parseInt(orderId) }
+    }))
+    return
+  }
+  
+  // 2. Обрабатываем другие типы уведомлений через URL
   if (notif.data?.url) {
     // Извлекаем ID заказа из URL или данных уведомления
     const orderId = notif.data.orderId || extractOrderIdFromUrl(notif.data.url)
@@ -286,6 +321,9 @@ async function handleClick(notif: any) {
     const isClientNotification = clientId && (notif.data.url.includes('/clients/') || notif.type?.includes('client'))
     
     if (isOrderNotification) {
+      // Закрываем dropdown
+      dropdownOpen.value = false
+      
       // Отправляем событие для открытия модалки заказа
       document.dispatchEvent(new CustomEvent('openOrderDetails', {
         detail: { orderId: parseInt(orderId) }

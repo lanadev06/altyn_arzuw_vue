@@ -35,6 +35,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 :class="[
@@ -63,10 +74,21 @@
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                 'hover:bg-blue-50 transition-colors',
               ]"
-              @click="editClient(client)"
               style="height: 44px"
+              @click="editClient(client as Client)"
             >
-              <td v-for="col in columns" :key="col.key"
+              <td
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="client.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
+              <td v-for="(col, colIndex) in columns" :key="`${client.id}-${col.key}-${colIndex}`"
                   :class="[
                     'border-r border-gray-200 px-3 py-2 text-base whitespace-nowrap align-middle',
                     col.key === 'id' ? 'max-w-[100px]' : '',
@@ -112,17 +134,17 @@
                 </td>
             </tr>
             <tr v-if="loading">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 Загрузка клиентов...
               </td>
             </tr>
             <tr v-if="error">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-red-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500 text-base">
                 {{ error }}
               </td>
             </tr>
             <tr v-if="!loading && !error && (!pagination || pagination.data.length === 0)">
-              <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? 'Клиенты не найдены' : 'Клиенты отсутствуют' }}
               </td>
             </tr>
@@ -137,6 +159,15 @@
         class="mt-1 shrink-0"
       />
     </div>
+
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
+
     <ClientFormModal
       v-if="showCreateModal"
       :client="null"
@@ -154,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, watch, onMounted, nextTick, onUnmounted, computed } from 'vue'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import ClientFormModal from './ClientFormModal.vue'
@@ -163,6 +194,8 @@ import type { Client } from '@/types/client'
 import { ClientController } from '@/controllers/ClientController'
 import ContactTypeIcon from './ContactTypeIcon.vue'
 import { useToast } from '@/stores/toast'
+import { useBulkActions } from '../../../composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -193,6 +226,18 @@ const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
 
 const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
   ClientController()
+
+// Bulk actions - используем computed для создания реактивного источника
+const clients = computed(() => pagination.data || [])
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(clients as any)
 
 // Инициализируем сортировку из localStorage
 if (savedSortBy && sortBy.value !== savedSortBy) {
@@ -325,12 +370,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt: Sortable.SortableEvent) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
+        
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
         if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
       },
     })
@@ -352,6 +408,13 @@ onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
 })
 
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('clients')
+  if (result.deleted > 0) {
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  }
+}
 
 defineOptions({
   name: 'ClientList'

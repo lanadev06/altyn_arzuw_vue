@@ -724,7 +724,7 @@
 
       <!-- Кнопки действий -->
       <div class="flex gap-3 pt-4 border-t border-gray-200 mt-6">
-        <UIButton type="submit" :loading="loading" class="flex-1" :disabled="!isFormValid">
+        <UIButton type="submit" :loading="loading" :disabled="loading || !isFormValid" class="flex-1">
           {{
             order ? 'Сохранить' : orderMode === 'bulk' ? 'Создать массовый заказ' : 'Создать заказ'
           }}
@@ -793,7 +793,7 @@ import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
 import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
 import { useEntityEvents } from '../../../composables/useEntityEvents'
 
-const props = defineProps<{ order?: Order | null }>()
+const props = defineProps<{ order?: Order | null; projectId?: number | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
 
 const { create, update, remove } = orderController
@@ -832,7 +832,7 @@ const bulkOrders = ref<
 >([])
 
 const form = reactive<OrderForm>({
-  client_id: 0,
+  client_id: undefined,
   project_id: undefined,
   product_id: undefined,
   quantity: 1,
@@ -1227,7 +1227,19 @@ async function onProductChange(productId: number | null) {
   }
 }
 
+// Инициализируем project_id из props при монтировании или изменении
+watch(() => props.projectId, (newProjectId) => {
+  if (newProjectId) {
+    form.project_id = newProjectId
+  }
+}, { immediate: true })
+
 onMounted(async () => {
+  // Устанавливаем project_id если он передан через props
+  if (props.projectId) {
+    form.project_id = props.projectId
+  }
+  
   try {
     // Загружаем стадии и собираем все роли
     const stagesResult = await getAllStages().catch(() => ({ data: [] }))
@@ -1335,6 +1347,11 @@ onMounted(async () => {
       projects.value = (projectsData as any).data
     } else {
       projects.value = []
+    }
+    
+    // После загрузки проектов, если был передан projectId через props, устанавливаем его
+    if (props.projectId && !form.project_id) {
+      form.project_id = props.projectId
     }
 
     // Processed data
@@ -1551,7 +1568,7 @@ onMounted(async () => {
     // Если редактируем заказ
     if (props.order) {
       Object.assign(form, {
-        client_id: props.order.client_id || 0,
+        client_id: props.order.client_id || undefined,
         project_id: props.order.project_id || null,
         product_id: props.order.product_id || null,
         quantity: props.order.quantity || 1,
@@ -1720,6 +1737,9 @@ async function handleSubmit() {
   if (!validateForm()) {
     return
   }
+  
+  // Защита от множественных нажатий
+  if (loading.value) return
 
   loading.value = true
   try {

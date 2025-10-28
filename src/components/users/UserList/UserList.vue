@@ -30,6 +30,17 @@
           <thead class="bg-gray-50 text-gray-900 font-medium">
             <tr ref="columnsHeader">
               <th
+                class="border border-gray-200 px-3 py-2 text-center no-drag"
+                style="width: 50px"
+              >
+                <input
+                  type="checkbox"
+                  v-model="selectAll"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 :class="[
@@ -59,9 +70,20 @@
                 'border-b border-gray-100 transition-colors',
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
               ]"
-              @click="canEditUsers() ? editUser(user) : null"
               style="height: 44px"
+              @click="canEditUsers() ? editUser(user) : null"
             >
+              <td
+                class="border-r border-gray-200 px-3 py-2 text-center align-middle"
+              >
+                <input
+                  type="checkbox"
+                  :value="user.id"
+                  v-model="selectedIds"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  @click.stop
+                />
+              </td>
               <template
                 v-for="(col, colIndex) in columns"
                 :key="`${user.id}-${col.key}-${colIndex}`"
@@ -194,6 +216,14 @@
       />
     </div>
 
+    <BulkActionPanel
+      :show="hasSelection"
+      :count="selectedCount"
+      :is-processing="isProcessing"
+      @clear="clearSelection"
+      @delete="handleBulkDelete"
+    />
+
     <UserFormModal
       v-if="props.showCreateModal"
       :user="null"
@@ -224,6 +254,8 @@ import { useToast } from '@/stores/toast'
 import { getRoleColorClasses, getRoleColorStyles } from '../../../utils/roleColors'
 import { canEditUsers, canToggleUserActive } from '../../../utils/permissions'
 import { getUserImageUrl } from '../../../utils/user'
+import { useBulkActions } from '../../../composables/useBulkActions'
+import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps<{
   search?: string
@@ -256,6 +288,18 @@ const editingUser = ref<any>(null)
 const currentPage = ref(1)
 const perPage = ref(30)
 const validationErrors = ref<Record<string, string>>({})
+
+// Bulk actions
+const {
+  selectedIds,
+  isProcessing,
+  selectAll,
+  hasSelection,
+  selectedCount,
+  toggleSelect,
+  clearSelection,
+  bulkDelete
+} = useBulkActions(users as any)
 
 // Константы для localStorage
 const SORT_KEY = 'userList_sortBy'
@@ -308,8 +352,8 @@ function setSort(key: string) {
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
   
-  currentPage.value = 1
-  fetchUsers(1, props.search || '', key, sortOrder.value, perPage.value, props.role, getActiveFilter())
+  // При изменении сортировки остаемся на той же странице
+  fetchUsers(currentPage.value, props.search || '', key, sortOrder.value, perPage.value, props.role, getActiveFilter())
 }
 
 // Вспомогательная функция для получения фильтра активности
@@ -410,14 +454,23 @@ onMounted(async () => {
     Sortable.create(columnsHeader.value, {
       animation: 150,
       direction: 'horizontal',
+      filter: '.no-drag',
       onEnd(evt) {
         const oldIndex = evt.oldIndex
         const newIndex = evt.newIndex
-        if (oldIndex === undefined || newIndex === undefined) return
-        const moved = columns.value.splice(oldIndex, 1)[0]
-        columns.value.splice(newIndex, 0, moved)
         
-        // Сохраняем новый порядок колонок в localStorage
+        // Skip if dragging checkbox column
+        if (oldIndex === 0 || newIndex === 0) return
+        if (oldIndex === undefined || newIndex === undefined) return
+        
+        // Adjust indices because checkbox column is at index 0
+        const adjustedOldIndex = oldIndex - 1
+        const adjustedNewIndex = newIndex - 1
+        
+        const newColumns = [...columns.value]
+        const moved = newColumns.splice(adjustedOldIndex, 1)[0]
+        newColumns.splice(adjustedNewIndex, 0, moved)
+        columns.value = newColumns
         localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
       },
     })
@@ -490,6 +543,13 @@ async function handleDeleteUser(userId: number) {
       message = `Ошибка удаления сотрудника: ${err.message}`
     }
     toast.show(message, 'error')
+  }
+}
+
+async function handleBulkDelete() {
+  const result = await bulkDelete('users')
+  if (result.deleted > 0) {
+    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
   }
 }
 
