@@ -1,6 +1,15 @@
 import { ref, reactive } from 'vue'
-import { getClients, createClient, updateClient, deleteClient } from '@/services/api'
+import { 
+  getClients, 
+  createClient, 
+  updateClient, 
+  deleteClient,
+  createClientContact,
+  updateClientContact,
+  deleteClientContact
+} from '@/services/api'
 import type { Client } from '@/types/client'
+import { frontendCache, CacheKeys } from '@/services/cacheService'
 
 export function useClientController() {
   const clients = ref<Client[]>([])
@@ -13,18 +22,28 @@ export function useClientController() {
   })
   const loading = ref(false)
   const error = ref('')
-  const sortBy = ref('id')
-  const sortOrder = ref('asc')
+  
+  // Инициализируем сортировку из localStorage
+  const savedSortBy = localStorage.getItem('clientList_sortBy')
+  const savedSortOrder = localStorage.getItem('clientList_sortOrder')
+  const sortBy = ref(savedSortBy || 'id')
+  const sortOrder = ref<'asc' | 'desc'>((savedSortOrder as 'asc' | 'desc') || 'asc')
 
   async function fetchClients(
     page = 1,
     search = '',
-    sortByParam = 'id',
-    sortOrderParam = 'asc',
+    sortByParam?: string,
+    sortOrderParam?: 'asc' | 'desc',
     per_page = 30,
   ) {
-    sortBy.value = sortByParam
-    sortOrder.value = sortOrderParam
+    // Используем переданные параметры или текущие значения из контроллера
+    if (sortByParam !== undefined) {
+      sortBy.value = sortByParam
+    }
+    if (sortOrderParam !== undefined) {
+      sortOrder.value = sortOrderParam
+    }
+    
     loading.value = true
     error.value = ''
     try {
@@ -63,12 +82,10 @@ export function useClientController() {
   async function fetchClientsWithSort(
     page = 1,
     search = '',
-    sortByParam = 'id',
-    sortOrderParam = 'asc',
+    sortByParam?: string,
+    sortOrderParam?: 'asc' | 'desc',
     per_page = 30,
   ) {
-    sortBy.value = sortByParam
-    sortOrder.value = sortOrderParam
     return await fetchClients(page, search, sortByParam, sortOrderParam, per_page)
   }
 
@@ -84,28 +101,32 @@ export function useClientController() {
     localStorage.setItem('clientList_sortBy', sortBy.value)
     localStorage.setItem('clientList_sortOrder', sortOrder.value)
     
-    fetchClients(1, search, sortBy.value, sortOrder.value)
+    // Получаем сохраненный perPage из localStorage
+    const savedPerPage = localStorage.getItem('clientList_perPage')
+    const perPage = savedPerPage ? parseInt(savedPerPage) : 30
+    
+    fetchClients(1, search, sortBy.value, sortOrder.value, perPage)
   }
 
-  // Contact CRUD methods for compatibility
-  async function createContact(clientId: number, contactData: any) {
-    // This would need to be implemented in API service
-    return { id: Date.now(), ...(contactData as Record<string, unknown>) }
+  // Contact CRUD methods
+  async function createContact(clientId: number, contactData: { type: string; value: string }) {
+    return await createClientContact(clientId, contactData)
   }
 
-  async function updateContact(clientId: number, contactId: number, contactData: any) {
-    // This would need to be implemented in API service
+  async function updateContact(clientId: number, contactId: number, contactData: { type: string; value: string }) {
+    return await updateClientContact(clientId, contactId, contactData)
   }
 
   async function removeContact(clientId: number, contactId: number) {
-    // This would need to be implemented in API service
+    return await deleteClientContact(clientId, contactId)
   }
 
   async function create(client: Partial<Client>) {
     loading.value = true
     try {
       const created = await createClient(client)
-      await fetchClients(pagination.current_page)
+      // Инвалидируем кеш клиентов после создания
+      frontendCache.invalidatePattern(CacheKeys.CLIENTS)
       return created
     } finally {
       loading.value = false
@@ -116,7 +137,8 @@ export function useClientController() {
     loading.value = true
     try {
       const updated = await updateClient(id, client)
-      await fetchClients(pagination.current_page)
+      // Инвалидируем кеш клиентов после обновления
+      frontendCache.invalidatePattern(CacheKeys.CLIENTS)
       return updated
     } finally {
       loading.value = false
@@ -127,15 +149,8 @@ export function useClientController() {
     loading.value = true
     try {
       await deleteClient(id)
-      // Обновляем список клиентов после успешного удаления
-      try {
-        await fetchClients(pagination.current_page)
-      } catch (fetchError) {
-        // Если не удалось загрузить обновленный список, просто очищаем текущие данные
-        // Удаляем клиента из локального списка
-        pagination.data = pagination.data.filter(client => client.id !== id)
-        pagination.total = Math.max(0, pagination.total - 1)
-      }
+      // Инвалидируем кеш клиентов после удаления
+      frontendCache.invalidatePattern(CacheKeys.CLIENTS)
     } finally {
       loading.value = false
     }
@@ -160,6 +175,12 @@ export function useClientController() {
   }
 }
 
+// Создаем singleton экземпляр контроллера
+let clientControllerInstance: ReturnType<typeof useClientController> | null = null
+
 export function ClientController() {
-  return useClientController()
+  if (!clientControllerInstance) {
+    clientControllerInstance = useClientController()
+  }
+  return clientControllerInstance
 }

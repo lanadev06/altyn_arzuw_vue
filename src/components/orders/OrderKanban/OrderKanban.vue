@@ -184,7 +184,7 @@ onMounted(async () => {
   OrderController().fetchAllOrdersForKanban()
   pollingInterval = window.setInterval(() => {
     OrderController().fetchAllOrdersForKanban()
-  }, 25000) // Увеличиваем до 25 секунд
+  }, 15000) // Уменьшено до 15 секунд для более актуальных данных (с учетом бэкенд кэша)
 })
 const props = defineProps<{
   statuses: { key: string; label: string }[]

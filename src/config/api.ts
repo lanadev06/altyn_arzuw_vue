@@ -1,10 +1,7 @@
 // Конфигурация API для Laravel
 export const API_CONFIG = {
   // Базовый URL для Laravel API (используем относительный путь для Vite прокси)
-  BASE_URL:
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    '/api',
+  BASE_URL:'https://crm.ltm.studio/api',
 
   // Таймаут для запросов (в миллисекундах)
   TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000'),

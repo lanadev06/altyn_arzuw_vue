@@ -58,8 +58,8 @@ export function useOrderDetails(orderId: number | null | undefined) {
   // Система событий
   const { emitOrderStageChanged, emitOrderUpdated, emitOrderCommentAdded, emitOrderCommentDeleted, onOrderStageChanged } = useOrderEvents()
 
-  // Smart polling - более консервативные настройки
-  const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling } = useSmartPolling(
+  // Smart polling - оптимизированные настройки с учетом бэкенд кэширования
+  const { isActive: isPollingActive, lastUpdate: lastPollingUpdate, reset: resetPolling, stop: stopPolling } = useSmartPolling(
     `order-details-${orderId}`,
     async () => {
       if (orderId) {
@@ -67,10 +67,10 @@ export function useOrderDetails(orderId: number | null | undefined) {
       }
     },
     {
-      interval: 5000, // Увеличиваем базовый интервал до 5 секунд
+      interval: 10000, // 10 секунд - оптимальный баланс с учетом бэкенд кэша (900 сек)
       maxInterval: 30000, // Максимальный интервал 30 секунд
-      minInterval: 3000, // Минимальный интервал 3 секунды
-      backoffMultiplier: 2, // Более агрессивное увеличение интервала при ошибках
+      minInterval: 5000, // Минимальный интервал 5 секунд
+      backoffMultiplier: 1.5, // Умеренное увеличение интервала при ошибках
       maxBackoff: 60000, // Максимальный интервал при ошибках 1 минута
       enabled: !!orderId
     }
@@ -290,7 +290,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
 
   async function fetchAvailableUsers(forceRefresh = false) {
     try {
-      let users = []
+      let users: User[] = []
 
       // Если принудительное обновление, очищаем кэш
       if (forceRefresh) {
@@ -300,47 +300,48 @@ export function useOrderDetails(orderId: number | null | undefined) {
         frontendCache.invalidatePattern('stages_users_by_roles')
       }
 
+      // Источник 1: все пользователи (увеличенный per_page, чтобы не терять пользователей на последующих страницах)
       try {
         const { apiRequest } = await import('../services/api')
-        const data = await apiRequest('/users')
-        users = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
+        const data = await apiRequest('/users?per_page=1000&sort_by=id&sort_order=asc')
+        const paged = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
+        users = Array.isArray(paged) ? (paged as User[]) : []
       } catch {
-        // Продолжаем к варианту 2
+        // Продолжаем ко второму источнику
       }
 
-      if (users.length === 0) {
-        try {
-          const data = await getAllUsersByStageRoles(forceRefresh)
-          let allUsers: User[] = []
+      // Источник 2: пользователи по ролям стадий — помогает подтянуть только активных и точно ролевых
+      try {
+        const data = await getAllUsersByStageRoles(forceRefresh)
+        let allUsers: User[] = []
 
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            Object.values(data).forEach((stageUsers: any) => {
-              if (Array.isArray(stageUsers)) {
-                // Новый формат: stageId -> [user1, user2, ...]
-                allUsers = allUsers.concat(stageUsers as User[])
-              } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
-                // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
-                const stage = stageUsers as Record<string, unknown>
-                if (stage.users_by_role) {
-                  Object.values(stage.users_by_role).forEach((roleData: any) => {
-                    if (roleData && typeof roleData === 'object' && roleData !== null) {
-                      const role = roleData as Record<string, unknown>
-                      if (role.users && Array.isArray(role.users)) {
-                        allUsers = allUsers.concat(role.users as User[])
-                      }
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          Object.values(data).forEach((stageUsers: any) => {
+            if (Array.isArray(stageUsers)) {
+              // Новый формат: stageId -> [user1, user2, ...]
+              allUsers = allUsers.concat(stageUsers as User[])
+            } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
+              // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
+              const stage = stageUsers as Record<string, unknown>
+              if (stage.users_by_role) {
+                Object.values(stage.users_by_role).forEach((roleData: any) => {
+                  if (roleData && typeof roleData === 'object' && roleData !== null) {
+                    const role = roleData as Record<string, unknown>
+                    if (role.users && Array.isArray(role.users)) {
+                      allUsers = allUsers.concat(role.users as User[])
                     }
-                  })
-                }
+                  }
+                })
               }
-            })
-          }
-
-          users = allUsers.filter(
-            (user, index, self) => index === self.findIndex((u) => u.id === user.id),
-          )
-        } catch {
-          // Игнорируем ошибку
+            }
+          })
         }
+
+        // Объединяем оба источника и убираем дубликаты по id
+        const merged = [...users, ...allUsers]
+        users = merged.filter((user, index, self) => index === self.findIndex((u) => u.id === user.id))
+      } catch {
+        // Игнорируем ошибку, остаёмся на users из первого источника
       }
 
       availableUsers.value = users
@@ -804,14 +805,19 @@ export function useOrderDetails(orderId: number | null | undefined) {
     try {
       await deleteOrder(order.value.id)
       
+      // Останавливаем polling перед удалением данных
+      stopPolling()
+      
       if (orderId) {
         const cacheKey = `order_details_${orderId}`
         frontendCache.delete(cacheKey)
       }
       
-      window.dispatchEvent(new CustomEvent('order-updated', {
-        detail: { orderId }
-      }))
+      // НЕ отправляем событие order-updated после удаления,
+      // так как это вызовет попытку загрузить удаленный заказ
+      // window.dispatchEvent(new CustomEvent('order-updated', {
+      //   detail: { orderId }
+      // }))
       
       toast.show('Заказ удален!', 'success')
     } catch (error) {

@@ -98,7 +98,7 @@
               <option value="instagram">Instagram</option>
               <option value="other">Другое</option>
             </select>
-            <ContactTypeIcon :type="contact.type || 'phone'" class="mr-2" />
+            <ContactTypeIcon :type="contact.type || 'phone'" />
             <UIInputNoError
               v-if="contact.type === 'phone'"
               :model-value="contact.value ?? ''"
@@ -447,70 +447,41 @@ async function handleSubmit() {
   loading.value = true
   try {
     let clientId = props.client?.id
+    
+    // Упрощаем структуру контактов - отправляем только type и value
+    const contactsData = form.contacts.map((contact) => ({
+      type: contact.type || 'phone',
+      value: contact.value || '',
+    }))
+    
     if (clientId) {
+      // Обновление существующего клиента
       const clientData: Partial<Client> = {
         name: form.name,
         company_name: form.company_name || undefined,
-        contacts: form.contacts.map((contact) => ({
-          id: contact.id || 0,
-          client_id: clientId || 0,
-          name: contact.type || 'phone',
-          phone: contact.type === 'phone' ? contact.value || '' : '',
-          email: contact.type === 'email' ? contact.value || '' : '',
-          type: contact.type || 'phone',
-          value: contact.value || '',
-          is_primary: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })),
+        contacts: contactsData as any, // Backend ожидает массив с type и value
       }
       await update(clientId, clientData)
       toast.show('Клиент успешно обновлён!')
     } else {
+      // Создание нового клиента
       const clientData: Partial<Client> = {
         name: form.name,
         company_name: form.company_name || undefined,
-        contacts: form.contacts.map((contact) => ({
-          id: 0,
-          client_id: 0,
-          name: contact.type || 'phone',
-          phone: contact.type === 'phone' ? contact.value || '' : '',
-          email: contact.type === 'email' ? contact.value || '' : '',
-          type: contact.type || 'phone',
-          value: contact.value || '',
-          is_primary: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })),
+        contacts: contactsData as any, // Backend ожидает массив с type и value
       }
       const created = await create(clientData)
       clientId = created.id
       toast.show('Клиент успешно добавлен!')
     }
-    for (const contact of form.contacts) {
-      if (!contact.id && contact.type && contact.value) {
-        try {
-          const createdContact = await createContact(clientId, {
-            type: contact.type,
-            value: contact.value,
-          })
-          contact.id = createdContact.id
-        } catch {
-          // Игнорируем ошибку при создании контакта
-        }
-      } else if (contact.id) {
-        try {
-          await updateContact(clientId, contact.id, {
-            type: contact.type || 'phone',
-            value: contact.value || '',
-          })
-        } catch {
-          // Игнорируем ошибку при обновлении контакта
-        }
-      }
-    }
+    
+    // Backend уже обработал все контакты, не нужно делать отдельные запросы
     emit('submit', { id: clientId, ...form })
     emit('close')
+  } catch (error: any) {
+    // Показываем ошибку пользователю
+    const message = error?.message || 'Произошла ошибка при сохранении клиента'
+    toast.show(message, 'error')
   } finally {
     loading.value = false
   }

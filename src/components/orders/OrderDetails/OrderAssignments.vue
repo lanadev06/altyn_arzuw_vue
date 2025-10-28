@@ -162,6 +162,7 @@ const currentStageAssignments = computed(() => {
       // 2. Через assigned_stages (если есть)
       const hasStageAssignment =
         assignment.assigned_stages &&
+        assignment.assigned_stages.length > 0 &&
         assignment.assigned_stages.some((stage: Stage) => stage.name === props.currentStage)
 
       // 3. Проверяем, соответствует ли роль назначения текущей стадии
@@ -199,7 +200,12 @@ const currentStageAssignments = computed(() => {
         return true
       }
 
-      // Для остальных назначений показываем только если роль подходит для текущей стадии
+      // ИСПРАВЛЕНО: Если есть массив assigned_stages но текущей стадии в нем нет - НЕ показываем
+      if (assignment.assigned_stages && assignment.assigned_stages.length > 0) {
+        return false
+      }
+
+      // Для старых назначений без assigned_stages показываем если роль подходит (обратная совместимость)
       return hasMatchingRole
     },
   )
@@ -228,7 +234,8 @@ const currentStageUsers = computed(() => {
 
   // Фильтруем пользователей по ролям стадии
   const stageUsers = props.availableUsers.filter((user: User) => {
-    const userRoles = user.roles?.map((role: { name: string }) => role.name) || []
+    // Поддержка новой системы ролей (массив) и старой (строка)
+    const userRoles = user.roles?.map((role: { name: string }) => role.name) || (user.role ? [user.role] : [])
     const hasMatchingRole = userRoles.some((role: string) => stageRoles.includes(role))
 
     return hasMatchingRole
