@@ -90,20 +90,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 defineOptions({
   name: 'BulkActionPanel'
 })
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   show: boolean
   count: number
   isProcessing?: boolean
   showStatusSelector?: boolean
   showDeleteButton?: boolean
   stages?: Array<{ id: number; name: string; display_name?: string; color?: string }>
-}>()
+}>(), {
+  showDeleteButton: true
+})
 
 const emit = defineEmits<{
   clear: []
