@@ -333,9 +333,10 @@ function editProject(project: Project) {
 }
 
 async function handleCreateProject(newProject: Project) {
-  await create(newProject)
+  // Проект уже создан в модальном окне, просто обновляем список и закрываем модалку
   showCreateModal.value = false
   currentPage.value = 1
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
 }
 
 async function handleUpdateProject(updatedProject: Project) {
