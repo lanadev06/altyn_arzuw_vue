@@ -87,6 +87,7 @@ import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff, canDelete } from '../utils/permissions'
 import { getAllStages, apiRequest } from '../services/api'
+import { API_CONFIG } from '../config/api'
 import { useToast } from '../stores/toast'
 import { useOrderEvents } from '../composables/useOrderEvents'
 import { useEntityEvents } from '../composables/useEntityEvents'
@@ -396,7 +397,7 @@ const handleOpenOrderDetailsEvent = async (event: any) => {
   if (orderId) {
     try {
       // Проверяем существование заказа перед открытием модалки
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
