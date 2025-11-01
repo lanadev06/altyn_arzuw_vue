@@ -16,10 +16,10 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900">
-            {{ project ? 'Редактировать проект' : 'Создать проект' }}
+            {{ project ? t('projects.form.editProject') : t('projects.form.createProject') }}
           </h2>
           <p class="text-sm text-gray-600">
-            {{ project ? 'Обновите информацию о проекте' : 'Добавьте новый проект в систему' }}
+            {{ project ? t('projects.form.updateInfo') : t('projects.form.addNew') }}
           </p>
         </div>
       </div>
@@ -44,17 +44,17 @@
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             ></path>
           </svg>
-          Основная информация
+          {{ t('projects.form.mainInfo') }}
         </h3>
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2"
-              >Название проекта <span class="text-red-500">*</span></label
+              >{{ t('projects.form.title') }} <span class="text-red-500">*</span></label
             >
             <UIInput
               :model-value="form.title ?? ''"
               @update:model-value="(val) => (form.title = val ? String(val) : '')"
-              placeholder="Введите название проекта"
+              :placeholder="t('projects.form.enterTitle')"
               :error="errors.title"
               required
               @input="
@@ -67,7 +67,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Дедлайн</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ t('projects.form.deadline') }}</label>
             <flatPickr
               v-model="form.deadline"
               :config="{
@@ -80,7 +80,7 @@
                 clickOpens: true,
                 locale: Russian,
               }"
-              placeholder="Выберите дату и время дедлайна"
+              :placeholder="t('projects.form.selectDeadline')"
               class="w-full text-gray-900 text-base p-3 border border-gray-300 rounded-lg flatpickr-uiinput focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 hover:shadow-sm focus:shadow-md bg-white"
             />
             <div v-if="errors.deadline" class="text-red-600 text-sm mt-2 flex items-center gap-1">
@@ -116,11 +116,11 @@
               d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             ></path>
           </svg>
-          Финансовая информация
+          {{ t('projects.form.financialInfo') }}
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Сумма к оплате</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ t('projects.form.totalPrice') }}</label>
             <UIInput
               class="text-gray-700 transition-all duration-200 hover:shadow-sm focus:shadow-md"
               type="number"
@@ -138,7 +138,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Оплачено</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ t('projects.form.paymentAmount') }}</label>
             <UIInput
               class="text-gray-700 transition-all duration-200 hover:shadow-sm focus:shadow-md"
               type="number"
@@ -165,7 +165,7 @@
           :disabled="loading"
           class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 active:scale-95"
         >
-          {{ project ? 'Сохранить изменения' : 'Создать проект' }}
+          {{ project ? t('projects.form.saveChanges') : t('projects.form.create') }}
         </UIButton>
         <UIButton
           v-if="project && canDelete()"
@@ -174,7 +174,7 @@
           @click="handleDelete"
           class="px-6 transition-all duration-200 transform hover:scale-105 active:scale-95"
         >
-          Удалить
+          {{ t('common.delete') }}
         </UIButton>
         <UIButton
           v-else
@@ -183,7 +183,7 @@
           @click="$emit('close')"
           class="px-6 transition-all duration-200 transform hover:scale-105 active:scale-95"
         >
-          Отмена
+          {{ t('projects.form.cancel') }}
         </UIButton>
       </div>
     </form>
@@ -192,6 +192,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
@@ -207,6 +208,8 @@ import { getAllClients } from '../../../services/api'
 import { toast } from '../../../stores/toast'
 import { canViewPrices, canDelete } from '../../../utils/permissions'
 import { useEntityEvents } from '../../../composables/useEntityEvents'
+
+const { t } = useI18n()
 
 const props = defineProps<{ project?: Project | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
@@ -261,7 +264,7 @@ onMounted(async () => {
 // Валидация названия
 function validateTitle() {
   if (!form.title || !form.title.trim()) {
-    errors.title = 'Название обязательно'
+    errors.title = t('projects.form.titleRequired')
   } else {
     errors.title = ''
   }
@@ -270,7 +273,7 @@ function validateTitle() {
 // Валидация общей суммы
 function validateTotalPrice() {
   if (form.total_price && Number(form.total_price) < 0) {
-    errors.total_price = 'Сумма не может быть отрицательной'
+    errors.total_price = t('projects.form.totalPriceNegative')
   } else {
     errors.total_price = ''
   }
@@ -279,7 +282,7 @@ function validateTotalPrice() {
 // Валидация оплаченной суммы
 function validatePaymentAmount() {
   if (form.payment_amount && Number(form.payment_amount) < 0) {
-    errors.payment_amount = 'Оплата не может быть отрицательной'
+    errors.payment_amount = t('projects.form.paymentNegative')
   } else {
     errors.payment_amount = ''
   }
@@ -296,22 +299,22 @@ function validateForm() {
 
   // Валидация названия - всегда проверяем
   if (!form.title || !form.title.trim()) {
-    errors.title = 'Название обязательно'
+    errors.title = t('projects.form.titleRequired')
     valid = false
   }
 
   if (form.total_price && Number(form.total_price) < 0) {
-    errors.total_price = 'Сумма не может быть отрицательной'
+    errors.total_price = t('projects.form.totalPriceNegative')
     valid = false
   }
 
   if (form.payment_amount && Number(form.payment_amount) < 0) {
-    errors.payment_amount = 'Оплата не может быть отрицательной'
+    errors.payment_amount = t('projects.form.paymentNegative')
     valid = false
   }
 
   if (form.deadline && form.deadline instanceof Date && form.deadline < new Date()) {
-    errors.deadline = 'Дата не может быть в прошлом'
+    errors.deadline = t('projects.form.datePast')
     valid = false
   }
 
@@ -345,7 +348,7 @@ async function handleSubmit() {
 
     if (props.project?.id) {
       await projectController.update(props.project.id, payload as Partial<Project>)
-      toast.show('Проект успешно обновлён!')
+      toast.show(t('projects.form.projectUpdated'))
       
       // Отправляем событие обновления
       emitEntityUpdated('project', props.project.id, payload, 'form')
@@ -354,7 +357,7 @@ async function handleSubmit() {
       emit('close')
     } else {
       const created = await projectController.create(payload as Partial<Project>)
-      toast.show('Проект успешно создан!')
+      toast.show(t('projects.form.projectCreated'))
       const newId = (created as any)?.id || (created as any)?.data?.id
       if (newId) {
         // Отправляем событие создания
@@ -369,10 +372,10 @@ async function handleSubmit() {
 }
 
 function handleDelete() {
-  if (props.project && confirm('Удалить проект?')) {
+  if (props.project && confirm(t('projects.form.deleteConfirm'))) {
     const projectId = props.project.id
     projectController.remove(projectId).then(() => {
-      toast.show('Проект удалён!')
+      toast.show(t('projects.form.projectDeleted'))
       
       // Отправляем событие удаления
       emitEntityDeleted('project', projectId, 'form')

@@ -2,7 +2,7 @@
   <Modal @close="$emit('close')">
     <template #header>
       <h2 class="text-xl font-semibold text-gray-900">
-        {{ stage ? 'Редактировать стадию' : 'Создать стадию' }}
+        {{ stage ? t('stages.editStage') : t('stages.createStage') }}
       </h2>
     </template>
 
@@ -10,11 +10,11 @@
       <!-- Название стадии -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Название стадии <span class="text-red-500">*</span>
+          {{ t('stages.stageName') }} <span class="text-red-500">*</span>
         </label>
         <UIInput
           v-model="form.display_name"
-          placeholder="Введите название стадии"
+          :placeholder="t('stages.enterStageName')"
           :error="errors.display_name"
           required
         />
@@ -23,44 +23,44 @@
       <!-- Внутреннее имя -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Внутреннее имя <span class="text-red-500">*</span>
+          {{ t('stages.internalName') }} <span class="text-red-500">*</span>
         </label>
         <UIInput
           v-model="form.name"
-          placeholder="design, print, assembly"
+          :placeholder="t('stages.internalNamePlaceholder')"
           :error="errors.name"
           :disabled="!!stage"
           required
         />
         <p class="text-sm text-gray-500 mt-1">
-          Уникальное имя для идентификации стадии (только латинские буквы и подчеркивания)
+          {{ t('stages.internalNameDescription') }}
         </p>
       </div>
 
       <!-- Описание -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Описание </label>
+        <label class="block text-sm font-medium text-gray-700 mb-2"> {{ t('stages.description') }} </label>
         <textarea
           v-model="form.description"
           rows="3"
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Описание стадии..."
+          :placeholder="t('stages.descriptionPlaceholder')"
         ></textarea>
       </div>
 
       <!-- Порядок -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Порядок </label>
-        <UIInput v-model="form.order" type="number" placeholder="1" :error="errors.order" />
+        <label class="block text-sm font-medium text-gray-700 mb-2"> {{ t('stages.order') }} </label>
+        <UIInput v-model="form.order" type="number" :placeholder="t('stages.orderPlaceholder')" :error="errors.order" />
         <p class="text-sm text-gray-500 mt-1">
-          Порядок отображения стадии (меньше число - выше в списке)
+          {{ t('stages.orderDescription') }}
         </p>
       </div>
 
       <!-- Цвет стадии -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Цвет стадии <span class="text-red-500">*</span>
+          {{ t('stages.color') }} <span class="text-red-500">*</span>
         </label>
 
         <!-- Поиск по цветам -->
@@ -68,11 +68,11 @@
           <input
             v-model="colorSearch"
             type="text"
-            placeholder="Поиск цвета..."
+            :placeholder="t('stages.searchColor')"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p class="text-xs text-gray-500 mt-1">
-            Найдено: {{ filteredColors.length }} из {{ availableColors.length }} цветов
+            {{ t('stages.found') }}: {{ filteredColors.length }} {{ t('stages.of') }} {{ availableColors.length }} {{ t('stages.colors') }}
           </p>
         </div>
 
@@ -110,21 +110,21 @@
             :style="{ backgroundColor: form.color }"
           ></div>
           <span class="text-sm text-gray-600">
-            Выбран:
+            {{ t('stages.selected') }}:
             {{
-              availableColors.find((c) => c.value === form.color)?.label || 'Пользовательский цвет'
+              availableColors.find((c) => c.value === form.color)?.label || t('stages.customColor')
             }}
           </span>
         </div>
         <p class="text-sm text-gray-500 mt-2">
-          Выберите цвет для визуального выделения стадии. Цвет будет отображаться везде в системе.
+          {{ t('stages.colorDescription') }}
         </p>
         <p v-if="errors.color" class="text-sm text-red-500 mt-1">{{ errors.color }}</p>
       </div>
 
       <!-- Роли для этой стадии -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Роли для этой стадии </label>
+        <label class="block text-sm font-medium text-gray-700 mb-2"> {{ t('stages.rolesForStage') }} </label>
         <div class="space-y-3">
           <div
             v-for="role in availableRoles"
@@ -140,22 +140,22 @@
               />
               <div>
                 <span class="font-medium text-gray-900">{{ role.display_name }}</span>
-                <p class="text-sm text-gray-500">{{ role.description || 'Нет описания' }}</p>
+                <p class="text-sm text-gray-500">{{ role.description || t('stages.noDescription') }}</p>
               </div>
             </div>
           </div>
         </div>
         <p class="text-sm text-gray-500 mt-2">
-          Выберите роли, которые могут работать на этой стадии
+          {{ t('stages.rolesDescription') }}
         </p>
       </div>
 
       <!-- Кнопки -->
       <div class="flex gap-3 pt-4 border-t border-gray-200">
         <UIButton v-if="!stage || canEdit()" type="submit" :loading="loading" class="flex-1">
-          {{ stage ? 'Сохранить' : 'Создать' }}
+          {{ stage ? t('stages.save') : t('stages.create') }}
         </UIButton>
-        <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
+        <UIButton type="button" variant="secondary" @click="$emit('close')"> {{ t('stages.cancel') }} </UIButton>
         <UIButton
           v-if="stage && canDelete()"
           type="button"
@@ -163,7 +163,7 @@
           @click="handleDelete"
           :loading="deleting"
         >
-          Удалить
+          {{ t('stages.delete') }}
         </UIButton>
       </div>
     </form>
@@ -172,6 +172,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
@@ -180,6 +181,8 @@ import type { Role } from '../../../types/role'
 import { getAvailableRoles } from '../../../services/api'
 import { AVAILABLE_COLORS } from '../../../utils/stageColors'
 import { canDelete, canEdit } from '../../../utils/permissions'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   stage?: Stage | null
@@ -272,20 +275,20 @@ const validateForm = () => {
   let valid = true
 
   if (!form.name.trim()) {
-    errors.name = 'Внутреннее имя обязательно'
+    errors.name = t('stages.internalNameRequired')
     valid = false
   } else if (!/^[a-z_]+$/.test(form.name)) {
-    errors.name = 'Внутреннее имя должно содержать только латинские буквы и подчеркивания'
+    errors.name = t('stages.internalNameInvalid')
     valid = false
   }
 
   if (!form.display_name.trim()) {
-    errors.display_name = 'Название обязательно'
+    errors.display_name = t('stages.nameRequired')
     valid = false
   }
 
   if (!form.color) {
-    errors.color = 'Цвет стадии обязателен'
+    errors.color = t('stages.colorRequired')
     valid = false
   }
 

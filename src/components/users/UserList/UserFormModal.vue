@@ -16,11 +16,11 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900">
-            {{ user ? 'Редактировать сотрудника' : 'Добавить сотрудника' }}
+            {{ user ? t('users.form.editUser') : t('users.form.addUser') }}
           </h2>
           <p class="text-sm text-gray-600">
             {{
-              user ? 'Обновите информацию о сотруднике' : 'Добавьте нового сотрудника в систему'
+              user ? t('users.form.updateInfo') : t('users.form.addNewUser')
             }}
           </p>
         </div>
@@ -29,54 +29,54 @@
 
     <form @submit.prevent="handleSubmit" class="space-y-6" enctype="multipart/form-data">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Имя *</label>
-        <UIInput v-model="form.name" placeholder="Введите имя" :error="errors.name" required />
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('users.form.name') }} *</label>
+        <UIInput v-model="form.name" :placeholder="t('users.form.enterName')" :error="errors.name" required />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Логин *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('users.form.username') }} *</label>
         <UIInput
           v-model="form.username"
-          placeholder="Введите логин"
+          :placeholder="t('users.form.enterUsername')"
           :error="errors.username"
           required
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('users.form.phone') }}</label>
         <input
           :value="form.phone"
           @input="handlePhoneChange"
           type="text"
-          placeholder="+993 XX YYYYYY"
+          :placeholder="t('profile.phonePlaceholder')"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
           :class="{ 'border-red-500 focus:ring-red-500': errors.phone }"
         />
         <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
-        <p class="text-xs text-gray-500 mt-1">Формат: +993 XX YYYYYY (например: +993 12 345678)</p>
+        <p class="text-xs text-gray-500 mt-1">{{ t('users.form.phoneFormat') }}</p>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          {{ user ? 'Новый пароль' : 'Пароль *' }}
+          {{ user ? t('users.form.newPassword') : t('users.form.password') + ' *' }}
         </label>
         <UIInput
           v-model="form.password"
           type="password"
-          placeholder="Минимум 6 символов"
+          :placeholder="t('users.form.minPassword')"
           :error="errors.password"
           :required="!user"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Роли *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('users.form.roles') }} *</label>
         <Vue3Select
           v-model="form.roles"
           :options="roleOptions"
           label="label"
           :reduce="(option: any) => option.value"
-          placeholder="Выберите роли"
+          :placeholder="t('users.form.selectRoles')"
           :clearable="true"
           :searchable="true"
           :multiple="true"
@@ -87,7 +87,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Фото</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('users.form.photo') }}</label>
         <input
           type="file"
           @change="handleImageChange"
@@ -96,18 +96,18 @@
           name="image"
           id="image"
         />
-        <p class="text-xs text-gray-500 mt-1">Максимум 2MB, JPG, PNG</p>
+        <p class="text-xs text-gray-500 mt-1">{{ t('users.form.maxPhoto') }}</p>
       </div>
 
       <div class="flex gap-3 pt-4">
         <UIButton v-if="!user || canEditUsers()" type="submit" :loading="loading" class="flex-1">
-          {{ user ? 'Сохранить' : 'Создать' }}
+          {{ user ? t('users.form.save') : t('common.create') }}
         </UIButton>
         <UIButton v-if="user && canDeleteUsers() && !isCurrentUser" type="button" variant="danger" @click="handleDelete" class="flex-1">
-          Удалить
+          {{ t('common.delete') }}
         </UIButton>
         <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="flex-1">
-          Отмена
+          {{ t('users.form.cancel') }}
         </UIButton>
       </div>
     </form>
@@ -116,6 +116,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIButton from '@/components/ui/UIButton.vue'
@@ -125,6 +126,8 @@ import { toast } from '@/stores/toast'
 import { getRoles } from '@/services/api'
 import { canDeleteUsers, canEditUsers } from '@/utils/permissions'
 import { getCurrentUser } from '@/utils/auth'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   user?: any
@@ -418,9 +421,9 @@ const handleSubmit = async () => {
         }
       })
       // Показываем общее сообщение об ошибке валидации
-      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+      toast.show(t('users.fixErrors'), 'error')
     } else {
-      toast.show('Ошибка при подготовке данных', 'error')
+      toast.show(t('users.errorCreating'), 'error')
     }
   } finally {
     loading.value = false
@@ -431,17 +434,17 @@ const handleDelete = async () => {
   if (!props.user?.id) return
 
   // Показываем toast с подтверждением вместо alert
-  toast.show('Удаление сотрудника...', 'success')
+  toast.show(t('users.userDeleted'), 'success')
 
   try {
     await emit('delete', props.user.id)
-    toast.show('Сотрудник удалён!', 'success')
+    toast.show(t('users.userDeleted'), 'success')
   } catch (err: any) {
-    let message = 'Произошла неизвестная ошибка при удалении сотрудника'
+    let message = t('users.errorDeleting')
     if (err?.response?.data?.message) {
       message = err.response.data.message
     } else if (err instanceof Error && err.message) {
-      message = `Ошибка удаления сотрудника: ${err.message}`
+      message = `${t('users.deleteError')}: ${err.message}`
     }
     toast.show(message, 'error')
   }

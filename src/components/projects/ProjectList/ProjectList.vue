@@ -2,7 +2,7 @@
   <div class="project-list flex flex-col h-full">
     <div class="flex justify-end items-center mb-3">
       <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
-        >Добавить проект</UIButton
+        >{{ t('projects.addProject') }}</UIButton
       >
     </div>
 
@@ -10,18 +10,18 @@
       <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
         <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
           <div class="flex items-center gap-1">
-            <span class="text-gray-500 font-semibold">Всего:</span>
+            <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
             <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
           </div>
           <div class="flex items-center gap-1">
-            <span class="text-gray-500 font-semibold">Страницы:</span>
+            <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
             <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
           </div>
         </div>
         <div
           class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
         >
-          <span class="text-gray-600 font-semibold">На странице:</span>
+          <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
           <select
             v-model.number="perPage"
             @change="changePerPage"
@@ -135,7 +135,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
-                Загрузка проектов...
+                {{ t('projects.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -145,7 +145,7 @@
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
-                {{ props.search ? 'Проекты не найдены' : 'Проекты отсутствуют' }}
+                {{ props.search ? t('projects.notFound') : t('projects.noProjects') }}
               </td>
             </tr>
           </tbody>
@@ -209,6 +209,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
@@ -223,6 +224,8 @@ import { canCreateEdit, canViewPrices } from '@/utils/permissions'
 import { useToast } from '@/stores/toast'
 import { useBulkActions } from '../../../composables/useBulkActions'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
+
+const { t, locale } = useI18n()
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -243,17 +246,20 @@ const {
   remove,
 } = projectController
 
-const defaultColumns = [
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'title', label: 'Название', sortable: true },
-  { key: 'client', label: 'Клиент', sortable: false },
-  { key: 'deadline', label: 'Дедлайн', sortable: true },
-]
-if (canViewPrices()) {
-  defaultColumns.push({ key: 'total_price', label: 'Сумма', sortable: true })
-  defaultColumns.push({ key: 'payment_amount', label: 'Оплачено', sortable: true })
-}
-defaultColumns.push({ key: 'created_at', label: 'Создано', sortable: true })
+const defaultColumns = computed(() => {
+  const cols = [
+    { key: 'id', label: t('projects.columns.id'), sortable: true },
+    { key: 'title', label: t('projects.columns.title'), sortable: true },
+    { key: 'client', label: t('projects.columns.client'), sortable: false },
+    { key: 'deadline', label: t('projects.columns.deadline'), sortable: true },
+  ]
+  if (canViewPrices()) {
+    cols.push({ key: 'total_price', label: t('projects.columns.totalPrice'), sortable: true })
+    cols.push({ key: 'payment_amount', label: t('projects.columns.paymentAmount'), sortable: true })
+  }
+  cols.push({ key: 'created_at', label: t('projects.columns.created'), sortable: true })
+  return cols
+})
 
 const SORT_KEY = 'projectList_sortBy'
 const ORDER_KEY = 'projectList_sortOrder'
@@ -264,7 +270,19 @@ const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('projectList_perPage')
 
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+// Инициализируем колонки - читаем из localStorage, но обновляем labels из computed
+const initializeColumns = () => {
+  if (savedColumns) {
+    const savedCols = JSON.parse(savedColumns)
+    return savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+  return defaultColumns.value
+}
+
+const columns = ref(initializeColumns())
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
 if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder as 'asc' | 'desc'
@@ -363,9 +381,9 @@ async function handleDeleteProject(projectId: number) {
   } catch (err: any) {
     // Показываем ошибку пользователю
     if (err instanceof Error) {
-      toast.show(`Ошибка удаления проекта: ${err.message}`, 'error')
+      toast.show(`${t('projects.deleteError')}: ${err.message}`, 'error')
     } else {
-      toast.show('Произошла неизвестная ошибка при удалении проекта', 'error')
+      toast.show(t('projects.deleteErrorUnknown'), 'error')
     }
   }
 }
@@ -553,7 +571,7 @@ async function getProjectComments(projectId: number) {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  if (!res.ok) throw new Error('Ошибка загрузки комментариев')
+  if (!res.ok) throw new Error(t('messages.error'))
   return await res.json()
 }
 async function addProjectComment(projectId: number, text: string) {
@@ -566,7 +584,7 @@ async function addProjectComment(projectId: number, text: string) {
     },
     body: JSON.stringify({ text, project_id: projectId }),
   })
-  if (!res.ok) throw new Error('Ошибка при добавлении комментария')
+  if (!res.ok) throw new Error(t('messages.error'))
   return await res.json()
 }
 async function deleteProjectComment(commentId: number) {
@@ -579,7 +597,7 @@ async function deleteProjectComment(commentId: number) {
   })
 
   if (!res.ok) {
-    let errorMessage = 'Ошибка при удалении комментария'
+    let errorMessage = t('messages.error')
     try {
       const errorData = await res.json()
       errorMessage = errorData.message || errorMessage
@@ -641,6 +659,24 @@ async function handleBulkDelete() {
   }
 }
 
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = defaultColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+    // Сохраняем обновленные колонки обратно в localStorage (сохраняем только структуру, без label)
+    const colsToSave = columns.value.map((col: any) => ({ key: col.key, sortable: col.sortable }))
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(colsToSave))
+  }
+}, { immediate: false })
+
 onMounted(async () => {
   await nextTick()
   if (columnsHeader.value) {
@@ -664,7 +700,9 @@ onMounted(async () => {
         const moved = newColumns.splice(adjustedOldIndex, 1)[0]
         newColumns.splice(adjustedNewIndex, 0, moved)
         columns.value = newColumns
-        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+        // Сохраняем только структуру колонок (key и sortable), без label
+        const colsToSave = newColumns.map((col: any) => ({ key: col.key, sortable: col.sortable }))
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(colsToSave))
       },
     })
   }

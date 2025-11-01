@@ -2,16 +2,16 @@
   <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-3">
     <!-- Информация о проекте -->
     <div v-if="project">
-      <div class="text-2xl font-extrabold text-blue-900 mb-2">Проект</div>
+      <div class="text-2xl font-extrabold text-blue-900 mb-2">{{ t('common.projects') }}</div>
       <div class="text-base text-gray-800">
-        Название: <b>{{ project?.title }}</b>
+        {{ t('order.projectName') }}: <b>{{ project?.title }}</b>
       </div>
     </div>
     
     <!-- Информация о клиенте -->
-    <div class="text-2xl font-extrabold text-blue-900 mb-2">Клиент</div>
+    <div class="text-2xl font-extrabold text-blue-900 mb-2">{{ t('common.clients') }}</div>
     <div class="text-base text-gray-800">
-      Имя:
+      {{ t('order.clientName') }}:
       <b>
         {{ order?.client?.name || '-' }}
       </b>
@@ -24,7 +24,7 @@
 
     <!-- Контакты клиента -->
     <div v-if="order?.client?.contacts && order.client.contacts.length > 0" class="mt-4">
-      <div class="text-base font-semibold text-gray-800 mb-2">Контакты клиента:</div>
+      <div class="text-base font-semibold text-gray-800 mb-2">{{ t('order.clientContacts') }}:</div>
       <div class="flex flex-col gap-2">
         <div
           v-for="contact in order.client.contacts"
@@ -69,12 +69,12 @@
       v-if="order?.stage === 'cancelled' && order?.reason && order?.reason_status"
       class="bg-red-50 border border-red-100 rounded-xl p-3 mt-4 flex flex-col gap-1"
     >
-      <div class="text-gray-700 font-semibold text-sm mb-1">Заказ отменён</div>
+      <div class="text-gray-700 font-semibold text-sm mb-1">{{ t('order.cancelOrder') }}</div>
       <div class="text-gray-700 text-sm font-semibold break-words whitespace-pre-line">
-        Причина: {{ order.reason }}
+        {{ t('order.cancelReason') }}: {{ order.reason }}
       </div>
       <div class="text-gray-700 text-sm font-semibold break-words whitespace-pre-line">
-        Статус: {{ reasonStatusText(order.reason_status) }}
+        {{ t('order.reasonStatus') }}: {{ reasonStatusText(order.reason_status) }}
       </div>
     </div>
   </div>
@@ -82,6 +82,7 @@
 
 <script setup lang="ts">
 import { h, type VNode, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { toast } from '../../../stores/toast'
 import type { OrderInfo, ProjectInfo, ContactInfo } from '../../../types/orderDetails'
 
@@ -95,6 +96,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'refresh': []
 }>()
+
+const { t } = useI18n()
 
 // Обработчик глобального события обновления заказа
 function handleOrderUpdated(event: Event) {
@@ -117,12 +120,12 @@ onUnmounted(() => {
 
 function getContactTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    phone: 'Телефон',
-    email: 'Email',
-    telegram: 'Telegram',
-    whatsapp: 'WhatsApp',
-    instagram: 'Instagram',
-    other: 'Другое',
+    phone: t('contacts.phone'),
+    email: t('contacts.email'),
+    telegram: t('contacts.telegram'),
+    whatsapp: t('contacts.whatsapp'),
+    instagram: t('contacts.instagram'),
+    other: t('contacts.other'),
   }
   return labels[type] || type
 }
@@ -294,19 +297,19 @@ function copyToClipboard(text: string) {
   navigator.clipboard
     .writeText(text)
     .then(() => {
-      toast.show('Скопировано в буфер обмена', 'success')
+      toast.show(t('order.copiedToClipboard'), 'success')
     })
     .catch(() => {
-      toast.show('Не удалось скопировать', 'error')
+      toast.show(t('order.failedToCopy'), 'error')
     })
 }
 
 function reasonStatusText(status: string) {
   return (
     {
-      refused: 'Отказ клиента',
-      not_responding: 'Не отвечает',
-      defective_product: 'Брак/Дефект',
+      refused: t('order.clientRefusal'),
+      not_responding: t('order.notResponding'),
+      defective_product: t('order.defectiveProduct'),
     }[status] || status
   )
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-xl shadow p-6 border border-blue-100 flex flex-col bg-white">
-    <div class="font-extrabold text-2xl text-blue-700 mb-4 tracking-tight">Комментарии</div>
+    <div class="font-extrabold text-2xl text-blue-700 mb-4 tracking-tight">{{ t('order.details.comments') }}</div>
     <div class="mb-4">
       <ul class="space-y-3">
         <li
@@ -26,7 +26,7 @@
             <button
               v-if="isAdmin()"
               @click="$emit('delete-comment', comment.id)"
-              title="Удалить"
+              :title="t('order.details.delete')"
               class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400"
             >
               <svg
@@ -61,7 +61,7 @@
                     getRoleLabel(
                       typeof role === 'string'
                         ? role
-                        : (role as any)?.display_name || (role as any)?.name || '',
+                        : (role as any)?.name || '',
                     )
                   }}
                 </span>
@@ -92,22 +92,22 @@
         @keydown.enter.prevent="addComment"
         type="text"
         class="w-full border-none outline-none text-base text-gray-900 bg-transparent px-2 py-2"
-        placeholder="Добавить комментарий..."
+        :placeholder="t('order.details.addComment')"
       />
       <div v-if="commentFocused || newComment.trim()" class="flex gap-2 mt-1 justify-end">
         <button
           @click="addComment"
           type="button"
-          class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition"
+          class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition uppercase"
         >
-          ОТПРАВИТЬ
+          {{ t('order.details.send') }}
         </button>
         <button
           @click="cancelComment"
           type="button"
-          class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition"
+          class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition uppercase"
         >
-          ОТМЕНА
+          {{ t('order.details.cancel') }}
         </button>
       </div>
     </div>
@@ -116,8 +116,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { isAdmin } from '../../../utils/permissions'
 import type { OrderComment, Role, User } from '../../../types/orderDetails'
+
+const { t } = useI18n()
 
 
 interface Props {
@@ -162,24 +165,11 @@ function formatDate(date: string) {
 }
 
 function getRoleLabel(role: string) {
-  switch (role) {
-    case 'admin':
-      return 'Администратор'
-    case 'manager':
-      return 'Менеджер'
-    case 'designer':
-      return 'Дизайнер'
-    case 'print_worker':
-      return 'Печатник'
-    case 'engraver':
-      return 'Гравер'
-    case 'workshop_worker':
-      return 'Цехник'
-    case 'client':
-      return 'Клиент'
-    default:
-      return role
-  }
+  if (!role) return ''
+  const translationKey = `roles.${role}`
+  const translation = t(translationKey)
+  // Если перевод вернул сам ключ (т.е. перевод не найден), возвращаем оригинальное значение
+  return translation !== translationKey ? translation : role
 }
 
 

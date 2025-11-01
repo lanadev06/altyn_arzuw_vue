@@ -16,10 +16,10 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900">
-            {{ order ? 'Редактировать заказ' : 'Новый заказ' }}
+            {{ order ? t('order.form.editOrder') : t('order.form.newOrder') }}
           </h2>
           <p class="text-sm text-gray-500 mt-1">
-            {{ order ? 'Обновите информацию о заказе' : 'Создайте новый заказ в системе' }}
+            {{ order ? t('order.form.updateInfo') : t('order.form.createNew') }}
           </p>
         </div>
       </div>
@@ -28,17 +28,17 @@
     <form @submit.prevent="handleSubmit" class="space-y-6 pb-4">
       <!-- Переключатель режима заказа -->
       <div v-if="!order" class="bg-gray-50 rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-          Тип заказа
-        </h3>
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            {{ t('order.form.orderType') }}
+          </h3>
         <div class="grid grid-cols-2 gap-4">
           <label
             class="flex items-center p-4 bg-white rounded-lg border border-gray-200 transition-all duration-200 cursor-pointer hover:bg-gray-50 hover:border-gray-300"
@@ -54,8 +54,8 @@
               <div v-if="orderMode === 'single'" class="w-2 h-2 bg-white rounded-full"></div>
             </div>
             <div>
-              <div class="font-medium text-gray-900">Одиночный заказ</div>
-              <div class="text-sm text-gray-500">Создать один заказ с продуктом</div>
+              <div class="font-medium text-gray-900">{{ t('order.form.singleOrder') }}</div>
+              <div class="text-sm text-gray-500">{{ t('order.form.singleOrderDesc') }}</div>
             </div>
           </label>
 
@@ -73,8 +73,8 @@
               <div v-if="orderMode === 'bulk'" class="w-2 h-2 bg-white rounded-full"></div>
             </div>
             <div>
-              <div class="font-medium text-gray-900">Массовый заказ</div>
-              <div class="text-sm text-gray-500">Создать несколько заказов с проектом</div>
+              <div class="font-medium text-gray-900">{{ t('order.form.bulkOrder') }}</div>
+              <div class="text-sm text-gray-500">{{ t('order.form.bulkOrderDesc') }}</div>
             </div>
           </label>
         </div>
@@ -85,7 +85,7 @@
         <!-- Клиент -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Клиент <span class="text-red-500">*</span>
+            {{ t('order.form.client') }} <span class="text-red-500">*</span>
           </label>
           <div class="flex gap-2">
             <Vue3Select
@@ -93,7 +93,7 @@
               :options="clients"
               label="name"
               :reduce="(client) => client.id"
-              placeholder="Выберите клиента"
+              :placeholder="t('order.form.selectClient')"
               :clearable="true"
               :searchable="true"
               :error="errors.client_id"
@@ -105,7 +105,7 @@
               variant="secondary"
               size="sm"
               @click="showClientModal = true"
-              title="Создать нового клиента"
+              :title="t('order.form.createClient')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -124,14 +124,14 @@
 
         <!-- Проект -->
         <div v-if="orderMode === 'single'">
-          <label class="block text-sm font-medium text-gray-700 mb-2"> Проект </label>
+          <label class="block text-sm font-medium text-gray-700 mb-2"> {{ t('order.form.project') }} </label>
           <div class="flex gap-2">
             <Vue3Select
               v-model="form.project_id"
               :options="projects"
               label="title"
               :reduce="(project) => project.id"
-              placeholder="Выберите проект (необязательно)"
+              :placeholder="t('order.form.selectProject')"
               :clearable="true"
               :searchable="true"
               :error="errors.project_id"
@@ -142,7 +142,7 @@
               variant="secondary"
               size="sm"
               @click="showProjectModal = true"
-              title="Создать новый проект"
+              :title="t('order.form.createProject')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -162,7 +162,7 @@
         <!-- Проект для массового заказа -->
         <div v-if="orderMode === 'bulk'">
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Проект <span class="text-red-500">*</span>
+            {{ t('order.form.project') }} <span class="text-red-500">*</span>
           </label>
           <div class="flex gap-2">
             <Vue3Select
@@ -170,7 +170,7 @@
               :options="projects"
               label="title"
               :reduce="(project) => project.id"
-              placeholder="Выберите существующий проект"
+              :placeholder="t('order.form.selectExistingProject')"
               :clearable="true"
               :searchable="true"
               :error="errors.project_id"
@@ -182,7 +182,7 @@
               variant="secondary"
               size="sm"
               @click="showProjectModal = true"
-              title="Создать новый проект"
+              :title="t('order.form.createProject')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -198,7 +198,7 @@
 
         <!-- Продукты для массового заказа -->
         <div v-if="orderMode === 'bulk'">
-          <label class="block text-sm font-medium text-gray-700 mb-2"> Продукты для заказа </label>
+          <label class="block text-sm font-medium text-gray-700 mb-2"> {{ t('order.form.productsForOrder') }} </label>
 
           <!-- Список добавленных продуктов -->
           <div v-if="bulkOrders.length > 0" class="space-y-3 mb-4">
@@ -208,13 +208,13 @@
               class="bg-gray-50 rounded-lg p-4 border border-gray-200"
             >
               <div class="flex items-center justify-between mb-3">
-                <h4 class="font-medium text-gray-900">Заказ {{ index + 1 }}</h4>
+                <h4 class="font-medium text-gray-900">{{ t('order.form.orderNumber') }} {{ index + 1 }}</h4>
                 <UIButton
                   type="button"
                   variant="danger"
                   size="sm"
                   @click="removeBulkOrder(index)"
-                  title="Удалить заказ"
+                  :title="t('order.form.delete')"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -229,14 +229,14 @@
 
               <div class="grid grid-cols-4 gap-3">
                 <div>
-                  <label class="block text-sm text-gray-600 mb-1">Продукт</label>
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.product') }}</label>
                   <div class="flex gap-2">
                     <Vue3Select
                       v-model="order.product_id"
                       :options="products"
                       label="name"
                       :reduce="reduceProduct"
-                      placeholder="Выберите продукт"
+                      :placeholder="t('order.form.selectProduct')"
                       :clearable="true"
                       :searchable="true"
                       @update:model-value="() => onBulkOrderProductChange(index)"
@@ -248,7 +248,7 @@
                       size="sm"
                       @click="showProductModal = true"
                       class="flex-shrink-0"
-                      title="Создать новый продукт"
+                      :title="t('order.form.createProduct')"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
@@ -262,28 +262,28 @@
                   </div>
                 </div>
                 <div>
-                  <label class="block text-sm text-gray-600 mb-1">Количество</label>
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.quantity') }}</label>
                   <UIInput
                     v-model.number="order.quantity"
                     type="number"
                     min="1"
-                    placeholder="Количество"
+                    :placeholder="t('order.form.quantity')"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm text-gray-600 mb-1">Цена</label>
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.price') }}</label>
                   <UIInput
                     :model-value="order.price ?? null"
                     @update:model-value="(val) => (order.price = val === null ? null : Number(val))"
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder="Цена"
+                    :placeholder="t('order.form.price')"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm text-gray-600 mb-1">Дедлайн</label>
-                  <UIInput v-model="order.deadline" type="datetime-local" placeholder="Дедлайн" />
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.deadline') }}</label>
+                  <UIInput v-model="order.deadline" type="datetime-local" :placeholder="t('order.form.deadline')" />
                 </div>
               </div>
 
@@ -291,7 +291,7 @@
               <div v-if="order.product_id && workingStages.length > 0" class="mt-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <label class="block text-sm font-medium text-gray-700">
-                    Стадии производства <span class="text-red-500">*</span>
+                    {{ t('order.form.productionStages') }} <span class="text-red-500">*</span>
                   </label>
                   <div class="flex gap-2">
                     <UIButton
@@ -301,7 +301,7 @@
                       @click="selectAllStagesForBulkOrder(index)"
                       :disabled="order.selected_stages.length === workingStages.length"
                     >
-                      Выбрать все
+                      {{ t('order.form.selectAll') }}
                     </UIButton>
                     <UIButton
                       type="button"
@@ -310,7 +310,7 @@
                       @click="clearAllStagesForBulkOrder(index)"
                       :disabled="order.selected_stages.length === 0"
                     >
-                      Очистить
+                      {{ t('order.form.clear') }}
                     </UIButton>
                   </div>
                 </div>
@@ -387,7 +387,7 @@
                           size="sm"
                           @click="addBulkOrderAssignment(index, stage.id, role.name)"
                         >
-                          Добавить
+                          {{ t('order.form.add') }}
                         </UIButton>
                       </div>
 
@@ -398,7 +398,7 @@
                         "
                         class="text-sm text-gray-500 italic py-2 px-3 bg-gray-50 rounded border border-gray-100"
                       >
-                        Назначения не добавлены
+                        {{ t('order.form.assignmentsNotAdded') }}
                       </div>
 
                       <div v-else class="space-y-2">
@@ -414,7 +414,7 @@
                               v-model="assignment.user"
                               :options="getUsersForRole(role.name)"
                               label="name"
-                              placeholder="Выберите пользователя"
+                              :placeholder="t('order.form.selectUser')"
                               :clearable="true"
                               :searchable="true"
                               class="text-sm"
@@ -439,7 +439,7 @@
                               removeBulkOrderAssignment(index, stage.id, role.name, assignmentIndex)
                             "
                           >
-                            Удалить
+                            {{ t('order.form.delete') }}
                           </UIButton>
                         </div>
                       </div>
@@ -450,7 +450,7 @@
                     v-else
                     class="text-sm text-gray-500 py-2 px-3 bg-gray-50 rounded border border-gray-100"
                   >
-                    Для этой стадии не настроены роли
+                    {{ t('order.form.noRolesForStage') }}
                   </div>
                 </div>
               </div>
@@ -472,7 +472,7 @@
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            Добавить продукт
+            {{ t('order.form.addProduct') }}
           </UIButton>
 
           <div v-if="errors.bulk_orders" class="text-red-600 text-sm mt-1">
@@ -482,7 +482,7 @@
 
         <div v-if="orderMode === 'single' || order">
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Продукт <span class="text-red-500">*</span>
+            {{ t('order.form.product') }} <span class="text-red-500">*</span>
           </label>
           <div class="flex gap-2">
             <Vue3Select
@@ -490,7 +490,7 @@
               :options="products"
               label="name"
               :reduce="reduceProduct"
-              placeholder="Выберите продукт"
+              :placeholder="t('order.form.selectProduct')"
               :clearable="true"
               :searchable="true"
               :error="errors.product_id"
@@ -503,7 +503,7 @@
               size="sm"
               @click="showProductModal = true"
               class="flex-shrink-0"
-              title="Создать новый продукт"
+              :title="t('order.form.createProduct')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -523,38 +523,38 @@
         <div v-if="orderMode === 'single' || order" class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Количество <span class="text-red-500">*</span>
+              {{ t('order.form.quantity') }} <span class="text-red-500">*</span>
             </label>
             <UIInput
               :model-value="form.quantity ?? null"
               @update:model-value="(val) => (form.quantity = val === null ? 1 : Number(val))"
               type="number"
               min="1"
-              placeholder="Введите количество"
+              :placeholder="t('order.form.enterQuantity')"
               :error="errors.quantity"
               required
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Цена</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('order.form.price') }}</label>
             <UIInput
               :model-value="form.price ?? null"
               @update:model-value="(val) => (form.price = val === null ? undefined : Number(val))"
               type="number"
               step="0.01"
               min="0"
-              placeholder="Введите цену"
+              :placeholder="t('order.form.enterPrice')"
             />
           </div>
         </div>
 
         <div v-if="orderMode === 'single' || order">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Дедлайн</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('order.form.deadline') }}</label>
           <UIInput
             :model-value="form.deadline ?? null"
             @update:model-value="(val) => (form.deadline = val === null ? undefined : String(val))"
             type="datetime-local"
-            placeholder="Выберите дату и время"
+            :placeholder="t('order.form.selectDateTime')"
           />
         </div>
       </div>
@@ -571,7 +571,7 @@
         </div>
         <div class="flex items-center justify-between mb-3">
           <label class="block text-sm font-medium text-gray-700">
-            Стадии производства <span class="text-red-500">*</span>
+            {{ t('order.form.productionStages') }} <span class="text-red-500">*</span>
           </label>
           <div class="flex gap-2">
             <UIButton
@@ -581,7 +581,7 @@
               @click="selectAllStages"
               :disabled="selectedOrderStages.length === workingStages.length"
             >
-              Выбрать все
+              {{ t('order.form.selectAll') }}
             </UIButton>
             <UIButton
               type="button"
@@ -590,7 +590,7 @@
               @click="clearAllStages"
               :disabled="selectedOrderStages.length === 0"
             >
-              Очистить
+              {{ t('order.form.clear') }}
             </UIButton>
           </div>
         </div>
@@ -665,14 +665,14 @@
                 <!-- Простой компонент назначений -->
                 <div class="space-y-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Назначенные сотрудники</span>
+                    <span class="text-sm font-medium text-gray-700">{{ t('order.form.assignedEmployees') }}</span>
                     <UIButton
                       type="button"
                       variant="secondary"
                       size="sm"
                       @click="addAssignment(stage.id, role.name)"
                     >
-                      Добавить
+                      {{ t('order.form.add') }}
                     </UIButton>
                   </div>
 
@@ -680,7 +680,7 @@
                     v-if="getAssignmentsForStageRole(stage.id, role.name).length === 0"
                     class="text-sm text-gray-500 italic py-2"
                   >
-                    Назначения не добавлены
+                    {{ t('order.form.assignmentsNotAdded') }}
                   </div>
 
                   <div v-else class="space-y-2">
@@ -694,7 +694,7 @@
                           v-model="assignment.user"
                           :options="getUsersForRole(role.name)"
                           label="name"
-                          placeholder="Выберите пользователя"
+                          :placeholder="t('order.form.selectUser')"
                           :clearable="true"
                           :searchable="true"
                           @update:model-value="
@@ -709,7 +709,7 @@
                         size="sm"
                         @click="removeAssignment(stage.id, role.name, index)"
                       >
-                        Удалить
+                        {{ t('order.form.delete') }}
                       </UIButton>
                     </div>
                   </div>
@@ -717,7 +717,7 @@
               </div>
             </div>
 
-            <div v-else class="text-sm text-gray-500">Для этой стадии не настроены роли</div>
+            <div v-else class="text-sm text-gray-500">{{ t('order.form.noRolesForStage') }}</div>
           </div>
         </div>
       </div>
@@ -726,15 +726,15 @@
       <div class="flex gap-3 pt-4 border-t border-gray-200 mt-6">
         <UIButton type="submit" :loading="loading" :disabled="loading || !isFormValid" class="flex-1">
           {{
-            order ? 'Сохранить' : orderMode === 'bulk' ? 'Создать массовый заказ' : 'Создать заказ'
+            order ? t('order.form.save') : orderMode === 'bulk' ? t('order.form.createBulk') : t('order.form.create')
           }}
         </UIButton>
 
         <UIButton v-if="order && canDelete()" type="button" variant="danger" @click="handleDelete">
-          Удалить
+          {{ t('order.form.delete') }}
         </UIButton>
 
-        <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
+        <UIButton type="button" variant="secondary" @click="$emit('close')"> {{ t('order.form.cancel') }} </UIButton>
       </div>
     </form>
 
@@ -763,6 +763,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
@@ -796,6 +797,7 @@ import { useEntityEvents } from '../../../composables/useEntityEvents'
 const props = defineProps<{ order?: Order | null; projectId?: number | null }>()
 const emit = defineEmits(['close', 'submit', 'delete'])
 
+const { t } = useI18n()
 const { create, update, remove } = orderController
 
 // Система событий
@@ -1604,7 +1606,7 @@ onMounted(async () => {
       }
     }
   } catch (error) {
-    toast.show('Ошибка загрузки данных', 'error')
+    toast.show(t('order.form.loadingError'), 'error')
   }
 })
 
@@ -1672,7 +1674,7 @@ function validateForm(): boolean {
   let valid = true
 
   if (!form.client_id || form.client_id <= 0) {
-    errors.client_id = 'Выберите клиента'
+    errors.client_id = t('order.form.selectClientError')
     valid = false
     // Client validation failed
   }
@@ -1683,27 +1685,27 @@ function validateForm(): boolean {
     const hasProjectTitle = bulkProjectTitle.value.trim() !== ''
 
     if (!hasExistingProject && !hasProjectTitle) {
-      errors.project_id = 'Выберите проект или введите название проекта'
-      errors.bulk_project_title = 'Выберите проект или введите название проекта'
+      errors.project_id = t('order.form.selectProjectOrTitle')
+      errors.bulk_project_title = t('order.form.selectProjectOrTitle')
       valid = false
       // Project validation failed (bulk order)
     }
 
     // Проверяем, что есть хотя бы один продукт
     if (bulkOrders.value.length === 0) {
-      errors.bulk_orders = 'Добавьте хотя бы один продукт'
+      errors.bulk_orders = t('order.form.addAtLeastOneProduct')
       valid = false
       // Bulk orders validation failed - no products
     } else {
       // Проверяем каждый продукт
       bulkOrders.value.forEach((order, index) => {
         if (!order.product_id || order.product_id <= 0) {
-          errors.bulk_orders = `Выберите продукт для заказа ${index + 1}`
+          errors.bulk_orders = t('order.form.selectProductForOrder', { index: index + 1 })
           valid = false
           // Bulk order product validation failed
         }
         if (!order.quantity || order.quantity <= 0) {
-          errors.bulk_orders = `Укажите количество для заказа ${index + 1}`
+          errors.bulk_orders = t('order.form.enterQuantityForOrder', { index: index + 1 })
           valid = false
           // Bulk order quantity validation failed
         }
@@ -1712,19 +1714,19 @@ function validateForm(): boolean {
   }
 
   if (orderMode.value === 'single' && (!form.product_id || form.product_id <= 0)) {
-    errors.product_id = 'Выберите продукт'
+    errors.product_id = t('order.form.selectProductError')
     valid = false
     // Product validation failed
   }
 
   if (orderMode.value === 'single' && (!form.quantity || form.quantity <= 0)) {
-    errors.quantity = 'Введите корректное количество'
+    errors.quantity = t('order.form.enterValidQuantity')
     valid = false
     // Quantity validation failed
   }
 
   if (orderMode.value === 'single' && selectedOrderStages.value.length === 0) {
-    errors.stages = 'Выберите хотя бы одну стадию'
+    errors.stages = t('order.form.selectAtLeastOneStage')
     valid = false
     // Stages validation failed
   }
@@ -1770,7 +1772,7 @@ async function handleSubmit() {
           projectId = createdProject.id
           // Project created for bulk orders
         } catch (error) {
-          toast.show('Ошибка при создании проекта', 'error')
+          toast.show(t('order.form.projectCreationError'), 'error')
           return
         }
       }
@@ -1798,7 +1800,7 @@ async function handleSubmit() {
         createdOrders.push(createdOrder)
       }
 
-      toast.show(`Создано ${createdOrders.length} заказов успешно!`)
+      toast.show(t('order.form.ordersCreated', { count: createdOrders.length }), 'success')
       emit('submit')
       emit('close')
       return
@@ -1819,14 +1821,14 @@ async function handleSubmit() {
     if (props.order) {
       // Обновляем существующий заказ
       await update(props.order.id, orderData)
-      toast.show('Заказ обновлен успешно!')
+      toast.show(t('order.form.orderUpdated'), 'success')
       
       // Отправляем событие обновления
       emitEntityUpdated('order', props.order.id, orderData, 'form')
     } else {
       // Создаем новый заказ
       const created = await create(orderData)
-      toast.show('Заказ создан успешно!')
+      toast.show(t('order.form.orderCreated'), 'success')
       
       // Получаем ID созданного заказа
       const newOrderId = (created as any)?.id || (created as any)?.data?.id
@@ -1839,7 +1841,7 @@ async function handleSubmit() {
     emit('submit')
     emit('close')
   } catch (error) {
-    toast.show('Ошибка при сохранении заказа', 'error')
+    toast.show(t('order.form.saveError'), 'error')
   } finally {
     loading.value = false
   }
@@ -2193,15 +2195,15 @@ function onProjectTitleInput() {
 async function handleDelete() {
   if (!props.order) return
 
-  if (!confirm('Вы уверены, что хотите удалить этот заказ?')) return
+  if (!confirm(t('order.deleteConfirmMessage'))) return
 
   try {
     await remove(props.order.id)
-    toast.show('Заказ удален!')
+    toast.show(t('order.form.orderDeleted'), 'success')
     emit('delete', props.order.id)
     emit('close')
   } catch (error) {
-    toast.show('Ошибка при удалении заказа', 'error')
+    toast.show(t('order.form.deleteError'), 'error')
   }
 }
 
@@ -2209,14 +2211,14 @@ function onClientCreated(client: { id: number; name: string; company_name?: stri
   clients.value.push(client)
   form.client_id = client.id
   showClientModal.value = false
-  toast.show('Клиент создан!')
+  toast.show(t('order.form.clientCreated'), 'success')
 }
 
 function onProjectCreated(project: { id: number; title: string }) {
   projects.value.push(project)
   form.project_id = project.id
   showProjectModal.value = false
-  toast.show('Проект создан!')
+  toast.show(t('order.form.projectCreated'), 'success')
 }
 
 function onProductCreated() {
@@ -2224,7 +2226,7 @@ function onProductCreated() {
   showProductModal.value = false
 
   // Показываем уведомление
-  toast.show('Продукт создан!')
+  toast.show(t('order.form.productCreated'), 'success')
 
   // Загружаем обновленный список продуктов
   getAllProducts()

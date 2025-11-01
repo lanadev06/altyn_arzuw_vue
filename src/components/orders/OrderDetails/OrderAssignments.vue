@@ -4,7 +4,7 @@
     :class="{ 'assignment-highlight': highlightAssignments }"
   >
     <div class="font-semibold text-gray-700 mb-2 text-lg">
-      Назначенные сотрудники
+      {{ t('order.details.assignedEmployees') }}
       <span class="text-sm font-normal text-gray-500"> ({{ currentStageLabel }}) </span>
     </div>
 
@@ -37,11 +37,11 @@
             :class="`border rounded px-2 py-1 text-xs text-gray-900 bg-white transition-all duration-200 ${getStatusTextColor(assignment.status)} ${assignment.updating ? 'status-updating' : ''}`"
             :disabled="assignment.updating || !canUpdateAssignmentStatus()"
           >
-            <option value="pending">Ожидание</option>
-            <option value="in_progress">В работе</option>
-            <option value="cancelled">Отменено</option>
-            <option value="under_review">На проверке</option>
-            <option value="approved">Одобрено</option>
+            <option value="pending">{{ t('status.pending') }}</option>
+            <option value="in_progress">{{ t('status.in_progress') }}</option>
+            <option value="cancelled">{{ t('status.cancelled') }}</option>
+            <option value="under_review">{{ t('status.under_review') }}</option>
+            <option value="approved">{{ t('status.approved') }}</option>
           </select>
           
           <!-- Статичный статус для назначений других пользователей -->
@@ -53,20 +53,20 @@
           </div>
           
           <div v-if="assignment.updating" class="text-xs text-blue-600 animate-pulse">
-            Обновление...
+            {{ t('order.details.updating') }}
           </div>
           <button
             v-if="assignment.status === 'cancelled' && canViewAllOrders()"
             @click="$emit('delete-assignment', assignment)"
             class="text-red-500 hover:underline text-xs ml-2"
           >
-            Удалить
+            {{ t('order.details.deleteAssignment') }}
           </button>
         </div>
       </div>
       <div class="flex items-center justify-between mt-1">
         <span class="text-xs text-gray-400">
-          Назначил:
+          {{ t('order.details.assignedBy') }}
           <span class="font-semibold">{{ getAssignedByName(assignment.assigned_by) }}</span>
         </span>
       </div>
@@ -78,7 +78,7 @@
         :options="currentStageUsersWithRoles"
         label="displayName"
         :reduce="(user) => user.id"
-        placeholder="Добавить сотрудника..."
+        :placeholder="t('order.details.addEmployee')"
         class="w-80"
         :searchable="true"
         :clearable="true"
@@ -102,14 +102,14 @@
       class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200"
     >
       <p class="text-sm text-gray-500 text-center">
-        На финальной стадии "{{ currentStageLabel }}" назначения не требуются
+        {{ t('order.details.noAssignmentsForStage', { stage: currentStageLabel }) }}
       </p>
     </div>
 
     <!-- Сообщение если нет ролей для стадии (только для админов и менеджеров) -->
     <div v-else-if="canViewAllOrders()" class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
       <p class="text-sm text-gray-500 text-center">
-        Для стадии "{{ currentStageLabel }}" не настроены роли или нет доступных сотрудников
+        {{ t('order.details.noRolesConfigured', { stage: currentStageLabel }) }}
       </p>
     </div>
   </div>
@@ -117,10 +117,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Vue3Select from 'vue3-select'
 import { canCreateEdit, canViewAllOrders, canUpdateAssignmentStatus } from '../../../utils/permissions'
 import { getCurrentUser } from '../../../utils/auth'
 import type { Assignment, Role, Stage, User, UserWithRole } from '../../../types/orderDetails'
+
+const { t } = useI18n()
 
 
 interface Props {
@@ -306,6 +309,12 @@ function getRoleLabel(role: string) {
     return dynamicRole.display_name
   }
 
+  // Пробуем использовать i18n для роли
+  const i18nLabel = t(`roles.${role}`)
+  if (i18nLabel !== `roles.${role}`) {
+    return i18nLabel
+  }
+
   // Если роль не найдена, возвращаем оригинальное имя
   return role
 }
@@ -393,7 +402,7 @@ function getCurrentStageRolesText() {
   const stageRoles = stageData?.roles || []
 
   if (stageRoles.length === 0) {
-    return 'Нет доступных ролей'
+    return t('order.details.noRolesAvailable')
   }
 
   const roleLabels = stageRoles.map((role: Role) => getRoleLabel(role.name)).join(', ')
@@ -402,14 +411,12 @@ function getCurrentStageRolesText() {
 
 // Функция для получения текста статуса
 function getStatusLabel(status: string): string {
-  const statusLabels = {
-    pending: 'Ожидание',
-    in_progress: 'В работе',
-    cancelled: 'Отменено',
-    under_review: 'На проверке',
-    approved: 'Одобрено'
+  // Используем i18n для статусов
+  const i18nLabel = t(`status.${status}`)
+  if (i18nLabel !== `status.${status}`) {
+    return i18nLabel
   }
-  return statusLabels[status as keyof typeof statusLabels] || status
+  return status
 }
 
 // Следим за изменениями стадии и принудительно обновляем данные

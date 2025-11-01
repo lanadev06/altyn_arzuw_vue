@@ -2,7 +2,7 @@
   <div
     class="bg-gradient-to-br from-blue-50 via-purple-50 to-white rounded-3xl shadow-2xl p-8 flex flex-col gap-4"
   >
-    <h3 class="text-xl font-bold text-gray-900 mb-4">Быстрые действия</h3>
+    <h3 class="text-xl font-bold text-gray-900 mb-4">{{ t('dashboard.quickActions') }}</h3>
     <div v-if="hasAnyActions()" class="space-y-3">
       <router-link
         v-for="action in actions.filter((a) => a.show() && a.type === 'link')"
@@ -59,8 +59,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent, defineComponent, h } from 'vue'
+import { ref, computed, defineAsyncComponent, defineComponent, h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { canCreateEdit } from '../../utils/permissions'
+
+const { t } = useI18n()
 
 const showOrderModal = ref(false)
 const showClientModal = ref(false)
@@ -124,10 +127,10 @@ const ActionIcon = defineComponent({
   },
 })
 
-const actions = [
+const actions = computed(() => [
   {
     id: 1,
-    title: 'Управление пользователями',
+    title: t('dashboard.manageUsers'),
     to: '/users',
     icon: 'UsersIcon',
     iconBg: 'bg-blue-100',
@@ -137,7 +140,7 @@ const actions = [
   },
   {
     id: 2,
-    title: 'Создать заказ',
+    title: t('dashboard.createOrder'),
     icon: 'DocumentIcon',
     iconBg: 'bg-green-100',
     iconColor: 'text-green-600',
@@ -149,7 +152,7 @@ const actions = [
   },
   {
     id: 3,
-    title: 'Добавить клиента',
+    title: t('dashboard.addClient'),
     icon: 'UserAddIcon',
     iconBg: 'bg-purple-100',
     iconColor: 'text-purple-600',
@@ -159,10 +162,10 @@ const actions = [
     },
     show: () => true, // Упрощаем логику
   },
-]
+])
 
 function hasAnyActions() {
-  return actions.some((action) => action.show())
+  return actions.value.some((action) => action.show())
 }
 
 

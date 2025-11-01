@@ -9,7 +9,7 @@
           style="min-width: 180px"
           :disabled="loadingRoles"
         >
-          <option value="">Все роли</option>
+          <option value="">{{ t('users.allRoles') }}</option>
           <option v-for="role in availableRoles" :key="role.id" :value="role.name">
             {{ role.display_name || role.name }}
           </option>
@@ -19,12 +19,12 @@
           class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style="min-width: 180px"
         >
-          <option value="">Все сотрудники</option>
-          <option value="active">Только активные</option>
-          <option value="inactive">Только неактивные</option>
+          <option value="">{{ t('users.allUsers') }}</option>
+          <option value="active">{{ t('users.activeOnly') }}</option>
+          <option value="inactive">{{ t('users.inactiveOnly') }}</option>
         </select>
       </div>
-      <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> Добавить сотрудника </UIButton>
+      <UIButton v-if="canCreateUsers()" @click="openCreateModal" variant="primary"> {{ t('users.addUser') }} </UIButton>
     </div>
     <div class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       <UserList
@@ -42,11 +42,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import UserList from '../components/users/UserList/UserList.vue'
 import UIButton from '../components/ui/UIButton.vue'
 import Layout from '../components/layout/Layout.vue'
 import { getAllRoles, getRolesWithStages, getAllStages } from '../services/api'
 import { canCreateUsers } from '../utils/permissions'
+
+const { t } = useI18n()
 
 const showCreateModal = ref(false)
 const selectedRole = ref('')

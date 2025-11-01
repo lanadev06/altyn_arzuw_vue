@@ -2,24 +2,24 @@
   <div class="client-list flex flex-col">
     <div class="flex justify-end items-center mb-3">
       <UIButton @click="showCreateModal = true" variant="primary" class=""
-        >Добавить клиента</UIButton
+        >{{ t('clients.addClient') }}</UIButton
       >
     </div>
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
       <div
         class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
       >
-        <span class="text-gray-600 font-semibold">На странице:</span>
+        <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
         <select
           v-model.number="perPage"
           @change="changePerPage"
@@ -135,7 +135,7 @@
             </tr>
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка клиентов...
+                {{ t('clients.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -145,7 +145,7 @@
             </tr>
             <tr v-if="!loading && !error && (!pagination || pagination.data.length === 0)">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                {{ props.search ? 'Клиенты не найдены' : 'Клиенты отсутствуют' }}
+                {{ props.search ? t('clients.notFound') : t('clients.noClients') }}
               </td>
             </tr>
           </tbody>
@@ -186,6 +186,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import ClientFormModal from './ClientFormModal.vue'
@@ -197,32 +198,46 @@ import { useToast } from '@/stores/toast'
 import { useBulkActions } from '../../../composables/useBulkActions'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
+const { t, locale } = useI18n()
+
 const props = defineProps({
   search: { type: String, default: '' },
 })
 
 const toast = useToast()
 
-const defaultColumns = [
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Имя', sortable: true },
-  { key: 'company_name', label: 'Компания', sortable: true },
-  { key: 'contacts', label: 'Контакты', sortable: false },
-  { key: 'created_at', label: 'Создано', sortable: true },
-  { key: 'updated_at', label: 'Обновлено', sortable: false },
-]
+const defaultColumns = computed(() => [
+  { key: 'id', label: t('clients.columns.id'), sortable: true },
+  { key: 'name', label: t('clients.columns.name'), sortable: true },
+  { key: 'company_name', label: t('clients.columns.company'), sortable: true },
+  { key: 'contacts', label: t('clients.columns.contacts'), sortable: false },
+  { key: 'created_at', label: t('clients.columns.created'), sortable: true },
+  { key: 'updated_at', label: t('clients.columns.updated'), sortable: false },
+])
 
 // Константы для localStorage
 const SORT_KEY = 'clientList_sortBy'
 const ORDER_KEY = 'clientList_sortOrder'
 const COLUMNS_KEY = 'clientList_columns'
 
-const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('clientList_perPage')
 const savedSortBy = localStorage.getItem(SORT_KEY)
 const savedSortOrder = localStorage.getItem(ORDER_KEY)
 
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+// Инициализируем колонки - читаем из localStorage, но обновляем labels из computed
+const savedColumns = localStorage.getItem(COLUMNS_KEY)
+const initializeColumns = () => {
+  if (savedColumns) {
+    const savedCols = JSON.parse(savedColumns)
+    return savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+  return defaultColumns.value
+}
+
+const columns = ref(initializeColumns())
 
 const { pagination, loading, error, fetchClients, update, remove, sortBy, sortOrder, setSort } =
   ClientController()
@@ -311,7 +326,7 @@ async function handleDeleteClient(clientId: number) {
     await remove(clientId)
 
     // Показываем уведомление об успешном удалении
-    toast.show('Клиент успешно удален!', 'success')
+    toast.show(t('clients.clientDeleted'), 'success')
 
     // Обновляем UI только после успешного удаления
     showEditModal.value = false
@@ -329,14 +344,14 @@ async function handleDeleteClient(clientId: number) {
       'status' in err &&
       (err as { status: number }).status === 404
     ) {
-      toast.show('Клиент успешно удален!', 'success')
+      toast.show(t('clients.clientDeleted'), 'success')
       // Обновляем список
       await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
       return
     }
 
     // Для других ошибок показываем сообщение об ошибке
-    let message = 'Ошибка удаления клиента'
+    let message = t('clients.deleteError')
     if (err instanceof Error) {
       message = err.message
     }
@@ -391,7 +406,9 @@ onMounted(async () => {
         const moved = newColumns.splice(adjustedOldIndex, 1)[0]
         newColumns.splice(adjustedNewIndex, 0, moved)
         columns.value = newColumns
-        localStorage.setItem('clientList_columns', JSON.stringify(columns.value))
+        // Сохраняем только структуру колонок (key и sortable), без label
+        const colsToSave = newColumns.map((col: any) => ({ key: col.key, sortable: col.sortable }))
+        localStorage.setItem('clientList_columns', JSON.stringify(colsToSave))
       },
     })
   }
@@ -412,6 +429,24 @@ watch(perPage, (newVal) => {
 onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
 })
+
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = defaultColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+    // Сохраняем обновленные колонки обратно в localStorage (сохраняем только структуру, без label)
+    const colsToSave = columns.value.map((col: any) => ({ key: col.key, sortable: col.sortable }))
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(colsToSave))
+  }
+}, { immediate: false })
 
 
 async function handleBulkDelete() {

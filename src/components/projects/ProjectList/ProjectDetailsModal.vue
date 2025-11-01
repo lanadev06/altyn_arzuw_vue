@@ -28,7 +28,7 @@
               <div>
                 <div class="flex items-center gap-4 mb-2">
                   <div class="text-3xl font-extrabold text-gray-900 tracking-tight">
-                    Проект #{{ props.project?.id }}
+                    {{ t('projects.details.projectTitle') }}{{ props.project?.id }}
                   </div>
                   <span
                     v-if="props.project"
@@ -62,13 +62,13 @@
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       ></path>
                     </svg>
-                    Детали проекта
+                    {{ t('projects.details.projectDetails') }}
                   </div>
                   <div class="flex flex-col gap-2">
                     <div
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
-                      <span class="font-semibold">Название:</span>
+                      <span class="font-semibold">{{ t('projects.details.title') }}</span>
                       <EditableField
                         v-if="props.project"
                         :model-value="props.project.title ?? ''"
@@ -82,7 +82,7 @@
                     <div
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
-                      <span class="font-semibold">Клиент:</span>
+                      <span class="font-semibold">{{ t('projects.details.client') }}</span>
                       <span class="text-gray-700 block truncate">
                         {{
                           getClientNameById(props.project.orders?.[0]?.client_id) ||
@@ -96,7 +96,7 @@
                     <div
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
-                      <span class="font-semibold">Дедлайн:</span>
+                      <span class="font-semibold">{{ t('projects.details.deadline') }}</span>
                       <div>
                         <div v-if="!showDeadlineInput" class="flex items-center group">
                           <span>{{
@@ -107,7 +107,7 @@
                           <button
                             @click="startDeadlineEdit"
                             class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Изменить дедлайн"
+                            :title="t('projects.details.editDeadline')"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -143,7 +143,7 @@
                           <button
                             @click="confirmDeadline"
                             class="p-1 rounded hover:bg-green-100 text-green-500"
-                            title="Подтвердить"
+                            :title="t('projects.details.confirm')"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -163,7 +163,7 @@
                           <button
                             @click="cancelDeadline"
                             class="p-1 rounded hover:bg-red-100 text-red-500"
-                            title="Отмена"
+                            :title="t('projects.details.cancel')"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -188,7 +188,7 @@
                       v-if="canViewPrices()"
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
-                      <span class="font-semibold">Сумма:</span>
+                      <span class="font-semibold">{{ t('projects.details.totalPrice') }}</span>
                       <EditableField
                         v-if="props.project"
                         :model-value="props.project.total_price ?? 0"
@@ -203,7 +203,7 @@
                       v-if="canViewPrices()"
                       class="grid grid-cols-[140px_1fr_40px] items-center gap-x-2 text-base text-gray-800"
                     >
-                      <span class="font-semibold">Оплачено:</span>
+                      <span class="font-semibold">{{ t('projects.details.paymentAmount') }}</span>
                       <EditableField
                         v-if="props.project"
                         :model-value="props.project.payment_amount ?? 0"
@@ -241,7 +241,7 @@
                             d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
                           ></path>
                         </svg>
-                        Связанные заказы
+                        {{ t('projects.details.relatedOrders') }}
                       </div>
                       <!-- Чекбокс "Выбрать всё" -->
                       <div v-if="canCreateEdit() && orders.length > 0" class="flex items-center gap-2 mt-2">
@@ -251,7 +251,7 @@
                           @change="toggleSelectAllOrders"
                           class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer"
                         />
-                        <span class="text-sm text-gray-600 cursor-pointer" @click="toggleSelectAllOrders">Выбрать всё</span>
+                        <span class="text-sm text-gray-600 cursor-pointer" @click="toggleSelectAllOrders">{{ t('projects.details.selectAll') }}</span>
                       </div>
                     </div>
                     <div v-if="canCreateEdit()" class="flex gap-2">
@@ -259,13 +259,13 @@
                         @click="showAttachExistingModal = true"
                         class="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
                       >
-                        + Добавить
+                        + {{ t('projects.details.add') }}
                       </button>
                       <button
                         @click="emit('create-and-attach-order')"
                         class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition"
                       >
-                        + Создать
+                        + {{ t('projects.details.create') }}
                       </button>
                     </div>
                   </div>
@@ -274,26 +274,26 @@
                   <div v-if="selectedOrdersForDetach.length > 0" class="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                     <div class="flex items-center justify-between">
                       <span class="text-sm font-medium text-red-800">
-                        Выбрано для отвязки: {{ selectedOrdersForDetach.length }}
+                        {{ t('projects.details.selectedForDetach') }} {{ selectedOrdersForDetach.length }}
                       </span>
                       <div class="flex gap-2">
                         <button
                           @click="detachSelectedOrders"
                           class="px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition"
                         >
-                          Отвязать все
+                          {{ t('projects.details.detachAll') }}
                         </button>
                         <button
                           @click="clearDetachSelection"
                           class="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition"
                         >
-                          Отмена
+                          {{ t('projects.details.cancel') }}
                         </button>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div v-if="orders.length === 0" class="text-gray-500">Нет связанных заказов</div>
+                <div v-if="orders.length === 0" class="text-gray-500">{{ t('projects.details.noRelatedOrders') }}</div>
                 <div v-else class="flex flex-col gap-3">
                   <div
                     v-for="order in orders"
@@ -339,13 +339,13 @@
                               @click="openOrderDetails(order)"
                               class="text-blue-500 font-semibold hover:underline text-sm"
                             >
-                              Открыть
+                              {{ t('projects.details.open') }}
                             </button>
                             <button
                               v-if="canCreateEdit()"
                               @click="detachOrder(order.id)"
                               class="text-red-500 font-semibold hover:underline text-sm"
-                              title="Отвязать заказ от проекта"
+                              :title="t('projects.details.detachOrder')"
                             >
                               ✕
                             </button>
@@ -383,7 +383,7 @@
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     ></path>
                   </svg>
-                  Комментарии
+                  {{ t('projects.details.comments') }}
                 </div>
                 <div>
                   <ul class="space-y-3">
@@ -411,7 +411,7 @@
                       >
                         <button
                           @click="$emit('delete-comment', comment.id)"
-                          title="Удалить"
+                          :title="t('projects.details.delete')"
                           class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400"
                         >
                           <svg
@@ -448,7 +448,7 @@
                                 getRoleLabel(
                                   typeof role === 'string'
                                     ? role
-                                    : (role as any)?.display_name || (role as any)?.name || '',
+                                    : (role as any)?.name || '',
                                 )
                               }}
                             </span>
@@ -481,7 +481,7 @@
                     @keydown.enter.prevent="addComment"
                     type="text"
                     class="w-full border-none outline-none text-base text-gray-800 bg-transparent px-2 py-2"
-                    placeholder="Добавить комментарий..."
+                    :placeholder="t('projects.details.addComment')"
                   />
                   <div
                     v-if="commentFocused || newComment.trim()"
@@ -490,16 +490,16 @@
                     <button
                       @click="addComment"
                       type="button"
-                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition-colors duration-200"
+                      class="rounded-full bg-blue-300 hover:bg-blue-400 text-white text-xs font-bold px-4 py-1 shadow transition-colors duration-200 uppercase"
                     >
-                      ОТПРАВИТЬ
+                      {{ t('projects.details.send') }}
                     </button>
                     <button
                       @click="cancelComment"
                       type="button"
-                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition-colors duration-200"
+                      class="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-1 shadow transition-colors duration-200 uppercase"
                     >
-                      ОТМЕНА
+                      {{ t('projects.details.cancelUppercase') }}
                     </button>
                   </div>
                 </div>
@@ -510,7 +510,7 @@
                 <button
                   @click="deleteProjectHandler"
                   class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-colors duration-200"
-                  title="Удалить проект"
+                  :title="t('projects.details.deleteProject')"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -536,6 +536,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import EditableField from '@/components/ui/EditableField.vue'
 import Vue3Select from 'vue3-select'
 import flatPickr from 'vue-flatpickr-component'
@@ -546,6 +547,8 @@ import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils
 import { deleteProject } from '@/services/api'
 import { toast } from '@/stores/toast'
 import AttachOrderModal from './AttachOrderModal.vue'
+
+const { t } = useI18n()
 
 interface Client {
   id: number
@@ -660,11 +663,11 @@ async function deleteProjectHandler() {
   try {
     await deleteProject(props.project.id)
     
-    toast.show('Проект удален!', 'success')
+    toast.show(t('projects.details.projectDeleted'), 'success')
     emit('close')
     emit('update-project', null) // Уведомляем родительский компонент об удалении
   } catch (error) {
-    toast.show('Ошибка удаления проекта', 'error')
+    toast.show(t('projects.details.deleteError'), 'error')
   }
 }
 
@@ -695,10 +698,10 @@ async function updateProjectField(field: ProjectField, value: any) {
       // Emit update to parent component
       emit('update-project', props.project)
     } else {
-      toast.show('Ошибка обновления проекта', 'error')
+      toast.show(t('projects.details.updateError'), 'error')
     }
   } catch (error) {
-    toast.show('Ошибка обновления проекта', 'error')
+    toast.show(t('projects.details.updateError'), 'error')
   }
 }
 
@@ -733,10 +736,10 @@ function cancelComment() {
 
 function getStatusText(status: string) {
   const map: Record<string, string> = {
-    active: 'Активен',
-    completed: 'Завершён',
-    paused: 'Пауза',
-    cancelled: 'Отменён',
+    active: t('projects.details.status.active'),
+    completed: t('projects.details.status.completed'),
+    paused: t('projects.details.status.paused'),
+    cancelled: t('projects.details.status.cancelled'),
   }
   return map[status] || status
 }
@@ -798,18 +801,8 @@ function orderStatusBadge(status: string) {
   }
 }
 function orderStatusText(status: string) {
-  return (
-    {
-      draft: 'Черновик',
-      design: 'Дизайн',
-      print: 'Печать',
-      engraving: 'Гравировка',
-      workshop: 'Цех',
-      final: 'Финальный',
-      completed: 'Завершён',
-      cancelled: 'Отменён',
-    }[status] || status
-  )
+  // Используем переводы из i18n для статусов заказов
+  return t(`status.${status}`) || status
 }
 
 // Проверяем, является ли заказ заказом текущего пользователя
@@ -877,11 +870,11 @@ async function detachSelectedOrders() {
       }
     }
     
-    toast.show(`Отвязано заказов: ${selectedOrdersForDetach.value.length}`, 'success')
+    toast.show(t('projects.details.detachedOrders', { count: selectedOrdersForDetach.value.length }), 'success')
     selectedOrdersForDetach.value = []
   } catch (error) {
     console.error('Ошибка при отвязке заказов:', error)
-    toast.show('Ошибка при отвязке заказов', 'error')
+    toast.show(t('projects.details.detachOrdersError'), 'error')
   }
 }
 
@@ -900,7 +893,7 @@ async function detachOrder(orderId: number) {
     })
     
     if (response.ok) {
-      toast.show('Заказ отвязан от проекта', 'success')
+      toast.show(t('projects.details.orderDetached'), 'success')
       
       // Отправляем событие в родительский компонент
       // Родительский компонент сам обновит список
@@ -911,13 +904,13 @@ async function detachOrder(orderId: number) {
         detail: { orderId }
       }))
     } else {
-      const errorData = await response.json().catch(() => ({ message: 'Ошибка при отвязке заказа' }))
+      const errorData = await response.json().catch(() => ({ message: t('projects.details.detachOrderError') }))
       console.error('Ошибка отвязки заказа:', response.status, errorData)
-      toast.show(`Ошибка: ${errorData.message || 'Не удалось отвязать заказ'}`, 'error')
+      toast.show(`${t('messages.error')}: ${errorData.message || t('projects.details.failedToDetach')}`, 'error')
     }
   } catch (error) {
     console.error('Ошибка при отвязке заказа:', error)
-    toast.show('Ошибка при отвязке заказа', 'error')
+    toast.show(t('projects.details.detachOrderError'), 'error')
   }
 }
 
@@ -938,7 +931,7 @@ async function handleAttachOrder(orderId: number) {
     if (response.ok) {
       const updatedOrder = await response.json()
       
-      toast.show('Заказ добавлен в проект', 'success')
+      toast.show(t('projects.details.orderAttached'), 'success')
       emit('attach-order', orderId)
       
       // Отправляем глобальное событие обновления заказа
@@ -946,13 +939,13 @@ async function handleAttachOrder(orderId: number) {
         detail: { orderId }
       }))
     } else {
-      const errorData = await response.json().catch(() => ({ message: 'Ошибка при добавлении заказа' }))
+      const errorData = await response.json().catch(() => ({ message: t('projects.details.attachOrderError') }))
       console.error('Ошибка добавления заказа:', errorData)
-      toast.show('Ошибка при добавлении заказа', 'error')
+      toast.show(t('projects.details.attachOrderError'), 'error')
     }
   } catch (error) {
     console.error('Ошибка при добавлении заказа:', error)
-    toast.show('Ошибка при добавлении заказа', 'error')
+    toast.show(t('projects.details.attachOrderError'), 'error')
   }
 }
 
@@ -986,24 +979,11 @@ function getRoleBadgeClass(role: string) {
 }
 
 function getRoleLabel(role: string) {
-  switch (role) {
-    case 'admin':
-      return 'Администратор'
-    case 'manager':
-      return 'Менеджер'
-    case 'designer':
-      return 'Дизайнер'
-    case 'print_worker':
-      return 'Печатник'
-    case 'engraver':
-      return 'Гравер'
-    case 'workshop_worker':
-      return 'Цехник'
-    case 'client':
-      return 'Клиент'
-    default:
-      return role
-  }
+  if (!role) return ''
+  const translationKey = `roles.${role}`
+  const translation = t(translationKey)
+  // Если перевод вернул сам ключ (т.е. перевод не найден), возвращаем оригинальное значение
+  return translation !== translationKey ? translation : role
 }
 
 // Загружаем изображения пользователей синхронно

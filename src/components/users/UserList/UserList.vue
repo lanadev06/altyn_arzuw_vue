@@ -3,18 +3,18 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
       <div
         class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
       >
-        <span class="text-gray-600 font-semibold">На странице:</span>
+        <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
         <select
           v-model.number="perPage"
           @change="changePerPage"
@@ -139,7 +139,7 @@
                         class="px-2 py-1 rounded-full text-xs font-medium"
                         :class="getRoleBadgeClass(user.roles?.[0]?.name || '')"
                       >
-                        {{ user.roles?.[0]?.name || 'Нет роли' }}
+                        {{ user.roles?.[0]?.name || t('users.noRole') }}
                       </span>
                     </template>
                   </template>
@@ -158,7 +158,7 @@
                           : 'bg-gray-300 hover:bg-gray-400'
                       "
                       class="px-2 py-1 rounded text-white text-xs transition-colors"
-                      title="Переключить активность"
+                      :title="t('users.toggleActive')"
                     >
                       <span v-if="user.is_active">✓</span>
                       <span v-else>⏻</span>
@@ -190,7 +190,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка пользователей...
+                {{ t('users.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -200,7 +200,7 @@
             </tr>
             <tr v-if="!loading && !error && users.length === 0">
               <td :colspan="columns.length" class="px-3 py-8 text-center text-gray-500 text-base">
-                {{ props.search ? 'Сотрудники не найдены' : 'Сотрудники отсутствуют' }}
+                {{ props.search ? t('users.notFound') : t('users.noUsers') }}
               </td>
             </tr>
           </tbody>
@@ -244,6 +244,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUserController } from '@/controllers/UserController'
 import UIButton from '@/components/ui/UIButton.vue'
 import UserFormModal from './UserFormModal.vue'
@@ -256,6 +257,8 @@ import { canEditUsers, canToggleUserActive } from '../../../utils/permissions'
 import { getUserImageUrl } from '../../../utils/user'
 import { useBulkActions } from '../../../composables/useBulkActions'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
+
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   search?: string
@@ -313,19 +316,19 @@ const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('userList_perPage')
 
 // Базовые колонки
-const baseColumns = [
-  { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Имя', sortable: true },
-  { key: 'username', label: 'Логин', sortable: true },
-  { key: 'role', label: 'Роль', sortable: false },
-  { key: 'phone', label: 'Телефон', sortable: false },
-  { key: 'is_active', label: 'Статус', sortable: false },
-  { key: 'created_at', label: 'Создано', sortable: true },
-  { key: 'updated_at', label: 'Обновлено', sortable: false },
-]
+const baseColumns = computed(() => [
+  { key: 'id', label: t('users.columns.id'), sortable: true },
+  { key: 'name', label: t('users.columns.name'), sortable: true },
+  { key: 'username', label: t('users.columns.username'), sortable: true },
+  { key: 'role', label: t('users.columns.role'), sortable: false },
+  { key: 'phone', label: t('users.columns.phone'), sortable: false },
+  { key: 'is_active', label: t('users.columns.status'), sortable: false },
+  { key: 'created_at', label: t('users.columns.created'), sortable: true },
+  { key: 'updated_at', label: t('users.columns.updated'), sortable: false },
+])
 
 // Инициализируем колонки из localStorage или используем базовые
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : [...baseColumns])
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : [...baseColumns.value])
 
 // Инициализируем сортировку из localStorage
 if (savedSortBy && sortBy.value !== savedSortBy) {
@@ -365,7 +368,7 @@ function getActiveFilter(): boolean | null {
 
 // Функция сброса настроек
 function resetSettings() {
-  columns.value = [...baseColumns]
+  columns.value = [...baseColumns.value]
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
   sortBy.value = 'id'
   sortOrder.value = 'asc'
@@ -487,6 +490,20 @@ watch([sortBy, sortOrder], () => {
   fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
 })
 
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  if (!savedColumns) {
+    columns.value = baseColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(savedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = baseColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+})
+
 // Обработчики событий от UserFormModal
 async function handleCreateUser(userData: any) {
   try {
@@ -495,15 +512,15 @@ async function handleCreateUser(userData: any) {
     
     await create(userData)
     emit('close-create-modal')
-    toast.show('Сотрудник создан!', 'success')
+    toast.show(t('users.userCreated'), 'success')
     fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
   } catch (err: any) {
     // Если есть ошибки валидации полей, передаем их в модальное окно
     if (err.fieldErrors) {
       validationErrors.value = err.fieldErrors
-      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+      toast.show(t('users.fixErrors'), 'error')
     } else {
-      toast.show('Ошибка при создании сотрудника', 'error')
+      toast.show(t('users.errorCreating'), 'error')
     }
   }
 }
@@ -517,15 +534,15 @@ async function handleUpdateUser(userData: any) {
     
     await updateUser(editingUser.value.id, userData)
     showEditModal.value = false
-    toast.show('Сотрудник обновлён!', 'success')
+    toast.show(t('users.userUpdated'), 'success')
     fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
   } catch (err: any) {
     // Если есть ошибки валидации полей, передаем их в модальное окно
     if (err.fieldErrors) {
       validationErrors.value = err.fieldErrors
-      toast.show('Пожалуйста, исправьте ошибки в форме', 'error')
+      toast.show(t('users.fixErrors'), 'error')
     } else {
-      toast.show('Ошибка при обновлении сотрудника', 'error')
+      toast.show(t('users.errorUpdating'), 'error')
     }
   }
 }
@@ -534,13 +551,13 @@ async function handleDeleteUser(userId: number) {
   try {
     await deleteUser(userId, currentPage.value)
     showEditModal.value = false
-    toast.show('Сотрудник успешно удалён!', 'success')
+    toast.show(t('users.userDeleted'), 'success')
   } catch (err: any) {
-    let message = 'Произошла неизвестная ошибка при удалении сотрудника'
+    let message = t('users.errorDeleting')
     if (err?.response?.data?.message) {
       message = err.response.data.message
     } else if (err instanceof Error && err.message) {
-      message = `Ошибка удаления сотрудника: ${err.message}`
+      message = `${t('users.deleteError')}: ${err.message}`
     }
     toast.show(message, 'error')
   }

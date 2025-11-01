@@ -2,7 +2,7 @@
   <div
     class="bg-gradient-to-br from-purple-50 via-blue-50 to-white rounded-3xl shadow-2xl p-8 flex flex-col gap-4"
   >
-    <h3 class="text-xl font-bold text-gray-900 mb-4">Последние действия</h3>
+    <h3 class="text-xl font-bold text-gray-900 mb-4">{{ t('dashboard.recentActivity') }}</h3>
     <div class="space-y-4 overflow-y-auto max-h-[260px] pr-2">
       <div
         v-for="activity in activities"
@@ -26,7 +26,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, defineComponent, h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { safeApiRequest, safeProcessActivityData } from '../../utils/safeData'
+
+const { t } = useI18n()
 
 interface Activity {
   id: number

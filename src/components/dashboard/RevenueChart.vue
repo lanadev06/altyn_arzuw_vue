@@ -2,15 +2,15 @@
   <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
     <!-- Заголовок -->
     <div class="mb-6">
-      <h3 class="text-xl font-bold text-gray-900 mb-1">Общая выручка по месяцам</h3>
+      <h3 class="text-xl font-bold text-gray-900 mb-1">{{ t('dashboard.totalRevenueByMonth') }}</h3>
       <p class="text-3xl font-bold text-blue-600">
         {{ revenueData.total_revenue_formatted }} <span class="text-lg text-gray-500">TMT</span>
       </p>
       <p class="text-sm text-gray-500 mt-1">
-        Общая выручка (по всем проектам и заказам) за {{ revenueData.year }} год
+        {{ t('dashboard.totalRevenueForYear', { year: revenueData.year }) }}
       </p>
       <p class="text-xs text-gray-400 mt-1">
-        * Включает все проекты и заказы, независимо от статуса оплаты
+        {{ t('dashboard.includesAllProjects') }}
       </p>
     </div>
 
@@ -20,7 +20,7 @@
         <div
           class="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600"
         ></div>
-        <p class="text-gray-500 text-sm">Загрузка данных...</p>
+        <p class="text-gray-500 text-sm">{{ t('dashboard.loadingData') }}</p>
       </div>
     </div>
 
@@ -39,9 +39,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUpdated, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Chart, registerables } from 'chart.js'
 import { apiRequest } from '../../services/api'
 import type { RevenueByMonthResponse } from '../../types/api'
+
+const { t } = useI18n()
 
 // Регистрируем все компоненты Chart.js
 Chart.register(...registerables)
@@ -58,34 +61,10 @@ const revenueData = ref<RevenueByMonthResponse>({
   year: currentYear,
 })
 
-// Функция для перевода месяцев на русский
-const getRussianMonthName = (monthName: string): string => {
-  const monthMap: { [key: string]: string } = {
-    January: 'Январь',
-    February: 'Февраль',
-    March: 'Март',
-    April: 'Апрель',
-    May: 'Май',
-    June: 'Июнь',
-    July: 'Июль',
-    August: 'Август',
-    September: 'Сентябрь',
-    October: 'Октябрь',
-    November: 'Ноябрь',
-    December: 'Декабрь',
-    Jan: 'Янв',
-    Feb: 'Фев',
-    Mar: 'Мар',
-    Apr: 'Апр',
-    Jun: 'Июн',
-    Jul: 'Июл',
-    Aug: 'Авг',
-    Sep: 'Сен',
-    Oct: 'Окт',
-    Nov: 'Ноя',
-    Dec: 'Дек',
-  }
-  return monthMap[monthName] || monthName
+// Функция для перевода месяцев используя i18n
+const getMonthName = (monthName: string): string => {
+  const monthKey = monthName.toLowerCase()
+  return t(`months.${monthKey}`) || monthName
 }
 
 const createChart = () => {
@@ -112,7 +91,7 @@ const createChart = () => {
     return
   }
 
-  const labels = revenueData.value.monthly_data.map(data => getRussianMonthName(data.month_name))
+  const labels = revenueData.value.monthly_data.map(data => getMonthName(data.month_name))
   const data = revenueData.value.monthly_data.map(data => data.revenue)
 
   chartInstance = new Chart(ctx, {
@@ -121,7 +100,7 @@ const createChart = () => {
       labels,
       datasets: [
         {
-          label: 'Выручка (TMT)',
+          label: t('dashboard.revenueChart'),
           data,
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',

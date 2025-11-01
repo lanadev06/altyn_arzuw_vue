@@ -3,18 +3,18 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
       <div
         class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
       >
-        <span class="text-gray-600 font-semibold">На странице:</span>
+        <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
         <select
           v-model.number="filters.per_page"
           @change="changePerPage"
@@ -28,57 +28,57 @@
     <div class="bg-white p-6 rounded-lg shadow">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Тип модели</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('audit.modelType') }}</label>
           <select
             v-model="filters.auditable_type"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             @change="loadLogs"
           >
-            <option value="">Все типы</option>
-            <option value="App\Models\Order">Заказы</option>
-            <option value="App\Models\Product">Товары</option>
-            <option value="App\Models\Project">Проекты</option>
-            <option value="App\Models\User">Сотрудники</option>
-            <option value="App\Models\Client">Клиенты</option>
-            <option value="App\Models\ClientContact">Контакты клиентов</option>
-            <option value="App\Models\Comment">Комментарии</option>
-            <option value="App\Models\OrderAssignment">Назначения заказов</option>
+            <option value="">{{ t('audit.all') }}</option>
+            <option value="App\Models\Order">{{ t('common.orders') }}</option>
+            <option value="App\Models\Product">{{ t('common.products') }}</option>
+            <option value="App\Models\Project">{{ t('common.projects') }}</option>
+            <option value="App\Models\User">{{ t('common.users') }}</option>
+            <option value="App\Models\Client">{{ t('common.clients') }}</option>
+            <option value="App\Models\ClientContact">{{ t('order.clientContacts') }}</option>
+            <option value="App\Models\Comment">{{ t('order.details.comments') }}</option>
+            <option value="App\Models\OrderAssignment">{{ t('order.details.assignedEmployees') }}</option>
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Действие</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('audit.action') }}</label>
           <select
             v-model="filters.action"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             @change="loadLogs"
           >
-            <option value="">Все действия</option>
-            <option value="created">Создание</option>
-            <option value="updated">Обновление</option>
-            <option value="deleted">Удаление</option>
-            <option value="restored">Восстановление</option>
-            <option value="force_deleted">Полное удаление</option>
+            <option value="">{{ t('audit.allActions') }}</option>
+            <option value="created">{{ t('audit.created') }}</option>
+            <option value="updated">{{ t('audit.updated') }}</option>
+            <option value="deleted">{{ t('audit.deleted') }}</option>
+            <option value="restored">{{ t('audit.restored') }}</option>
+            <option value="force_deleted">{{ t('audit.forceDeleted') }}</option>
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Дата от</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('audit.dateFrom') }}</label>
           <input
             ref="dateFromInput"
             v-model="filters.date_from"
             type="text"
-            placeholder="Выберите дату..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :placeholder="t('audit.selectDate')"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             readonly
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Дата до</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('audit.dateTo') }}</label>
           <input
             ref="dateToInput"
             v-model="filters.date_to"
             type="text"
-            placeholder="Выберите дату..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :placeholder="t('audit.selectDate')"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             readonly
           />
         </div>
@@ -87,8 +87,8 @@
           <input
             v-model="filters.auditable_id"
             type="number"
-            placeholder="ID записи..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :placeholder="t('audit.recordIdPlaceholder')"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             @input="debouncedSearch"
           />
         </div>
@@ -97,7 +97,7 @@
             @click="clearFilters"
             class="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
           >
-            Очистить фильтры
+            {{ t('audit.clearFilters') }}
           </button>
         </div>
       </div>
@@ -106,11 +106,11 @@
     <div class="bg-white border border-gray-200">
       <div v-if="loading" class="p-8 text-center">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p class="mt-2 text-gray-600">Загрузка логов...</p>
+        <p class="mt-2 text-gray-600">{{ t('audit.loading') }}</p>
       </div>
 
       <div v-else-if="logs.length === 0" class="p-8 text-center">
-        <p class="text-gray-600">Логи не найдены</p>
+        <p class="text-gray-600">{{ t('audit.notFound') }}</p>
       </div>
 
       <div v-else>
@@ -147,10 +147,10 @@
                 </template>
                 <template v-else-if="col.key === 'user'">
                   <div class="text-sm font-medium text-gray-900">
-                    {{ log.user?.name || 'Система' }}
+                    {{ log.user?.name || t('audit.system') }}
                   </div>
                   <div v-if="log.user?.role" class="text-xs text-gray-500">
-                    {{ USER_ROLE_LABELS[log.user.role] || log.user.role }}
+                    {{ t(`roles.${log.user.role}`) || log.user.role }}
                   </div>
                 </template>
                 <template v-else-if="col.key === 'action'">
@@ -186,7 +186,7 @@
 
                 <template v-else-if="col.key === 'actions'">
                   <button @click="showDetails(log)" class="text-blue-600 hover:text-blue-900">
-                    Детали
+                    {{ t('audit.details') }}
                   </button>
                 </template>
               </td>
@@ -208,7 +208,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.min.css'
 import Sortable from 'sortablejs'
@@ -217,6 +218,8 @@ import type { AuditLog, AuditLogFilters, AuditLogResponse } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, AUDIT_ACTION_COLORS, AUDIT_MODEL_LABELS } from '@/types/audit'
 import AuditLogDetailsModal from './AuditLogDetailsModal.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
+
+const { t } = useI18n()
 
 const logs = ref<AuditLog[]>([])
 const loading = ref(false)
@@ -240,13 +243,13 @@ const pagination = ref<{
   total: number
 } | null>(null)
 
-const columns = ref([
-  { key: 'created_at', label: 'Время' },
-  { key: 'user', label: 'Сотрудник' },
-  { key: 'action', label: 'Действие' },
-  { key: 'auditable_type', label: 'Модель' },
-  { key: 'auditable_id', label: 'ID' },
-  { key: 'actions', label: 'Действия' },
+const columns = computed(() => [
+  { key: 'created_at', label: t('audit.columnTime') },
+  { key: 'user', label: t('audit.columnEmployee') },
+  { key: 'action', label: t('audit.columnAction') },
+  { key: 'auditable_type', label: t('audit.columnModel') },
+  { key: 'auditable_id', label: t('audit.columnId') },
+  { key: 'actions', label: t('audit.columnActions') },
 ])
 const columnsHeader = ref(null)
 
@@ -314,14 +317,6 @@ const formatDate = (dateString: string) => {
 const dateFromInput = ref(null)
 const dateToInput = ref(null)
 
-const USER_ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  designer: 'Дизайнер',
-  print_operator: 'Печатник',
-  workshop_worker: 'Работник цеха',
-  user: 'Сотрудник',
-}
 
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 function validatePerPage(val: any) {

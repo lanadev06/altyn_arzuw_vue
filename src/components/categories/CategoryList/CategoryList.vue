@@ -3,11 +3,11 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
@@ -15,7 +15,7 @@
         <div
           class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
         >
-          <span class="text-gray-600 font-semibold">На странице:</span>
+          <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
           <select
             v-model.number="perPage"
             @change="changePerPage"
@@ -29,7 +29,7 @@
           @click="showCreateModal = true"
           class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
-          Добавить категорию
+          {{ t('categories.addCategory') }}
         </button>
       </div>
     </div>
@@ -134,7 +134,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка категорий...
+                {{ t('categories.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -144,7 +144,7 @@
             </tr>
             <tr v-if="!loading && !error && (!pagination.data || pagination.data.length === 0)">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                {{ props.search ? 'Категории не найдены' : 'Категории отсутствуют' }}
+                {{ props.search ? t('categories.notFound') : t('categories.noCategories') }}
               </td>
             </tr>
           </tbody>
@@ -187,6 +187,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
 import CategoryFormModal from './CategoryFormModal.vue'
@@ -197,6 +198,8 @@ import { toast } from '@/stores/toast'
 import Sortable from 'sortablejs'
 import { useBulkActions } from '@/composables/useBulkActions'
 import BulkActionPanel from '@/components/ui/BulkActionPanel.vue'
+
+const { t, locale } = useI18n()
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -219,16 +222,29 @@ interface Column {
 }
 
 // Колонки таблицы
-const columns = ref(
-  savedColumns
-    ? JSON.parse(savedColumns)
-    : [
-        { key: 'id', label: 'ID', sortable: true },
-        { key: 'name', label: 'Название', sortable: true },
-        { key: 'created_at', label: 'Создано', sortable: true },
-        { key: 'updated_at', label: 'Обновлено', sortable: false },
-      ],
-)
+const defaultColumns = computed(() => [
+  { key: 'id', label: t('categories.columnId'), sortable: true },
+  { key: 'name', label: t('categories.columnName'), sortable: true },
+  { key: 'created_at', label: t('categories.columnCreatedAt'), sortable: true },
+  { key: 'updated_at', label: t('categories.columnUpdatedAt'), sortable: false },
+])
+
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns.value)
+
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = defaultColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+})
 
 // Получаем переменные из контроллера
 const { pagination, loading, error, fetchCategories, sortBy, sortOrder, update, remove } =
@@ -326,13 +342,13 @@ function editCategory(category: Category) {
 async function deleteCategory(category: Category) {
   if (!canDelete()) return
 
-  if (confirm(`Вы уверены, что хотите удалить категорию "${category.name}"?`)) {
+  if (confirm(t('categories.deleteConfirm', { name: category.name }))) {
     try {
       await remove(category.id)
-      toast.show('Категория успешно удалена!', 'success')
+      toast.show(t('categories.categoryDeleted'), 'success')
       fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
     } catch (error: any) {
-      toast.show(error.message || 'Ошибка удаления категории', 'error')
+      toast.show(error.message || t('categories.deleteError'), 'error')
     }
   }
 }
@@ -375,6 +391,10 @@ function formatDate(date: string | null | undefined) {
 
 // Загружаем данные при монтировании
 onMounted(async () => {
+  // Очищаем старые сохранённые колонки для применения переводов
+  localStorage.removeItem(COLUMNS_KEY)
+  columns.value = defaultColumns.value
+  
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {

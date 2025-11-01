@@ -1,9 +1,9 @@
 <template>
   <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 flex flex-col gap-4">
-    <div class="text-2xl font-extrabold text-blue-900 mb-2">Детали заказа</div>
+    <div class="text-2xl font-extrabold text-blue-900 mb-2">{{ t('order.details.orderDetails') }}</div>
     <div class="flex flex-col gap-3">
       <div class="flex items-center gap-2 text-base text-gray-800">
-        <span class="font-semibold w-28">Кол-во:</span>
+        <span class="font-semibold w-28">{{ t('order.details.quantity') }}</span>
         <EditableField
           v-if="order && canViewAllOrders()"
           :model-value="order.quantity || 0"
@@ -16,7 +16,7 @@
         <span v-else-if="order" class="text-gray-900">{{ order.quantity }}</span>
       </div>
       <div v-if="canViewPrices()" class="flex items-center gap-2 text-base text-gray-800">
-        <span class="font-semibold w-28">Общая сумма:</span>
+        <span class="font-semibold w-28">{{ t('order.details.totalSum') }}</span>
         <EditableField
           v-if="order && canViewAllOrders()"
           :model-value="order.price || 0"
@@ -30,15 +30,15 @@
         <span class="ml-1">TMT</span>
       </div>
       <div class="flex items-center gap-2 text-base text-gray-800 group">
-        <span class="font-semibold w-28">Дедлайн:</span>
+        <span class="font-semibold w-28">{{ t('order.details.deadline') }}</span>
         <div class="flex-1">
           <div v-if="!showDeadlineInput" class="flex items-center">
-            <span>{{ formatDateTime(order?.deadline) || 'Не установлен' }}</span>
+            <span>{{ formatDateTime(order?.deadline) || t('order.details.notSet') }}</span>
             <button
               v-if="canViewAllOrders()"
               @click="startDeadlineEdit"
               class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Изменить дедлайн"
+              :title="t('order.details.editDeadline')"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -61,12 +61,12 @@
               v-model="tempDeadline"
               type="datetime-local"
               class="w-48 text-gray-900 text-base p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white"
-              placeholder="Выберите дату и время"
+              :placeholder="t('order.details.selectDateTime')"
             />
             <button
               @click="confirmDeadline"
               class="p-1 rounded hover:bg-green-100 text-green-500"
-              title="Подтвердить"
+              :title="t('order.details.confirm')"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -86,7 +86,7 @@
             <button
               @click="clearDeadline"
               class="p-1 rounded hover:bg-yellow-100 text-yellow-600"
-              title="Очистить дедлайн"
+              :title="t('order.details.clearDeadline')"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -106,7 +106,7 @@
             <button
               @click="cancelDeadline"
               class="p-1 rounded hover:bg-red-100 text-red-500"
-              title="Отмена"
+              :title="t('order.details.cancel')"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -132,7 +132,7 @@
       <span
         class="px-3 py-1 rounded-full text-xs font-normal bg-gray-100 text-gray-500 border border-gray-200"
       >
-        Архивировано: {{ formatArchiveDate(order.archived_at) }}
+        {{ t('order.details.archived') }} {{ formatArchiveDate(order.archived_at) }}
       </span>
     </div>
   </div>
@@ -140,10 +140,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import EditableField from '../../ui/EditableField.vue'
 import { canCreateEdit, canViewPrices, canViewAllOrders } from '../../../utils/permissions'
 import { toast } from '../../../stores/toast'
 import type { OrderInfo } from '../../../types/orderDetails'
+
+const { t } = useI18n()
 
 
 interface Props {
@@ -198,9 +201,9 @@ async function confirmDeadline() {
   try {
     emit('update-field', 'deadline', deadline || null)
     showDeadlineInput.value = false
-    toast.show('Дедлайн обновлен успешно!')
+    toast.show(t('order.details.deadlineUpdated'), 'success')
   } catch (error) {
-    toast.show('Ошибка при обновлении дедлайна', 'error')
+    toast.show(t('order.details.deadlineUpdateError'), 'error')
   }
 }
 
@@ -211,9 +214,9 @@ async function clearDeadline() {
     emit('update-field', 'deadline', null)
     showDeadlineInput.value = false
     tempDeadline.value = ''
-    toast.show('Дедлайн очищен!')
+    toast.show(t('order.details.deadlineUpdated'), 'success')
   } catch (error) {
-    toast.show('Ошибка при очистке дедлайна', 'error')
+    toast.show(t('order.details.deadlineClearError'), 'error')
   }
 }
 

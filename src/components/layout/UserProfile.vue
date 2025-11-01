@@ -16,7 +16,7 @@
         </span>
       </div>
       <div class="text-left hidden sm:block">
-        <p class="text-white text-sm font-medium">{{ safeUser.name || 'Загрузка...' }}</p>
+        <p class="text-white text-sm font-medium">{{ safeUser.name || t('profile.loading') }}</p>
         <p class="text-blue-100 text-xs">
           <template v-if="safeUser.roles && safeUser.roles.length">
             <span
@@ -66,20 +66,20 @@
 
         <!-- Имя -->
         <div>
-          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Имя</label>
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">{{ t('profile.name') }}</label>
           <input
             v-model="profileData.name"
             type="text"
             class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
             :class="{ 'border-red-500': validationErrors.name }"
-            placeholder="Введите ваше имя"
+            :placeholder="t('profile.enterName')"
           />
           <p v-if="validationErrors.name" class="text-red-500 text-xs mt-1">{{ validationErrors.name }}</p>
         </div>
 
         <!-- Загрузка фото -->
         <div>
-          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-3">Фото профиля</label>
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-3">{{ t('profile.profilePhoto') }}</label>
           <div class="flex items-center gap-2 sm:gap-4">
             <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
               <img
@@ -105,46 +105,46 @@
                   @click.stop="fileInput?.click()"
                   class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Изменить
+                  {{ t('profile.change') }}
                 </button>
                 <button
                   v-if="userImageUrl"
                   @click.stop="removePhoto"
                   class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                 >
-                  Удалить
+                  {{ t('profile.remove') }}
                 </button>
               </div>
-              <p class="text-xs text-gray-500">JPG, PNG до 2MB</p>
+              <p class="text-xs text-gray-500">{{ t('profile.photoFormat') }}</p>
             </div>
           </div>
         </div>
 
         <!-- Телефон -->
         <div>
-          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Номер телефона</label>
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">{{ t('profile.phoneNumber') }}</label>
           <input
             v-model="profileData.phone"
             @input="handlePhoneChange"
             type="text"
             class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
             :class="{ 'border-red-500': validationErrors.phone }"
-            placeholder="+993 XX YYYYYY"
+            :placeholder="t('profile.phonePlaceholder')"
           />
           <p v-if="validationErrors.phone" class="text-red-500 text-xs mt-1">{{ validationErrors.phone }}</p>
-          <p v-else class="text-xs text-gray-500 mt-1">Формат: +993 XX YYYYYY (например: +993 12 345678)</p>
+          <p v-else class="text-xs text-gray-500 mt-1">{{ t('profile.phoneFormat') }}</p>
         </div>
 
         <!-- Смена пароля -->
         <div class="space-y-3">
-          <h3 class="text-xs sm:text-sm font-medium text-gray-700">Смена пароля</h3>
+          <h3 class="text-xs sm:text-sm font-medium text-gray-700">{{ t('profile.changePassword') }}</h3>
           <div>
             <input
               v-model="passwordData.currentPassword"
               type="password"
               class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.currentPassword }"
-              placeholder="Текущий пароль"
+              :placeholder="t('profile.currentPassword')"
             />
             <p v-if="validationErrors.currentPassword" class="text-red-500 text-xs mt-1">{{ validationErrors.currentPassword }}</p>
           </div>
@@ -154,7 +154,7 @@
               type="password"
               class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.newPassword }"
-              placeholder="Новый пароль"
+              :placeholder="t('profile.newPassword')"
             />
             <p v-if="validationErrors.newPassword" class="text-red-500 text-xs mt-1">{{ validationErrors.newPassword }}</p>
           </div>
@@ -164,7 +164,7 @@
               type="password"
               class="w-full px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder-gray-400"
               :class="{ 'border-red-500': validationErrors.confirmPassword }"
-              placeholder="Подтвердите новый пароль"
+              :placeholder="t('profile.confirmNewPassword')"
             />
             <p v-if="validationErrors.confirmPassword" class="text-red-500 text-xs mt-1">{{ validationErrors.confirmPassword }}</p>
           </div>
@@ -177,7 +177,7 @@
             :disabled="isSaving"
             class="w-full px-3 py-2 sm:px-4 text-xs sm:text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {{ isSaving ? 'Сохранение...' : 'Сохранить изменения' }}
+            {{ isSaving ? t('profile.saving') : t('profile.saveChanges') }}
           </button>
         </div>
         
@@ -195,7 +195,7 @@
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               ></path>
             </svg>
-            Выйти
+            {{ t('profile.logout') }}
           </button>
         </div>
       </div>
@@ -207,9 +207,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { API_CONFIG } from '../../config/api'
 import { apiRequest } from '../../services/api'
 import { getUserImageUrl } from '../../utils/user'
+
+const { t } = useI18n()
 
 defineOptions({
   name: 'UserProfile'
@@ -449,14 +452,14 @@ const validateForm = async () => {
 
   // Валидация телефона
   if (profileData.value.phone && !/^\+993\s\d{2}\s\d{6}$/.test(profileData.value.phone)) {
-    validationErrors.value.phone = 'Неверный формат номера телефона'
+    validationErrors.value.phone = t('profile.invalidPhoneFormat')
     isValid = false
   }
 
   // Валидация паролей
   if (passwordData.value.newPassword) {
     if (!passwordData.value.currentPassword) {
-      validationErrors.value.currentPassword = 'Введите текущий пароль'
+      validationErrors.value.currentPassword = t('profile.enterCurrentPassword')
       isValid = false
     } else {
       // Проверяем текущий пароль через API
@@ -469,22 +472,22 @@ const validateForm = async () => {
         })
         
         if (!(result as any).valid) {
-          validationErrors.value.currentPassword = 'Неверный текущий пароль'
+          validationErrors.value.currentPassword = t('profile.invalidCurrentPassword')
           isValid = false
         }
       } catch (error) {
-        validationErrors.value.currentPassword = 'Ошибка при проверке пароля'
+        validationErrors.value.currentPassword = t('profile.passwordCheckError')
         isValid = false
       }
     }
     
     if (passwordData.value.newPassword.length < 6) {
-      validationErrors.value.newPassword = 'Пароль должен содержать минимум 6 символов'
+      validationErrors.value.newPassword = t('profile.passwordMinLength')
       isValid = false
     }
     
     if (passwordData.value.newPassword !== passwordData.value.confirmPassword) {
-      validationErrors.value.confirmPassword = 'Пароли не совпадают'
+      validationErrors.value.confirmPassword = t('profile.passwordsDontMatch')
       isValid = false
     }
   }

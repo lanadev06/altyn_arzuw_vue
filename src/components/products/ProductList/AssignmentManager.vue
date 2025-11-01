@@ -3,18 +3,18 @@
     <div v-if="title" class="flex items-center justify-between">
       <h4 class="text-sm font-medium text-gray-700">{{ title }}</h4>
       <UIButton type="button" variant="primary" size="sm" @click="addAssignment">
-        Добавить
+        {{ t('products.assignment.add') }}
       </UIButton>
     </div>
 
     <div v-else class="flex items-center justify-end">
       <UIButton type="button" variant="primary" size="sm" @click="addAssignment">
-        Добавить
+        {{ t('products.assignment.add') }}
       </UIButton>
     </div>
 
     <div v-if="assignments.length === 0" class="text-sm text-gray-500 italic py-2">
-      Назначения не добавлены
+      {{ t('products.assignment.notAdded') }}
     </div>
 
     <div v-else class="space-y-2">
@@ -28,7 +28,7 @@
             v-model="assignment.user"
             :options="availableUsers"
             label="name"
-            placeholder="Выберите пользователя"
+            :placeholder="t('products.assignment.selectUser')"
             :clearable="true"
             :searchable="true"
             @update:model-value="getUserSelectHandler(index)"
@@ -36,7 +36,7 @@
         </div>
 
         <UIButton type="button" variant="danger" size="sm" @click="removeAssignment(index)">
-          Удалить
+          {{ t('products.assignment.delete') }}
         </UIButton>
       </div>
     </div>
@@ -51,11 +51,14 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Vue3Select from 'vue3-select'
 import 'vue3-select/dist/vue3-select.css'
 import UIButton from '../../ui/UIButton.vue'
 import type { User } from '../../../types/user'
 import type { ProductAssignment } from '../../../types/api'
+
+const { t } = useI18n()
 
 defineOptions({
   name: 'AssignmentManager'

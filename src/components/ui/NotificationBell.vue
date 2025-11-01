@@ -27,13 +27,13 @@
         class="fixed right-6 top-20 w-96 max-w-[95vw] bg-white rounded-xl shadow-xl border border-blue-100 z-[9999] animate-slide-down"
       >
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span class="font-semibold text-blue-900 text-base">Уведомления</span>
+          <span class="font-semibold text-blue-900 text-base">{{ t('navbar.notifications') }}</span>
           <div class="flex items-center gap-2">
             <button
               @click="fetchNotifications"
               :disabled="loading"
               class="text-xs text-blue-600 hover:underline disabled:opacity-50"
-              title="Обновить"
+              :title="t('common.search')"
             >
               {{ loading ? '...' : '↻' }}
             </button>
@@ -42,13 +42,13 @@
               @click="markAllRead"
               class="text-xs text-blue-600 hover:underline"
             >
-              Прочитать все
+              {{ t('notifications.markAllRead') }}
             </button>
           </div>
         </div>
-        <div v-if="loading" class="p-6 text-center text-gray-500">Загрузка...</div>
+        <div v-if="loading" class="p-6 text-center text-gray-500">{{ t('common.loading') }}</div>
         <div v-else-if="notifications.length === 0" class="p-6 text-center text-gray-400">
-          Нет уведомлений
+          {{ t('notifications.noNotifications') }}
         </div>
         <ul v-else class="max-h-96 overflow-y-auto divide-y divide-gray-100">
           <li
@@ -156,7 +156,7 @@
                 class="text-sm text-gray-900 font-medium leading-snug"
                 v-html="
                   translateStatusInText(
-                    notif.data?.message || notif.data?.text || notif.text || 'Уведомление',
+                    notif.data?.message || notif.data?.text || notif.text || t('navbar.notifications'),
                   )
                 "
               />
@@ -179,11 +179,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { API_CONFIG } from '../../config/api'
 
 defineOptions({
   name: 'NotificationBell'
 })
+
+const { t } = useI18n()
 
 // Звук уведомления
 const notificationAudio =
@@ -373,47 +376,22 @@ function formatDate(date: string) {
 }
 
 function getRoleLabel(role: string) {
-  const roleLabels: Record<string, string> = {
-    admin: 'Администратор',
-    manager: 'Менеджер',
-    designer: 'Дизайнер',
-    user: 'Сотрудник',
-  }
-  return roleLabels[role] || role
+  return t(`roles.${role}`) || role
 }
 
-// Перевод статусов на русский язык
+// Перевод статусов используя i18n
 function getStatusLabelRu(status: string) {
-  const map: Record<string, string> = {
-    approved: 'Одобрено',
-    pending: 'Ожидание',
-    completed: 'Завершено',
-    cancelled: 'Отменено',
-    in_progress: 'В работе',
-    under_review: 'На проверке',
-    refused: 'Отказано',
-    draft: 'Черновик',
-    design: 'Дизайн',
-    print: 'Печать',
-    engraving: 'Гравировка',
-    workshop: 'Цех',
-    final: 'Финальный',
-    user: 'Сотрудник',
-    manager: 'Менеджер',
-    designer: 'Дизайнер',
-    print_operator: 'Печатник',
-    workshop_worker: 'Работник цеха',
-    completed_stage: 'Завершён',
-    // Добавьте другие статусы по необходимости
-  }
-  return map[status] || status
+  return t(`status.${status}`) || status
 }
 
 function translateStatusInText(text: string): string {
-  return text.replace(
-    /\b(approved|pending|completed|cancelled|in_progress|under_review|refused|draft|design|print|engraving|workshop|final)\b/gi,
-    (m) => getStatusLabelRu(m.toLowerCase()),
-  )
+  const statusKeys = ['approved', 'pending', 'completed', 'cancelled', 'in_progress', 'under_review', 'refused', 'draft', 'design', 'print', 'engraving', 'workshop', 'final']
+  let translatedText = text
+  statusKeys.forEach((key) => {
+    const regex = new RegExp(`\\b${key}\\b`, 'gi')
+    translatedText = translatedText.replace(regex, getStatusLabelRu(key))
+  })
+  return translatedText
 }
 
 onMounted(() => {

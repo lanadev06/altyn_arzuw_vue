@@ -4,28 +4,28 @@
     class="bg-white border border-red-100 rounded-xl shadow-md p-4 mb-6 flex flex-col gap-3 animate-fade-in"
   >
     <div class="text-red-500 text-base font-semibold mb-1">
-      Подтвердите отмену заказа
+      {{ t('order.confirmCancel') }}
     </div>
     
     <div class="flex flex-col gap-2">
-      <label class="font-medium text-gray-700 text-sm">Причина отмены</label>
+      <label class="font-medium text-gray-700 text-sm">{{ t('order.cancelReason') }}</label>
       <textarea
         v-model="reason"
         class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-200 transition w-full resize-none text-gray-900 bg-white"
-        placeholder="Опишите причину отмены..."
+        :placeholder="t('order.cancelReasonPlaceholder')"
         rows="2"
       />
     </div>
     
     <div class="flex flex-col gap-2">
-      <label class="font-medium text-gray-700 text-sm">Статус причины</label>
+      <label class="font-medium text-gray-700 text-sm">{{ t('order.reasonStatus') }}</label>
       <select
         v-model="reasonStatus"
         class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-200 transition w-full text-gray-900 bg-white"
       >
-        <option value="refused">Отказ клиента</option>
-        <option value="not_responding">Не отвечает</option>
-        <option value="defective_product">Брак/Дефект</option>
+        <option value="refused">{{ t('order.clientRefusal') }}</option>
+        <option value="not_responding">{{ t('order.notResponding') }}</option>
+        <option value="defective_product">{{ t('order.defectiveProduct') }}</option>
       </select>
     </div>
     
@@ -34,13 +34,13 @@
         @click="handleConfirm"
         class="rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-1.5 text-sm shadow transition"
       >
-        Подтвердить
+        {{ t('common.confirm') }}
       </button>
       <button
         @click="handleCancel"
         class="rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-4 py-1.5 text-sm shadow transition"
       >
-        Отмена
+        {{ t('common.cancel') }}
       </button>
     </div>
   </div>
@@ -48,7 +48,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 
 interface Props {
   show: boolean
@@ -73,7 +75,7 @@ watch(() => props.show, (newValue) => {
 
 function handleConfirm() {
   if (!reason.value.trim()) {
-    alert('Пожалуйста, укажите причину отмены!')
+    alert(t('order.cancelReasonPlaceholder'))
     return
   }
   

@@ -3,11 +3,11 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ translate('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || roles.length }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ translate('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
@@ -15,7 +15,7 @@
         <div
           class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
         >
-          <span class="text-gray-600 font-semibold">На странице:</span>
+          <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
           <select
             v-model.number="perPage"
             @change="changePerPage"
@@ -29,7 +29,7 @@
           @click="$emit('open-create-modal')"
           class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
-          Добавить роль
+          {{ translate('roles.addRole') }}
         </button>
       </div>
     </div>
@@ -141,7 +141,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка ролей...
+                {{ translate('roles.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -151,7 +151,7 @@
             </tr>
             <tr v-if="!loading && !error && roles.length === 0">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                {{ props.search ? 'Роли не найдены' : 'Роли отсутствуют' }}
+                {{ props.search ? translate('roles.notFound') : translate('roles.noRoles') }}
               </td>
             </tr>
           </tbody>
@@ -193,6 +193,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import RoleController from '../../../controllers/RoleController'
 import RoleFormModal from './RoleFormModal.vue'
 import { useBulkActions } from '@/composables/useBulkActions'
@@ -210,6 +211,9 @@ const props = defineProps<{
 const emit = defineEmits(['close-create-modal', 'open-create-modal'])
 
 const toast = useToast()
+
+const { t } = useI18n()
+const translate = t
 
 const pagination = ref<{
   current_page: number
@@ -245,11 +249,11 @@ const columns = ref(
     ? JSON.parse(savedColumns)
     : [
         { key: 'id', label: 'ID', sortable: true },
-        { key: 'name', label: 'Название', sortable: true },
-        { key: 'description', label: 'Описание', sortable: false },
-        { key: 'users_count', label: 'Пользователей', sortable: true },
-        { key: 'created_at', label: 'Создано', sortable: true },
-        { key: 'updated_at', label: 'Обновлено', sortable: false },
+        { key: 'name', label: translate('roles.columns.name'), sortable: true },
+        { key: 'description', label: translate('roles.columns.description'), sortable: false },
+        { key: 'users_count', label: translate('roles.columns.usersCount'), sortable: true },
+        { key: 'created_at', label: translate('roles.columns.created'), sortable: true },
+        { key: 'updated_at', label: translate('roles.columns.updated'), sortable: false },
       ],
 )
 

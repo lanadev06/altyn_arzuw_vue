@@ -28,6 +28,7 @@
     "tailwindcss": "^3.4.17",
     "vue": "^3.5.17",
     "vue-flatpickr-component": "^12.0.0",
+    "vue-i18n": "^9.14.5",
     "vue-router": "^4.5.1",
     "vue3-select": "^0.1.2"
   },

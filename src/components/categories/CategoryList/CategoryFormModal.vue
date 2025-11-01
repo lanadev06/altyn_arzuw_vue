@@ -2,7 +2,7 @@
   <Modal @close="$emit('close')">
     <template #header>
       <h2 class="text-xl font-semibold text-gray-900">
-        {{ category ? 'Редактировать категорию' : 'Создать категорию' }}
+        {{ category ? t('categories.editCategory') : t('categories.createCategory') }}
       </h2>
     </template>
 
@@ -10,11 +10,11 @@
       <!-- Название категории -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Название категории <span class="text-red-500">*</span>
+          {{ t('categories.categoryName') }} <span class="text-red-500">*</span>
         </label>
         <UIInput
           v-model="form.name"
-          placeholder="Введите название категории"
+          :placeholder="t('categories.enterCategoryName')"
           :error="errors.name"
           required
         />
@@ -28,14 +28,14 @@
           class="flex-1"
           :disabled="!form.name.trim()"
         >
-          {{ category ? 'Сохранить' : 'Создать' }}
+          {{ category ? t('categories.save') : t('categories.create') }}
         </UIButton>
 
         <UIButton v-if="category && canDelete()" type="button" variant="danger" @click="handleDelete">
-          Удалить
+          {{ t('categories.delete') }}
         </UIButton>
 
-        <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
+        <UIButton type="button" variant="secondary" @click="$emit('close')"> {{ t('categories.cancel') }} </UIButton>
       </div>
     </form>
   </Modal>
@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
@@ -51,6 +52,8 @@ import { createCategory, updateCategory, deleteCategory } from '../../../service
 import categoryController from '../../../controllers/categoryControllerInstance'
 import { toast } from '../../../stores/toast'
 import { canDelete } from '../../../utils/permissions'
+
+const { t } = useI18n()
 
 const props = defineProps<{ category?: Category | null }>()
 const emit = defineEmits(['close', 'submit', 'delete', 'saved'])
@@ -76,7 +79,7 @@ function validateForm(): boolean {
   let valid = true
 
   if (!form.name.trim()) {
-    errors.name = 'Название обязательно'
+    errors.name = t('categories.nameRequired')
     valid = false
   }
 
@@ -102,7 +105,7 @@ async function handleSubmit() {
       await create(categoryData)
     }
 
-    toast.show(`Категория ${props.category ? 'обновлена' : 'создана'} успешно!`)
+    toast.show(`${props.category ? t('categories.categoryUpdated') : t('categories.categoryCreated')} ${t('categories.categorySuccess')}`)
     emit('saved')
     emit('close')
   } catch (error) {
@@ -138,7 +141,7 @@ async function handleDelete() {
 
   try {
     await remove(props.category.id)
-    toast.show('Категория успешно удалена!', 'success')
+    toast.show(t('categories.categoryDeleted'), 'success')
     emit('delete', props.category.id)
     emit('close')
   } catch (error: any) {

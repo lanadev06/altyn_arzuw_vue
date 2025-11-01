@@ -9,37 +9,37 @@
           class="px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style="min-width: 200px"
         >
-          <option value="">Все категории</option>
+          <option value="">{{ t('products.allCategories') }}</option>
           <option v-for="category in availableCategories" :key="category.id" :value="category.id">
             {{ category.name }}
           </option>
         </select>
       </div>
       <UIButton v-if="canCreateEdit()" @click="showCreateModal = true" variant="primary"
-        >Добавить товар</UIButton
+        >{{ t('products.addProduct') }}</UIButton
       >
     </div>
 
     <div class="flex-1 flex flex-col min-h-0">
       <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
-        <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500 font-semibold">Всего:</span>
-            <span class="text-blue-600 font-bold">{{
-              pagination && pagination.total ? pagination.total : 0
-            }}</span>
+          <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
+            <div class="flex items-center gap-1">
+              <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
+              <span class="text-blue-600 font-bold">{{
+                pagination && pagination.total ? pagination.total : 0
+              }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
+              <span class="text-blue-600 font-bold">{{
+                pagination && pagination.last_page ? pagination.last_page : 1
+              }}</span>
+            </div>
           </div>
-          <div class="flex items-center gap-1">
-            <span class="text-gray-500 font-semibold">Страницы:</span>
-            <span class="text-blue-600 font-bold">{{
-              pagination && pagination.last_page ? pagination.last_page : 1
-            }}</span>
-          </div>
-        </div>
-        <div
-          class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
-        >
-          <span class="text-gray-600 font-semibold">На странице:</span>
+          <div
+            class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
+          >
+            <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
           <select
             v-model.number="perPage"
             @change="changePerPage"
@@ -130,7 +130,7 @@
                       {{ category.name }}
                     </span>
                     <span v-if="!product.categories || product.categories.length === 0" class="text-gray-400 text-sm">
-                      Нет категорий
+                      {{ t('products.noCategories') }}
                     </span>
                   </div>
                 </template>
@@ -139,7 +139,7 @@
                   <AssignmentDisplay
                     :assignments="getStageAssignments(product, col.stageId, col.roleType)"
                     :role-type="col.roleType"
-                    empty-message="Не назначены"
+                    :empty-message="t('products.notAssigned')"
                   />
                   <!-- Отладочная информация -->
                   <div v-if="false" class="text-xs text-gray-400">
@@ -160,7 +160,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
-                Загрузка товаров...
+                {{ t('products.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -170,7 +170,7 @@
             </tr>
             <tr v-if="!loading && !error && pagination.data.length === 0">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500">
-                {{ props.search ? 'Товары не найдены' : 'Товары отсутствуют' }}
+                {{ props.search ? t('products.notFound') : t('products.noProducts') }}
               </td>
             </tr>
           </tbody>
@@ -219,6 +219,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
 import Pagination from '@/components/users/UserList/Pagination.vue'
@@ -232,6 +233,8 @@ import { toast } from '@/stores/toast'
 import { getAllStages, getAllCategories } from '@/services/api'
 import { useBulkActions } from '../../../composables/useBulkActions'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
+
+const { t, locale } = useI18n()
 
 const props = defineProps({
   search: { type: String, default: '' },
@@ -262,12 +265,12 @@ interface Column {
 }
 
 // Базовые колонки (без статичных колонок для ролей)
-const baseColumns: Column[] = [
+const baseColumns = computed(() => [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Название', sortable: true },
-  { key: 'categories', label: 'Категории', sortable: false },
-  { key: 'created_at', label: 'Создано', sortable: true },
-]
+  { key: 'name', label: t('products.columns.name'), sortable: true },
+  { key: 'categories', label: t('products.columns.categories'), sortable: false },
+  { key: 'created_at', label: t('products.columns.created'), sortable: true },
+])
 
 // Сначала определяем pagination и другие переменные из контроллера
 const { pagination, loading, error, fetchProducts, sortBy, sortOrder, update, remove } =
@@ -296,7 +299,7 @@ async function handleBulkDelete() {
 const dynamicColumns = computed<Column[]>(() => {
   try {
     // Создаем базовые колонки
-    const columns = [...baseColumns]
+    const columns = [...baseColumns.value]
 
     // Получаем все уникальные стадии с назначениями из всех продуктов
     const stageAssignments = new Map()
@@ -358,9 +361,32 @@ const dynamicColumns = computed<Column[]>(() => {
   }
 })
 
-// Инициализируем columns из localStorage или используем dynamicColumns
+// Функция для инициализации колонок с правильными переводами
+const initializeColumns = (savedColsData: any) => {
+  if (!savedColsData) return dynamicColumns.value
+  return savedColsData.map((col: any) => {
+    const defaultCol = baseColumns.value.find((dc: any) => dc.key === col.key)
+    return defaultCol ? { ...col, label: defaultCol.label } : col
+  })
+}
+
 const savedColumnsData = savedColumns ? JSON.parse(savedColumns) : null
-const columns = ref<Column[]>(savedColumnsData || [])
+const columns = ref<Column[]>(initializeColumns(savedColumnsData))
+
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = dynamicColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = baseColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+})
 
 // Если нет сохраненных колонок, инициализируем из dynamicColumns
 if (!savedColumnsData) {
@@ -497,7 +523,7 @@ function setSort(key: string, search = '') {
 }
 
 function resetSettings() {
-  columns.value = [...baseColumns]
+  columns.value = [...baseColumns.value]
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
   sortBy.value = 'name'
   sortOrder.value = 'asc'
@@ -571,17 +597,17 @@ async function handleDeleteProduct(productId: number) {
     if (pagination?.data?.length === 1 && currentPage.value > 1) {
       currentPage.value--
     }
-    toast.show('Товар успешно удален!', 'success')
+    toast.show(t('products.productDeleted'), 'success')
   } catch (e: any) {
     // Обрабатываем ошибки от сервера
-    let message = 'Произошла неизвестная ошибка при удалении товара'
+    let message = t('products.deleteError')
 
     if (e?.response?.data?.message) {
       // Ошибка от Laravel (например, товар используется в заказах)
       message = e.response.data.message
     } else if (e.message && e.message.includes('Ошибка удаления товара')) {
       // Если ошибка 404 — просто закрыть модалку и обновить список
-      toast.show('Товар уже был удалён')
+      toast.show(t('products.productDeletedAlready'))
       showEditModal.value = false
       editingProduct.value = null
       // Обновить список, чтобы убрать "мертвый" товар
@@ -596,7 +622,7 @@ async function handleDeleteProduct(productId: number) {
       )
       return
     } else if (e instanceof Error && e.message) {
-      message = `Ошибка удаления товара: ${e.message}`
+      message = `${t('products.deleteErrorUnknown')}: ${e.message}`
     }
 
     toast.show(message, 'error')

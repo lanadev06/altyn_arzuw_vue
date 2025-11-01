@@ -2,7 +2,7 @@
   <div class="flex-1">
     <!-- Заголовок -->
     <div class="mb-3">
-      <h3 class="text-base font-medium text-gray-700">История изменений стадий</h3>
+      <h3 class="text-base font-medium text-gray-700">{{ t('order.details.stageHistory') }}</h3>
     </div>
     
     <!-- Timeline -->
@@ -13,7 +13,7 @@
         class="flex items-center bg-white rounded-lg shadow-sm p-3 border border-gray-100 min-h-[48px]"
       >
         <div class="flex-1 flex flex-row items-center gap-3">
-          <span class="font-medium text-gray-600 text-sm">Стадия изменена</span>
+          <span class="font-medium text-gray-600 text-sm">{{ t('order.details.stageChanged') }}</span>
           <span class="text-xs text-gray-500">{{ formatTime(log.changed_at) }}</span>
           <span
             class="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
@@ -25,7 +25,7 @@
             >{{ getStatusText(log.to_status) }}</span
           >
           <span class="text-xs text-gray-500 ml-2">
-            {{ log.user?.name || 'Неизвестно' }}
+            {{ log.user?.name || t('order.details.unknown') }}
           </span>
         </div>
         <div class="ml-3 flex-shrink-0">
@@ -39,14 +39,17 @@
       
       <!-- Сообщение когда нет логов -->
       <div v-if="statusLogs.length === 0" class="text-center py-4">
-        <p class="text-gray-400 text-sm">История изменений стадий пока пуста</p>
+        <p class="text-gray-400 text-sm">{{ t('order.details.emptyHistory') }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { StatusLog, Role, Stage } from '../../../types/orderDetails'
+
+const { t } = useI18n()
 
 
 interface Props {
@@ -71,12 +74,12 @@ function formatTime(date: string) {
   
   // Если сегодня
   if (logDate.getTime() === today.getTime()) {
-    return `Сегодня в ${dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+    return t('order.details.todayAt') + ' ' + dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   }
   
   // Если вчера
   if (logDate.getTime() === yesterday.getTime()) {
-    return `Вчера в ${dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+    return t('order.details.yesterdayAt') + ' ' + dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   }
   
   // Иначе показываем полную дату и время
@@ -84,7 +87,7 @@ function formatTime(date: string) {
     day: '2-digit', 
     month: '2-digit', 
     year: 'numeric' 
-  }) + ' в ' + dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  }) + ' ' + t('order.details.at') + ' ' + dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
 function getStatusText(stage: string) {

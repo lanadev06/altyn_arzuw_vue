@@ -67,12 +67,14 @@ export const canViewUsersData = () => isAdminOrManager() || isStaff()
 export const canViewOrderComments = () => isAdminOrManager() || isStaff()
 export const canUpdateAssignmentStatus = () => isAdminOrManager() || isStaff()
 
-// Навигация
+// Навигация - теперь использует i18n из компонентов
+// Эта функция устарела, но оставлена для обратной совместимости
 export function getNavigationText(item: string): string {
+  // Переводы будут использоваться напрямую в компонентах через t()
   const texts: Record<string, string> = {
-    orders: isStaff() ? 'Мои заказы' : 'Заказы',
-    projects: isStaff() ? 'Мои проекты' : 'Проекты',
-    products: isStaff() ? 'Мои товары' : 'Товары',
+    orders: isStaff() ? 'myOrders' : 'orders',
+    projects: isStaff() ? 'myProjects' : 'projects',
+    products: isStaff() ? 'myProducts' : 'products',
   }
   return texts[item] || item
 }

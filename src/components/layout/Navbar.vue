@@ -13,6 +13,7 @@
       />
     </div>
     <div class="flex items-center gap-2">
+      <LanguageSwitcher />
       <NotificationBell :user="currentUser" />
       <UserProfile :user="currentUser" @logout="$emit('logout')" @profile-updated="handleProfileUpdated" />
     </div>
@@ -26,6 +27,8 @@ import { authApi } from '../../services/api'
 import { useRoute, useRouter } from 'vue-router'
 import SearchInput from '../ui/SearchInput.vue'
 import NotificationBell from '../ui/NotificationBell.vue'
+import LanguageSwitcher from '../ui/LanguageSwitcher.vue'
+import { useI18n } from 'vue-i18n'
 
 defineOptions({
   name: 'Navbar'
@@ -35,7 +38,36 @@ const emit = defineEmits(['logout', 'search'])
 
 const route = useRoute()
 const router = useRouter()
-const pageTitle = computed(() => route.meta.title || 'Панель управления')
+const { t } = useI18n()
+
+// Маппинг заголовков страниц для переводов
+const pageTitleMap: Record<string, string> = {
+  'Панель управления': 'navbar.dashboard',
+  'Сотрудники': 'common.users',
+  'Клиенты': 'common.clients',
+  'Проекты': 'common.projects',
+  'Товары': 'common.products',
+  'Заказы': 'common.orders',
+  'Действия': 'common.audit',
+  'Управление стадиями': 'common.stages',
+  'Управление ролями': 'common.roles',
+  'Категории': 'common.categories',
+  'Вход в систему': 'login.title',
+}
+
+const pageTitle = computed(() => {
+  const metaTitle = route.meta.title as string
+  if (!metaTitle) return t('navbar.dashboard')
+  
+  // Проверяем, есть ли ключ перевода для этого заголовка
+  const translationKey = pageTitleMap[metaTitle]
+  if (translationKey) {
+    return t(translationKey)
+  }
+  
+  // Если ключа нет, возвращаем как есть (на случай других заголовков)
+  return metaTitle
+})
 
 const currentUser = ref<{
   id?: number
@@ -73,10 +105,10 @@ watch(searchQuery, (val) => {
 
 const searchPlaceholder = computed(() =>
   route.path === '/users'
-    ? 'Поиск по имени или логину...'
+    ? t('common.searchByNameOrLogin')
     : route.path === '/clients'
-      ? 'Поиск по имени клиента...'
-      : 'Поиск...',
+      ? t('common.searchByClientName')
+      : t('common.searchPlaceholder'),
 )
 
 function handleSearchInput() {

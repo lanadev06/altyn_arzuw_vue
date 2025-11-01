@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center gap-4 mb-2">
       <div class="text-3xl font-extrabold text-gray-900 tracking-tight">
-        Заказ #{{ order?.id }}
+        {{ t('common.orders') }} #{{ order?.id }}
       </div>
       
       
@@ -28,7 +28,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { OrderInfo as OrderInfoType } from '../../../types/orderDetails'
+
+const { t } = useI18n() // Используется только для "Заказ #" в заголовке
 
 
 interface Stage {
@@ -52,18 +55,15 @@ function getCurrentStage(orderData: OrderInfoType | null): string {
 }
 
 function getStatusText(stage: string) {
-  const stageLabels: Record<string, string> = {
-    draft: 'Черновик',
-    design: 'Дизайн',
-    print: 'Печать',
-    engraving: 'Гравировка',
-    workshop: 'Цех',
-    die_cutting: 'Высечка',
-    final: 'Финал',
-    completed: 'Завершен',
-    cancelled: 'Отменен',
+  // Используем динамические данные из props.stages (приходят с сервера)
+  if (props.stages) {
+    const stageData = props.stages.find((s) => s.value === stage)
+    if (stageData?.label) {
+      return stageData.label
+    }
   }
-  return stageLabels[stage] || stage
+  // Fallback - показываем как есть, если данных нет
+  return stage
 }
 
 function statusBadge(stage: string) {

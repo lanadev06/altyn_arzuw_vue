@@ -3,7 +3,7 @@
     <div class="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       <ReadOnlyMessage
         v-if="!canCreateEdit()"
-        message="Вы можете только просматривать проекты. Создание и редактирование доступно только администраторам и менеджерам."
+        :message="t('projects.viewOnlyMessage')"
       />
       <ProjectList
         :search="search"
@@ -16,11 +16,14 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import ProjectList from '../components/projects/ProjectList/ProjectList.vue'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit } from '../utils/permissions'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const search = ref(route.query.search || '')

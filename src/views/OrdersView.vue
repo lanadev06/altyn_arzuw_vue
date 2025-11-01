@@ -11,14 +11,14 @@
           :class="{ 'opacity-70': !isTableView }"
           @click="isTableView = true"
         >
-          Таблица
+          {{ t('table.table') }}
         </button>
         <button
           class="px-4 py-2 rounded-lg font-semibold text-white bg-purple-600 hover:bg-purple-700 transition"
           :class="{ 'opacity-70': isTableView }"
           @click="isTableView = false"
         >
-          Канбан
+          {{ t('table.kanban') }}
         </button>
         <select
           v-model="selectedAssignmentStatus"
@@ -26,9 +26,9 @@
           class="w-48 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
           style="margin-left: 1rem"
         >
-          <option value="">Все назначения</option>
-          <option value="pending">Ожидание</option>
-          <option value="in_progress">В работе</option>
+          <option value="">{{ t('table.allAssignments') }}</option>
+          <option value="pending">{{ t('status.pending') }}</option>
+          <option value="in_progress">{{ t('status.in_progress') }}</option>
         </select>
       </div>
       <OrderList v-if="isTableView" ref="orderListRef" :search="search" data-order-list />
@@ -78,7 +78,10 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed, defineAsyncComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+
+const { t } = useI18n()
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'

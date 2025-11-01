@@ -16,10 +16,10 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900">
-            {{ client ? 'Редактировать клиента' : 'Добавить клиента' }}
+            {{ client ? t('clients.form.editClient') : t('clients.form.addClient') }}
           </h2>
           <p class="text-sm text-gray-500 mt-1">
-            {{ client ? 'Обновите информацию о клиенте' : 'Создайте нового клиента в системе' }}
+            {{ client ? t('clients.form.updateInfo') : t('clients.form.createNew') }}
           </p>
         </div>
       </div>
@@ -36,17 +36,17 @@
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
             ></path>
           </svg>
-          Основная информация
+          {{ t('clients.form.mainInfo') }}
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <span class="text-red-500">*</span>
-              Имя
+              {{ t('clients.form.name') }}
             </label>
             <UIInput
               v-model="form.name"
-              placeholder="Введите имя клиента"
+              :placeholder="t('clients.form.enterClientName')"
               :error="errors.name"
               required
               @input="
@@ -57,10 +57,10 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Компания</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ t('clients.form.company') }}</label>
             <UIInput
               v-model="form.company_name"
-              placeholder="Введите название компании"
+              :placeholder="t('clients.form.enterCompanyName')"
               :error="errors.company_name"
             />
           </div>
@@ -77,7 +77,7 @@
               d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
             ></path>
           </svg>
-          Контактная информация
+          {{ t('clients.form.contactInfo') }}
         </h3>
         <div class="space-y-4">
           <div
@@ -91,19 +91,19 @@
               required
               @change="handleContactTypeChange($event, idx)"
             >
-              <option value="phone">Телефон</option>
-              <option value="email">Email</option>
-              <option value="telegram">Telegram</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="instagram">Instagram</option>
-              <option value="other">Другое</option>
+              <option value="phone">{{ t('contacts.phone') }}</option>
+              <option value="email">{{ t('contacts.email') }}</option>
+              <option value="telegram">{{ t('contacts.telegram') }}</option>
+              <option value="whatsapp">{{ t('contacts.whatsapp') }}</option>
+              <option value="instagram">{{ t('contacts.instagram') }}</option>
+              <option value="other">{{ t('contacts.other') }}</option>
             </select>
             <ContactTypeIcon :type="contact.type || 'phone'" />
             <UIInputNoError
               v-if="contact.type === 'phone'"
               :model-value="contact.value ?? ''"
               @update:model-value="(value) => handleContactValueChange(String(value || ''), idx)"
-              placeholder="Значение"
+              :placeholder="t('clients.form.contactValue')"
               :error="errors.contactErrors[idx]"
               required
               class="flex-1"
@@ -112,7 +112,7 @@
               v-else
               :model-value="contact.value ?? ''"
               @update:model-value="(value) => handleContactValueChange(value, idx)"
-              placeholder="Значение"
+              :placeholder="t('clients.form.contactValue')"
               required
               class="flex-1"
             />
@@ -131,7 +131,7 @@
             @click="addContact"
             class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
           >
-            + Добавить контакт
+            + {{ t('clients.form.addContact') }}
           </UIButton>
         </div>
         <div v-if="errors.contacts" class="text-red-600 text-sm mt-3 flex items-center gap-1">
@@ -153,13 +153,13 @@
           :disabled="loading"
           class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         >
-          {{ client ? 'Сохранить изменения' : 'Создать клиента' }}
+          {{ client ? t('clients.form.saveChanges') : t('clients.form.createClient') }}
         </UIButton>
         <UIButton v-if="client && canDelete()" type="button" variant="danger" @click="handleDelete" class="px-6">
-          Удалить
+          {{ t('clients.form.delete') }}
         </UIButton>
         <UIButton v-else type="button" variant="secondary" @click="$emit('close')" class="px-6">
-          Отмена
+          {{ t('clients.form.cancel') }}
         </UIButton>
       </div>
     </form>
@@ -168,6 +168,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '@/components/ui/Modal.vue'
 import UIInput from '@/components/ui/UIInput.vue'
 import UIInputNoError from '@/components/ui/UIInputNoError.vue'
@@ -177,6 +178,8 @@ import clientController from '@/controllers/clientControllerInstance'
 import ContactTypeIcon from '@/components/clients/ClientList/ContactTypeIcon.vue'
 import { toast } from '@/stores/toast'
 import { canDelete } from '@/utils/permissions'
+
+const { t } = useI18n()
 
 const { createContact, updateContact, removeContact, create, update, remove } = clientController
 
@@ -251,7 +254,7 @@ const validatePhoneNumber = (phone: string): string => {
   const phoneRegex = /^\+993\d{8}$/
 
   if (!phoneRegex.test(cleanPhone)) {
-    return 'Телефон должен быть в формате +993 XX YYYYYY'
+    return t('clients.form.invalidPhoneFormat')
   }
 
   const operatorCode = cleanPhone.substring(4, 6)
@@ -346,7 +349,7 @@ const validatePhoneNumber = (phone: string): string => {
   ]
 
   if (!validCodes.includes(operatorCode)) {
-    return 'Неверный код оператора. Используйте код оператора Туркменистана'
+    return t('clients.form.invalidOperatorCode')
   }
 
   return ''
@@ -405,13 +408,13 @@ function validateForm() {
   let valid = true
 
   if (!form.name || !form.name.trim()) {
-    errors.name = 'Имя обязательно'
+    errors.name = t('clients.form.nameRequired')
     valid = false
   }
 
   const phoneContacts = form.contacts.filter((c) => c.type === 'phone')
   if (phoneContacts.length === 0) {
-    errors.contacts = 'Нужно указать хотя бы один телефон'
+    errors.contacts = t('clients.form.phoneRequired')
     valid = false
   }
 
@@ -419,7 +422,7 @@ function validateForm() {
     const c = form.contacts[i]
 
     if (!c.value || !c.type) {
-      errors.contacts = 'Все контакты должны быть заполнены'
+      errors.contacts = t('clients.form.allContactsRequired')
       valid = false
       break
     }
@@ -462,7 +465,7 @@ async function handleSubmit() {
         contacts: contactsData as any, // Backend ожидает массив с type и value
       }
       await update(clientId, clientData)
-      toast.show('Клиент успешно обновлён!')
+      toast.show(t('clients.form.clientUpdated'))
     } else {
       // Создание нового клиента
       const clientData: Partial<Client> = {
@@ -472,7 +475,7 @@ async function handleSubmit() {
       }
       const created = await create(clientData)
       clientId = created.id
-      toast.show('Клиент успешно добавлен!')
+      toast.show(t('clients.form.clientAdded'))
     }
     
     // Backend уже обработал все контакты, не нужно делать отдельные запросы
@@ -480,7 +483,7 @@ async function handleSubmit() {
     emit('close')
   } catch (error: any) {
     // Показываем ошибку пользователю
-    const message = error?.message || 'Произошла ошибка при сохранении клиента'
+    const message = error?.message || t('clients.form.saveError')
     toast.show(message, 'error')
   } finally {
     loading.value = false
@@ -511,11 +514,11 @@ async function handleDelete() {
     const clientId = props.client.id
     try {
       await remove(clientId)
-      toast.show('Клиент удалён!')
+      toast.show(t('clients.form.clientDeleted'))
       emit('delete', clientId)
       emit('close')
     } catch (err: any) {
-      let message = 'Произошла неизвестная ошибка при удалении клиента'
+      let message = t('clients.form.deleteErrorUnknown')
       if (
         err &&
         typeof err === 'object' &&
@@ -529,7 +532,7 @@ async function handleDelete() {
       ) {
         message = String(err.response.data.message)
       } else if (err instanceof Error && err.message) {
-        message = `Ошибка удаления клиента: ${err.message}`
+        message = `${t('clients.form.deleteError')}: ${err.message}`
       }
       toast.show(message, 'error')
     }

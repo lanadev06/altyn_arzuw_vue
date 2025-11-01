@@ -47,8 +47,8 @@
               ? '—'
               : dashboardStats.percent_completed + '%'
           }}</span>
-          <span class="text-base font-semibold text-gray-700 mt-1">Завершённых заказов</span>
-          <span class="text-xs text-gray-400 mt-1">% от всех заказов</span>
+          <span class="text-base font-semibold text-gray-700 mt-1">{{ t('dashboard.completedOrders') }}</span>
+          <span class="text-xs text-gray-400 mt-1">{{ t('dashboard.percentOfAllOrders') }}</span>
         </div>
         <!-- Отменённых заказов -->
         <div
@@ -83,8 +83,8 @@
               ? '—'
               : dashboardStats.percent_cancelled + '%'
           }}</span>
-          <span class="text-base font-semibold text-gray-700 mt-1">Отменённых заказов</span>
-          <span class="text-xs text-gray-400 mt-1">% от всех заказов</span>
+          <span class="text-base font-semibold text-gray-700 mt-1">{{ t('dashboard.cancelledOrders') }}</span>
+          <span class="text-xs text-gray-400 mt-1">{{ t('dashboard.percentOfAllOrders') }}</span>
         </div>
       </div>
       <!-- Быстрые действия и последние действия -->
@@ -97,7 +97,7 @@
         <!-- Заказы по стадиям -->
         <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[420px] overflow-y-auto">
           <div class="font-extrabold text-xl mb-6 text-gray-900 tracking-wide">
-            Заказы по стадиям
+            {{ t('dashboard.ordersByStage') }}
           </div>
           <div v-if="allStages.length > 0" class="flex flex-col gap-6">
             <div
@@ -131,7 +131,7 @@
               }}</span>
             </div>
           </div>
-          <div v-else class="text-center text-gray-500 py-8">Загрузка стадий...</div>
+          <div v-else class="text-center text-gray-500 py-8">{{ t('dashboard.loadingStages') }}</div>
         </div>
         <!-- Задержанные назначения -->
         <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[420px] overflow-y-auto">
@@ -139,7 +139,7 @@
             class="font-extrabold text-xl mb-6 text-red-700 tracking-wide flex items-center gap-3"
           >
             <span class="w-4 h-4 rounded-full bg-red-300"></span>
-            Задержанные назначения
+            {{ t('dashboard.delayedAssignments') }}
           </div>
           <div v-if="delayedAssignmentsList.length" class="flex flex-col gap-4">
             <div
@@ -152,7 +152,7 @@
                 <span
                   class="font-mono text-blue-600 hover:underline cursor-pointer"
                   @click.prevent="openOrderDetailsModal(item.order_id)"
-                  title="Открыть заказ"
+                  :title="t('dashboard.openOrder')"
                   >#{{ item.order_id }}</span
                 >
                 <span class="flex items-center gap-2">
@@ -165,7 +165,7 @@
                 <span
                   class="ml-auto px-3 py-1 rounded-full text-xs font-semibold"
                   :class="statusBadgeClass(item.status)"
-                  >{{ statusLabel(item.status) }}</span
+                  >{{ getAssignmentStatusLabel(item.status) }}</span
                 >
               </div>
             </div>
@@ -187,7 +187,7 @@
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            Все назначения выполняются вовремя!
+            {{ t('dashboard.allAssignmentsOnTime') }}
           </div>
         </div>
       </div>
@@ -196,7 +196,7 @@
       <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col max-h-[600px] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
           <div class="font-extrabold text-xl text-gray-900 tracking-wide">
-            Занятость сотрудников
+            {{ t('dashboard.employeeWorkload') }}
           </div>
           <div class="flex items-center">
             <select
@@ -223,15 +223,15 @@
               <span class="font-bold text-lg text-gray-900">{{ emp.user_name || '—' }}</span>
               <span
                 class="ml-auto px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm shadow"
-                >{{ emp.total }} заказ{{ emp.total === 1 ? '' : emp.total < 5 ? 'а' : 'ов' }}</span
+                >{{ emp.total }} {{ getOrderWord(emp.total) }}</span
               >
               <button
                 v-if="emp.orders && emp.orders.length > 0"
                 @click="toggleEmployeeOrders(emp.user_id)"
                 class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
-                :title="expandedEmployees.includes(emp.user_id) ? 'Свернуть заказы' : 'Показать все заказы'"
+                :title="expandedEmployees.includes(emp.user_id) ? t('dashboard.collapseOrders') : t('dashboard.showAllOrders')"
               >
-                {{ expandedEmployees.includes(emp.user_id) ? 'Свернуть' : 'Все заказы' }}
+                {{ expandedEmployees.includes(emp.user_id) ? t('dashboard.collapse') : t('dashboard.allOrders') }}
               </button>
             </div>
             <div v-if="emp.orders && emp.orders.length" class="flex flex-col gap-1 overflow-y-auto" :class="expandedEmployees.includes(emp.user_id) ? 'max-h-[400px]' : 'max-h-[200px]'">
@@ -249,32 +249,28 @@
                   :class="stageColor(order.stage?.name || order.stage)"
                   :style="stageColorStyle(order.stage?.name || order.stage)"
                   >{{
-                    (order.stage?.name || order.stage) === 'completed'
-                      ? 'Завершён'
-                      : (order.stage?.name || order.stage) === 'cancelled'
-                        ? 'Отменён'
-                        : stageLabel(order.stage?.name || order.stage)
+                    stageLabel(order.stage?.name || order.stage)
                   }}</span
                 >
               </span>
               <!-- Показываем индикатор, если заказов больше чем помещается и не развернуто -->
               <div v-if="!expandedEmployees.includes(emp.user_id) && emp.orders.length > 8" class="text-center text-gray-500 text-sm py-2 border-t border-gray-200 mt-2">
                 <span class="bg-gray-100 px-3 py-1 rounded-full">
-                  И еще {{ emp.orders.length - 8 }} заказ{{ emp.orders.length - 8 === 1 ? '' : emp.orders.length - 8 < 5 ? 'а' : 'ов' }}
+                  {{ t('dashboard.andMoreOrders', { count: emp.orders.length - 8 }) }} {{ getOrderWord(emp.orders.length - 8) }}
                 </span>
               </div>
             </div>
-            <span v-else class="text-gray-400">Нет назначенных заказов</span>
+            <span v-else class="text-gray-400">{{ t('dashboard.noAssignedOrders') }}</span>
           </div>
         </div>
         <div v-if="filteredEmployees.length === 0 && dashboardStats.orders_by_user.length > 0" class="text-center text-gray-400 py-4">
-          Нет сотрудников с назначенными заказами
+          {{ t('dashboard.noEmployeesWithOrders') }}
         </div>
         <div
           v-if="!dashboardStats.orders_by_user || !dashboardStats.orders_by_user.length"
           class="text-center text-gray-400 py-4"
         >
-          Нет данных
+          {{ t('dashboard.noData') }}
         </div>
       </div>
     </div>
@@ -293,7 +289,10 @@ import RecentActivity from '../components/dashboard/RecentActivity.vue'
 import RevenueChart from '../components/dashboard/RevenueChart.vue'
 import OrderDetailsModal from '../components/orders/OrderList/OrderDetailsModal.vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, computed, watch } from 'vue'
+
+const { t } = useI18n()
 import { authApi, getAllStages, apiRequest } from '../services/api'
 import { canViewAllUsers, canViewAllClients, canCreateEdit } from '../utils/permissions'
 import { safeApiRequest, safeProcessActivityData } from '../utils/safeData'
@@ -501,6 +500,18 @@ function statusLabel(status: string) {
     completed: 'Завершено',
   }
   return map[status] || status
+}
+
+function getAssignmentStatusLabel(status: string) {
+  // Используем динамические данные - статусы назначений могут приходить с сервера
+  // Если нужны переводы, они должны приходить с сервера в display_name
+  return statusLabel(status)
+}
+
+function getOrderWord(count: number) {
+  if (count === 1) return t('dashboard.order')
+  if (count < 5) return t('dashboard.orders2')
+  return t('dashboard.orders3')
 }
 
 onMounted(async () => {

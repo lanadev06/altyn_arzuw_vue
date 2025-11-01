@@ -3,18 +3,18 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || 0 }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
       <div
         class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
       >
-        <span class="text-gray-600 font-semibold">На странице:</span>
+        <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
         <select
           v-model.number="perPage"
           @change="changePerPage"
@@ -30,7 +30,7 @@
           @change="filterByStage"
           class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <option value="">Все стадии</option>
+          <option value="">{{ t('table.allStages') }}</option>
           <option v-for="stage in stages" :key="stage.id" :value="stage.name" class="text-gray-900">
             {{ stage.display_name || stage.name }}
           </option>
@@ -40,9 +40,9 @@
           @change="filterByArchive"
           class="w-40 h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <option value="">Все заказы</option>
-          <option value="active">Активные</option>
-          <option value="archived">Архивные</option>
+          <option value="">{{ t('table.allOrders') }}</option>
+          <option value="active">{{ t('table.active') }}</option>
+          <option value="archived">{{ t('table.archived') }}</option>
         </select>
         <div v-if="canCreateEdit()" class="flex gap-2">
           <UIButton
@@ -50,7 +50,7 @@
             variant="primary"
             class="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 text-base transition-colors duration-200 shadow-none border-none"
           >
-            Добавить заказ
+            {{ t('table.addOrder') }}
           </UIButton>
         </div>
       </div>
@@ -154,13 +154,13 @@
                       v-else
                       class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 cursor-pointer"
                     >
-                      Черновик
+                      {{ getStatusText('draft') }}
                     </span>
                     <span
                       v-if="item.is_archived"
                       class="inline-flex px-2 py-1 text-xs font-normal rounded-full bg-gray-100 text-gray-500 border border-gray-200"
                     >
-                      Архив
+                      {{ item.is_archived ? (stages.value.find(s => s.name === 'archived')?.display_name || 'archived') : '' }}
                     </span>
                   </div>
                 </template>
@@ -181,12 +181,12 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка заказов...
+                {{ t('order.loading') }}
               </td>
             </tr>
             <tr v-if="!loading && orders.length === 0">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Заказы не найдены
+                {{ props.search ? t('order.notFound') : t('order.noOrders') }}
               </td>
             </tr>
           </tbody>
@@ -235,6 +235,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import OrderFormModal from './OrderFormModal.vue'
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
@@ -252,6 +253,8 @@ import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 const props = defineProps<{
   search?: string
 }>()
+
+const { t, locale } = useI18n()
 
 const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
 
@@ -293,18 +296,42 @@ const savedSortOrder = localStorage.getItem(ORDER_KEY)
 const savedColumns = localStorage.getItem(COLUMNS_KEY)
 const savedPerPage = localStorage.getItem('orderList_perPage')
 
-const defaultColumns = [
+const defaultColumns = computed(() => [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'product', label: 'Товар', sortable: false },
-  { key: 'client', label: 'Клиент', sortable: false },
-  { key: 'quantity', label: 'Кол-во', sortable: true },
-  { key: 'stage', label: 'Статус', sortable: true },
-  { key: 'deadline', label: 'Дедлайн', sortable: true },
-  ...(canViewPrices() ? [{ key: 'price', label: 'Цена', sortable: true }] : []),
-  { key: 'created_at', label: 'Создано', sortable: true },
-]
+  { key: 'product', label: t('table.product'), sortable: false },
+  { key: 'client', label: t('table.client'), sortable: false },
+  { key: 'quantity', label: t('table.quantity'), sortable: true },
+  { key: 'stage', label: t('table.status'), sortable: true },
+  { key: 'deadline', label: t('table.deadline'), sortable: true },
+  ...(canViewPrices() ? [{ key: 'price', label: t('table.price'), sortable: true }] : []),
+  { key: 'created_at', label: t('table.created'), sortable: true },
+])
 
-const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns)
+// Функция для инициализации колонок с правильными переводами
+const initializeColumns = (savedCols: any) => {
+  if (!savedCols) return defaultColumns.value
+  return JSON.parse(savedCols).map((col: any) => {
+    const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+    return defaultCol ? { ...col, label: defaultCol.label } : col
+  })
+}
+
+const columns = ref(initializeColumns(savedColumns))
+
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = defaultColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+})
 
 const sortBy = ref(savedSortBy || 'id')
 const sortOrder = ref<'asc' | 'desc'>((savedSortOrder as 'asc' | 'desc') || 'asc')
@@ -399,7 +426,7 @@ function setSort(key: string) {
 }
 
 function resetSettings() {
-  columns.value = [...defaultColumns]
+  columns.value = [...defaultColumns.value]
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
   sortBy.value = 'id'
   sortOrder.value = 'asc'
@@ -416,7 +443,7 @@ function changePage(page: number) {
 }
 
 async function deleteOrder(id: number) {
-  if (confirm('Удалить заказ?')) {
+  if (confirm(t('order.deleteConfirm'))) {
     try {
       await removeOrder(id)
       // Синглтон контроллер автоматически обновит состояние
@@ -458,25 +485,14 @@ function getStatusClass(stage: string) {
 }
 
 function getStatusText(stage: string) {
-  // Сначала ищем стадию в загруженных данных
+  // Используем динамические данные с сервера (display_name уже содержит перевод)
   const foundStage = stages.value.find((s) => s.name === stage)
   if (foundStage && foundStage.display_name) {
     return foundStage.display_name
   }
 
-  // Fallback на старые названия
-  return (
-    {
-      draft: 'Черновик',
-      design: 'Дизайн',
-      print: 'Печать',
-      engraving: 'Гравировка',
-      workshop: 'Цех',
-      final: 'Финальный',
-      completed: 'Завершен',
-      cancelled: 'Отменен',
-    }[stage] || stage
-  )
+  // Fallback - возвращаем ключ стадии, если данных нет (не переводим через i18n)
+  return stage
 }
 
 function formatDate(date: string) {

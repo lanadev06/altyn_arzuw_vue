@@ -3,11 +3,11 @@
     <div class="flex items-center justify-between py-2 px-4 bg-white border-b mb-2">
       <div class="flex items-center gap-6 text-gray-700 text-base font-medium">
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Всего:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.total') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.total || stages.length }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-gray-500 font-semibold">Страницы:</span>
+          <span class="text-gray-500 font-semibold">{{ t('table.pages') }}:</span>
           <span class="text-blue-600 font-bold">{{ pagination?.last_page || 1 }}</span>
         </div>
       </div>
@@ -15,7 +15,7 @@
         <div
           class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1 shadow-sm border border-gray-200"
         >
-          <span class="text-gray-600 font-semibold">На странице:</span>
+          <span class="text-gray-600 font-semibold">{{ t('table.perPage') }}:</span>
           <select
             v-model.number="perPage"
             @change="changePerPage"
@@ -29,7 +29,7 @@
           @click="$emit('open-create-modal')"
           class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
-          Добавить стадию
+          {{ t('stages.addStage') }}
         </button>
       </div>
     </div>
@@ -142,7 +142,7 @@
 
             <tr v-if="loading">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                Загрузка стадий...
+                {{ t('stages.loading') }}
               </td>
             </tr>
             <tr v-if="error">
@@ -152,7 +152,7 @@
             </tr>
             <tr v-if="!loading && !error && stages.length === 0">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
-                {{ props.search ? 'Стадии не найдены' : 'Стадии отсутствуют' }}
+                {{ props.search ? t('stages.notFound') : t('stages.noStages') }}
               </td>
             </tr>
           </tbody>
@@ -194,6 +194,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import StageFormModal from './StageFormModal.vue'
 import { useBulkActions } from '@/composables/useBulkActions'
@@ -204,6 +205,8 @@ import { canCreateEdit, canDelete } from '../../../utils/permissions'
 import { useToast } from '../../../stores/toast'
 import { getStageColorStyles } from '../../../utils/stageColors'
 import type { Stage } from '../../../types/stage'
+
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   search?: string
@@ -242,21 +245,34 @@ const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 
-const columns = ref(
-  savedColumns
-    ? JSON.parse(savedColumns)
-    : [
-        { key: 'id', label: 'ID', sortable: true },
-        { key: 'name', label: 'Название', sortable: true },
-        { key: 'description', label: 'Описание', sortable: false },
-        { key: 'order', label: 'Порядок', sortable: true },
-        { key: 'created_at', label: 'Создано', sortable: true },
-        { key: 'updated_at', label: 'Обновлено', sortable: false },
-      ],
-)
+const defaultColumns = computed(() => [
+  { key: 'id', label: t('stages.columnId'), sortable: true },
+  { key: 'name', label: t('stages.columnName'), sortable: true },
+  { key: 'description', label: t('stages.columnDescription'), sortable: false },
+  { key: 'order', label: t('stages.columnOrder'), sortable: true },
+  { key: 'created_at', label: t('stages.columnCreatedAt'), sortable: true },
+  { key: 'updated_at', label: t('stages.columnUpdatedAt'), sortable: false },
+])
+
+const columns = ref(savedColumns ? JSON.parse(savedColumns) : defaultColumns.value)
 
 if (savedSortBy && sortBy.value !== savedSortBy) sortBy.value = savedSortBy
 if (savedSortOrder && sortOrder.value !== savedSortOrder) sortOrder.value = savedSortOrder
+
+// Обновляем колонки при изменении языка
+watch(locale, () => {
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (!currentSavedColumns) {
+    columns.value = defaultColumns.value
+  } else {
+    // Обновляем только метки сохраненных колонок
+    const savedCols = JSON.parse(currentSavedColumns)
+    columns.value = savedCols.map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  }
+})
 
 const sortedStages = computed(() => {
   const filteredStages = props.search
@@ -347,7 +363,7 @@ const fetchStages = async () => {
     const data = await StageController.getAll()
     stages.value = data
   } catch (err: any) {
-    error.value = (err as Error)?.message || 'Ошибка загрузки стадий'
+    error.value = (err as Error)?.message || t('stages.loadingError')
   } finally {
     loading.value = false
   }
@@ -389,28 +405,28 @@ const handleDeleteStage = async (stageId: number) => {
   try {
     // Проверяем права доступа
     if (!canDelete()) {
-      toast.show('У вас нет прав для удаления стадий', 'error')
+      toast.show(t('errors.noPermission'), 'error')
       return
     }
 
     // Проверяем токен авторизации
     const token = localStorage.getItem('auth_token')
     if (!token) {
-      toast.show('Необходима авторизация для удаления стадии', 'error')
+      toast.show(t('errors.authRequired'), 'error')
       return
     }
 
     await StageController.delete(stageId)
-    toast.show('Стадия успешно удалена!', 'success')
+    toast.show(t('stages.stageDeleted'), 'success')
     showEditModal.value = false
     editingStage.value = null
     await fetchStages()
   } catch (err: any) {
     // Показываем ошибку пользователю
     if (err instanceof Error) {
-      toast.show(`Ошибка удаления стадии: ${err.message}`, 'error')
+      toast.show(`${t('stages.deleteError')} ${err.message}`, 'error')
     } else {
-      toast.show('Произошла неизвестная ошибка при удалении стадии', 'error')
+      toast.show(t('stages.unknownError'), 'error')
     }
   }
 }
@@ -439,6 +455,10 @@ function changePerPage() {
 }
 
 onMounted(async () => {
+  // Очищаем старые сохранённые колонки для применения переводов
+  localStorage.removeItem(COLUMNS_KEY)
+  columns.value = defaultColumns.value
+  
   await nextTick()
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {

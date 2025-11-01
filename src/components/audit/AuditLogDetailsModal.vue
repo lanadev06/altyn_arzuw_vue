@@ -3,7 +3,7 @@
     <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
       <div class="mt-3">
         <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-medium text-gray-900">Детали аудит-лога #{{ log.id }}</h3>
+          <h3 class="text-lg font-medium text-gray-900">{{ t('audit.logDetails') }} #{{ log.id }}</h3>
           <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -19,22 +19,22 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">Время действия</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.time') }}</label>
               <p class="mt-1 text-sm text-gray-900">{{ formatDate(log.created_at) }}</p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Сотрудник</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.employee') }}</label>
               <p class="mt-1 text-sm text-gray-900">
-                {{ log.user?.name || 'Система' }}
+                {{ log.user?.name || t('audit.system') }}
                 <span v-if="log.user?.role" class="text-xs text-gray-500">{{
-                  USER_ROLE_LABELS[log.user.role] || log.user.role
+                  getRoleLabel(log.user.role)
                 }}</span>
               </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Действие</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.action') }}</label>
               <span
                 :class="[
                   'inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1',
@@ -48,30 +48,30 @@
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">Тип модели</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.modelType') }}</label>
               <p class="mt-1 text-sm text-gray-900">
                 {{ AUDIT_MODEL_LABELS[log.auditable_type] || log.auditable_type }}
               </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">ID записи</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.recordId') }}</label>
               <p class="mt-1 text-sm text-gray-900">{{ log.auditable_id }}</p>
             </div>
 
             <div v-if="log.ip_address">
-              <label class="block text-sm font-medium text-gray-700">IP адрес</label>
+              <label class="block text-sm font-medium text-gray-700">{{ t('audit.ipAddress') }}</label>
               <p class="mt-1 text-sm text-gray-900">{{ log.ip_address }}</p>
             </div>
           </div>
         </div>
 
         <div v-if="log.action === 'updated' && (log.old_values || log.new_values)" class="mb-6">
-          <h4 class="text-md font-medium text-gray-900 mb-4">Изменения</h4>
+          <h4 class="text-md font-medium text-gray-900 mb-4">{{ t('audit.changes') }}</h4>
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div v-if="log.old_values">
-                <h5 class="text-sm font-medium text-red-700 mb-2">Старые значения</h5>
+                <h5 class="text-sm font-medium text-red-700 mb-2">{{ t('audit.oldValues') }}</h5>
                 <div class="bg-white rounded border p-3 max-h-64 overflow-y-auto">
                   <pre class="text-xs text-gray-700 whitespace-pre-wrap">{{
                     formatJson(log.old_values)
@@ -80,7 +80,7 @@
               </div>
 
               <div v-if="log.new_values">
-                <h5 class="text-sm font-medium text-green-700 mb-2">Новые значения</h5>
+                <h5 class="text-sm font-medium text-green-700 mb-2">{{ t('audit.newValues') }}</h5>
                 <div class="bg-white rounded border p-3 max-h-64 overflow-y-auto">
                   <pre class="text-xs text-gray-700 whitespace-pre-wrap">{{
                     formatJson(log.new_values)
@@ -92,7 +92,7 @@
         </div>
 
         <div v-if="log.action === 'created' && log.new_values" class="mb-6">
-          <h4 class="text-md font-medium text-gray-900 mb-4">Созданные данные</h4>
+          <h4 class="text-md font-medium text-gray-900 mb-4">{{ t('audit.createdData') }}</h4>
           <div class="bg-green-50 rounded-lg p-4">
             <div class="bg-white rounded border p-3 max-h-64 overflow-y-auto">
               <pre class="text-xs text-gray-700 whitespace-pre-wrap">{{
@@ -106,7 +106,7 @@
           v-if="(log.action === 'deleted' || log.action === 'force_deleted') && log.old_values"
           class="mb-6"
         >
-          <h4 class="text-md font-medium text-gray-900 mb-4">Удаленные данные</h4>
+          <h4 class="text-md font-medium text-gray-900 mb-4">{{ t('audit.deletedData') }}</h4>
           <div class="bg-red-50 rounded-lg p-4">
             <div class="bg-white rounded border p-3 max-h-64 overflow-y-auto">
               <pre class="text-xs text-gray-700 whitespace-pre-wrap">{{
@@ -117,7 +117,7 @@
         </div>
 
         <div v-if="log.user_agent" class="mb-6">
-          <h4 class="text-md font-medium text-gray-900 mb-2">User Agent</h4>
+          <h4 class="text-md font-medium text-gray-900 mb-2">{{ t('audit.userAgent') }}</h4>
           <div class="bg-gray-50 rounded-lg p-3">
             <p class="text-xs text-gray-700 break-all">{{ log.user_agent }}</p>
           </div>
@@ -128,7 +128,7 @@
             @click="$emit('close')"
             class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
           >
-            Закрыть
+            {{ t('audit.close') }}
           </button>
         </div>
       </div>
@@ -137,8 +137,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { AuditLog } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, AUDIT_ACTION_COLORS, AUDIT_MODEL_LABELS } from '@/types/audit'
+
+const { t } = useI18n()
 
 interface Props {
   log: AuditLog
@@ -168,13 +171,8 @@ const formatJson = (obj: Record<string, unknown>) => {
   }
 }
 
-const USER_ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  designer: 'Дизайнер',
-  print_operator: 'Печатник',
-  workshop_worker: 'Работник цеха',
-  user: 'Сотрудник',
+function getRoleLabel(role: string) {
+  return t(`roles.${role}`) || role
 }
 
 

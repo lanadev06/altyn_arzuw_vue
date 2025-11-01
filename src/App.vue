@@ -22,6 +22,13 @@
 import { onMounted, onUnmounted } from 'vue'
 import Toast from './components/ui/Toast.vue'
 import { toast } from './stores/toast'
+import { useLanguage } from './composables/useLanguage'
+
+// Инициализация языка при старте приложения
+const { initLocale } = useLanguage()
+onMounted(() => {
+  initLocale()
+})
 
 // Глобальный обработчик unhandledrejection для перехвата 401 ошибок
 const handleUnhandledRejection = (event: PromiseRejectionEvent) => {

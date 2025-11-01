@@ -2,7 +2,7 @@
   <Modal @close="$emit('close')">
     <template #header>
       <h2 class="text-xl font-semibold text-gray-900">
-        {{ product ? 'Редактировать товар' : 'Создать товар' }}
+        {{ product ? t('products.form.editProduct') : t('products.form.createProduct') }}
       </h2>
     </template>
 
@@ -10,11 +10,11 @@
       <!-- Название товара -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Название товара <span class="text-red-500">*</span>
+          {{ t('products.form.name') }} <span class="text-red-500">*</span>
         </label>
         <UIInput
           v-model="form.name"
-          placeholder="Введите название товара"
+          :placeholder="t('products.form.enterName')"
           :error="errors.name"
           required
         />
@@ -23,7 +23,7 @@
       <!-- Категории -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Категории
+          {{ t('products.form.categories') }}
         </label>
         <div class="grid grid-cols-2 gap-3">
           <label
@@ -62,9 +62,9 @@
           </label>
         </div>
         <p class="text-sm text-gray-500 mt-2">
-          Выберите категории для этого товара
+          {{ t('products.form.selectCategories') }}
           <span v-if="selectedCategories.length > 0" class="text-blue-600 font-medium">
-            (выбрано: {{ selectedCategories.length }})
+            ({{ t('products.form.selectedCount') }} {{ selectedCategories.length }})
           </span>
         </p>
       </div>
@@ -79,7 +79,7 @@
         </div>
         <div class="flex items-center justify-between mb-3">
           <label class="block text-sm font-medium text-gray-700">
-            Стадии производства <span class="text-red-500">*</span>
+            {{ t('products.form.stages') }} <span class="text-red-500">*</span>
           </label>
           <div class="flex gap-2">
             <UIButton
@@ -89,7 +89,7 @@
               @click="selectAllStages"
               :disabled="selectedStages.length === workingStages.length"
             >
-              Выбрать все
+              {{ t('products.form.selectAll') }}
             </UIButton>
             <UIButton
               type="button"
@@ -98,7 +98,7 @@
               @click="clearAllStages"
               :disabled="selectedStages.length === 0"
             >
-              Очистить
+              {{ t('products.form.clear') }}
             </UIButton>
           </div>
         </div>
@@ -146,9 +146,9 @@
           </label>
         </div>
         <p class="text-sm text-gray-500 mt-2">
-          Выберите стадии, которые будут доступны для этого товара
+          {{ t('products.form.selectStages') }}
           <span v-if="selectedStages.length > 0" class="text-blue-600 font-medium">
-            (выбрано: {{ selectedStages.length }} из {{ workingStages.length }})
+            ({{ t('products.form.selectedStages') }} {{ selectedStages.length }} {{ t('products.form.of') }} {{ workingStages.length }})
           </span>
         </p>
 
@@ -162,7 +162,7 @@
 
       <!-- Назначения сотрудников по стадиям -->
       <div v-if="selectedStages.length > 0" class="space-y-6">
-        <h3 class="text-lg font-medium text-gray-900">Назначение сотрудников по стадиям</h3>
+        <h3 class="text-lg font-medium text-gray-900">{{ t('products.form.assignments') }}</h3>
 
         <div v-for="stage in selectedStageObjects" :key="stage.id" class="space-y-4">
           <div class="border border-gray-200 rounded-lg p-4">
@@ -205,14 +205,14 @@
           :disabled="loading || !form.name.trim() || selectedStages.length === 0"
           class="flex-1"
         >
-          {{ product ? 'Сохранить' : 'Создать' }}
+          {{ product ? t('products.form.save') : t('products.form.create') }}
         </UIButton>
 
         <UIButton v-if="product && canDelete()" type="button" variant="danger" @click="handleDelete">
-          Удалить
+          {{ t('products.form.delete') }}
         </UIButton>
 
-        <UIButton type="button" variant="secondary" @click="$emit('close')"> Отмена </UIButton>
+        <UIButton type="button" variant="secondary" @click="$emit('close')"> {{ t('products.form.cancel') }} </UIButton>
       </div>
     </form>
   </Modal>
@@ -220,6 +220,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
 import UIButton from '../../ui/UIButton.vue'
@@ -242,6 +243,8 @@ import {
 import productController from '../../../controllers/productControllerInstance'
 import { toast } from '../../../stores/toast'
 import { canDelete } from '../../../utils/permissions'
+
+const { t } = useI18n()
 
 const props = defineProps<{ product?: Product | null }>()
 const emit = defineEmits(['close', 'submit', 'delete', 'saved'])
@@ -967,14 +970,14 @@ onMounted(async () => {
         }
       } catch (error) {
         // Показываем более конкретную ошибку
-        let errorMessage = 'Ошибка загрузки назначений'
+        let errorMessage = t('products.form.loadingAssignmentsError')
         if (error instanceof Error) {
           if (error.message.includes('404')) {
-            errorMessage = 'Назначения не найдены'
+            errorMessage = t('products.form.assignmentsNotFound')
           } else if (error.message.includes('401')) {
-            errorMessage = 'Ошибка авторизации при загрузке назначений'
+            errorMessage = t('products.form.loadingAuthError')
           } else {
-            errorMessage = `Ошибка загрузки назначений: ${error.message}`
+            errorMessage = `${t('products.form.loadingAssignmentsError')}: ${error.message}`
           }
         }
 
@@ -1033,21 +1036,21 @@ onMounted(async () => {
     }
   } catch (error) {
     // Более детальная обработка ошибок
-    let errorMessage = 'Ошибка загрузки данных'
+    let errorMessage = t('products.form.loadingError')
 
     if (error instanceof Error) {
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        errorMessage = 'Ошибка подключения к серверу'
+        errorMessage = t('products.form.serverConnectionError')
       } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        errorMessage = 'Ошибка авторизации'
+        errorMessage = t('products.form.authError')
       } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
-        errorMessage = 'Доступ запрещен'
+        errorMessage = t('common.noData')
       } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-        errorMessage = 'Данные не найдены'
+        errorMessage = t('products.form.dataNotFound')
       } else if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
-        errorMessage = 'Ошибка сервера'
+        errorMessage = t('products.form.serverError')
       } else {
-        errorMessage = `Ошибка: ${error.message}`
+        errorMessage = `${t('messages.error')}: ${error.message}`
       }
     } else if (typeof error === 'string') {
       errorMessage = error
@@ -1081,13 +1084,13 @@ function validateForm(): boolean {
   let valid = true
 
   if (!form.name.trim()) {
-    errors.name = 'Название обязательно'
+    errors.name = t('products.form.nameRequired')
     valid = false
   }
 
   // Для существующих продуктов требуем хотя бы одну стадию
   if (selectedStages.value.length === 0 && props.product?.id) {
-    errors.stages = 'Выберите хотя бы одну стадию для существующего товара'
+    errors.stages = t('products.form.stagesRequired')
     valid = false
   }
 
@@ -1192,12 +1195,12 @@ async function handleSubmit() {
     } catch (error) {
 
       // Показываем более детальную ошибку
-      let errorMessage = 'Ошибка при сохранении назначений'
+      let errorMessage = t('products.form.assignmentsSaveError')
       if (error instanceof Error) {
         if (error.message.includes('422')) {
-          errorMessage = 'Ошибка валидации назначений - проверьте роли пользователей'
+          errorMessage = t('products.form.assignmentsValidationError')
         } else {
-          errorMessage = `Ошибка при сохранении назначений: ${error.message}`
+          errorMessage = `${t('products.form.assignmentsSaveError')}: ${error.message}`
         }
       }
 
@@ -1232,26 +1235,26 @@ async function handleSubmit() {
       // Игнорируем ошибки проверки
     }
 
-    toast.show(`Товар ${props.product ? 'обновлен' : 'создан'} успешно!`)
+    toast.show(props.product ? t('products.form.productUpdated') : t('products.form.productCreated'))
     emit('saved')
     emit('close')
   } catch (error) {
     // Более детальная обработка ошибок сохранения
-    let errorMessage = 'Ошибка при сохранении товара'
+    let errorMessage = t('products.form.savingError')
 
     if (error instanceof Error) {
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        errorMessage = 'Ошибка подключения к серверу при сохранении'
+        errorMessage = t('products.form.savingConnectionError')
       } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        errorMessage = 'Ошибка авторизации при сохранении'
+        errorMessage = t('products.form.savingAuthError')
       } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
-        errorMessage = 'Доступ запрещен при сохранении'
+        errorMessage = t('products.form.validationError')
       } else if (error.message.includes('422') || error.message.includes('Validation')) {
-        errorMessage = 'Ошибка валидации данных'
+        errorMessage = t('products.form.validationError')
       } else if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
-        errorMessage = 'Ошибка сервера при сохранении'
+        errorMessage = t('products.form.savingServerError')
       } else {
-        errorMessage = `Ошибка сохранения: ${error.message}`
+        errorMessage = `${t('products.form.savingError')}: ${error.message}`
       }
     } else if (typeof error === 'string') {
       errorMessage = error
@@ -1268,24 +1271,24 @@ async function handleDelete() {
 
   try {
     await remove(props.product.id)
-    toast.show('Товар успешно удален!', 'success')
+    toast.show(t('products.form.productDeleted'), 'success')
     emit('delete', props.product.id)
     emit('close')
   } catch (error: any) {
     // Обрабатываем ошибки от сервера
-    let message = 'Произошла неизвестная ошибка при удалении товара'
+    let message = t('products.deleteError')
 
     if (error?.response?.data?.message) {
       // Ошибка от Laravel (например, товар используется в заказах)
       message = error.response.data.message
     } else if (error.message && error.message.includes('Ошибка удаления товара')) {
       // Если ошибка 404 — товар уже удалён
-      toast.show('Товар уже был удалён')
+      toast.show(t('products.productDeletedAlready'))
       emit('delete', props.product.id)
       emit('close')
       return
     } else if (error instanceof Error && error.message) {
-      message = `Ошибка удаления товара: ${error.message}`
+      message = `${t('products.deleteErrorUnknown')}: ${error.message}`
     }
 
     toast.show(message, 'error')
