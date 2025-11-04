@@ -145,14 +145,23 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   // Создаем контроллер для таймаута
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
+  // Увеличиваем таймаут для медленного интернета
+  const timeout = API_CONFIG.TIMEOUT
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
 
   try {
     // Используем circuit breaker и очередь запросов
     const response = await circuitBreaker.execute(async () => {
       return await requestQueue.add(async () => {
+        // Добавляем заголовок для сжатия если его нет
+        const finalHeaders = {
+          ...config.headers,
+          'Accept-Encoding': 'gzip, deflate, br',
+        }
+        
         return await fetch(url, {
           ...config,
+          headers: finalHeaders,
           signal: controller.signal,
         })
       })
@@ -453,16 +462,12 @@ export async function getClients({
   if (all) params.push('all=true')
   const query = params.length ? `?${params.join('&')}` : ''
 
-  const res = await fetch(`${API_CONFIG.BASE_URL}/clients${query}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки клиентов')
-  const data = await res.json()
-
-  return data
+  return await cachedApiRequest<PaginatedResponse<Client> | Client[]>(
+    `/clients${query}`,
+    {},
+    `clients_${query}`,
+    all ? CacheTTL.LONG : CacheTTL.MEDIUM
+  )
 }
 
 export async function createClient(data: Partial<Client>): Promise<Client> {
@@ -587,14 +592,13 @@ export async function getProjects({
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
   const query = params.length ? `?${params.join('&')}` : ''
-  const res = await fetch(`${API_CONFIG.BASE_URL}/projects${query}`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  })
-  if (!res.ok) throw new Error('Ошибка загрузки проектов')
-  return await res.json()
+  
+  return await cachedApiRequest<PaginatedResponse<Project>>(
+    `/projects${query}`,
+    {},
+    `projects_${query}`,
+    CacheTTL.MEDIUM
+  )
 }
 
 export async function createProject(data: Partial<Project>): Promise<Project> {
@@ -661,28 +665,17 @@ export async function getProducts({
   if (forceRefresh) params.push(`_t=${Date.now()}`) // Принудительное обновление кэша
   const query = params.length ? `?${params.join('&')}` : ''
 
-  const url = `${API_CONFIG.BASE_URL}/products${query}`
-  const token = localStorage.getItem('auth_token')
-
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!res.ok) {
-    throw new Error(`Ошибка загрузки товаров: ${res.status} ${res.statusText}`)
+  // Если forceRefresh, очищаем кэш
+  if (forceRefresh) {
+    frontendCache.invalidatePattern(`products_`)
   }
 
-  const data = await res.json()
-
-  // Проверяем структуру ответа
-  if (data.data && Array.isArray(data.data)) {
-    // Данные корректны
-  }
-
-  return data
+  return await cachedApiRequest<PaginatedResponse<Product>>(
+    `/products${query}`,
+    {},
+    `products_${query}`,
+    CacheTTL.MEDIUM
+  )
 }
 
 export async function createProduct(data: ProductForm): Promise<Product> {
@@ -780,22 +773,12 @@ export async function updateProductStages(
 
 // --- Дизайнеры ---
 export async function getByRole(role: string): Promise<{ data: User[] }> {
-  const url = `${API_CONFIG.BASE_URL}/users/role/${role}`
-  const token = localStorage.getItem('auth_token')
-
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`Ошибка загрузки пользователей по роли: ${res.status} ${res.statusText}`)
-  }
-
-  return await res.json()
+  return await cachedApiRequest<{ data: User[] }>(
+    `/users/role/${role}`,
+    {},
+    `users_by_role_${role}`,
+    CacheTTL.LONG
+  )
 }
 
 export async function getAllClients(): Promise<any[]> {
@@ -852,7 +835,13 @@ export async function getOrders({
   if (assignment_status) params.append('assignment_status', assignment_status)
   if (admin_view) params.append('admin_view', 'true')
 
-  return await apiRequest(`/orders?${params.toString()}`)
+  const cacheKey = `orders_${params.toString()}`
+  return await cachedApiRequest<PaginatedResponse<Order>>(
+    `/orders?${params.toString()}`,
+    {},
+    cacheKey,
+    CacheTTL.SHORT // Короткий TTL для заказов, так как они часто меняются
+  )
 }
 
 // Специальная функция для получения всех заказов без пагинации
@@ -912,7 +901,17 @@ export async function getAllOrdersForAdmin({
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
   if (assignment_status) params.append('assignment_status', assignment_status)
 
-  return await apiRequest(`/orders?${params.toString()}`)
+  // Используем cachedApiRequest но с коротким TTL, так как это для админа с force_refresh
+  const cacheKey = `orders_admin_${params.toString()}`
+  // Если force_refresh, очищаем кэш
+  frontendCache.invalidatePattern(`orders_admin_`)
+  
+  return await cachedApiRequest<PaginatedResponse<Order>>(
+    `/orders?${params.toString()}`,
+    {},
+    cacheKey,
+    CacheTTL.SHORT // Короткий TTL, так как force_refresh должен обновлять
+  )
 }
 
 export async function createOrder(data: CreateOrderData): Promise<Order> {
@@ -968,7 +967,7 @@ export async function deleteOrderComment(orderId: number, commentId: number): Pr
 
 // --- Проекты ---
 export async function getProjectDetails(projectId: number) {
-  return await apiRequest(`/projects/${projectId}`)
+  return await cachedApiRequest(`/projects/${projectId}`, {}, `project_${projectId}`, CacheTTL.MEDIUM)
 }
 
 export async function updateOrderStage(orderId: number, stage: string, additionalData?: Record<string, any>): Promise<void> {
@@ -1041,8 +1040,14 @@ export async function getUsers({
   if (is_active !== null) {
     params.append('is_active', String(is_active))
   }
-  const res = await apiRequest(`/users?${params.toString()}`)
-  return res as PaginatedResponse<User>
+  const cacheKey = `users_${params.toString()}`
+  const res = await cachedApiRequest<PaginatedResponse<User>>(
+    `/users?${params.toString()}`,
+    {},
+    cacheKey,
+    CacheTTL.MEDIUM
+  )
+  return res
 }
 
 export async function getUsersByRole(role: string): Promise<any> {
@@ -1371,22 +1376,17 @@ export async function getCategories({
   if (forceRefresh) params.push(`_t=${Date.now()}`)
   const query = params.length ? `?${params.join('&')}` : ''
 
-  const url = `${API_CONFIG.BASE_URL}/categories${query}`
-  const token = localStorage.getItem('auth_token')
-
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!res.ok) {
-    throw new Error(`Ошибка загрузки категорий: ${res.status} ${res.statusText}`)
+  // Если forceRefresh, очищаем кэш
+  if (forceRefresh) {
+    frontendCache.invalidatePattern(`categories_`)
   }
 
-  const data = await res.json()
-  return data
+  return await cachedApiRequest<PaginatedResponse<Category>>(
+    `/categories${query}`,
+    {},
+    `categories_${query}`,
+    CacheTTL.LONG
+  )
 }
 
 export async function getAllCategories(): Promise<any[]> {
@@ -1421,4 +1421,19 @@ export async function deleteCategory(id: number): Promise<void> {
 export async function getCategoryProducts(categoryId: number): Promise<any[]> {
   const res = await apiRequest(`/categories/${categoryId}/products`) as any
   return res.data || []
+}
+
+/**
+ * Batch API запрос - объединяет несколько запросов в один
+ * Полезно для медленного интернета - уменьшает количество запросов
+ */
+export async function batchRequest(requests: Array<{
+  endpoint: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  params?: Record<string, any>
+}>): Promise<Array<{ success: boolean; data?: any; error?: string }>> {
+  return await apiRequest('/batch', {
+    method: 'POST',
+    body: JSON.stringify({ requests }),
+  })
 }

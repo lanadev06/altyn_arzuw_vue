@@ -3,8 +3,8 @@ export const API_CONFIG = {
   // Базовый URL для Laravel API (используем относительный путь для Vite прокси)
   BASE_URL: '/api',
 
-  // Таймаут для запросов (в миллисекундах)
-  TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000'),
+  // Таймаут для запросов (в миллисекундах) - увеличен для медленного интернета
+  TIMEOUT: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000'), // 30 секунд (увеличено с 10)
 
   // Заголовки по умолчанию для Laravel
   DEFAULT_HEADERS: {
