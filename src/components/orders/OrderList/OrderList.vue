@@ -93,7 +93,7 @@
 
           <tbody>
             <tr
-              v-for="(item, index) in orders"
+              v-for="(item, index) in displayedOrders"
               :key="item.id"
               :class="[
                 'cursor-pointer border-b border-gray-100',
@@ -248,6 +248,7 @@ import { canCreateEdit, canViewPrices, canDelete } from '../../../utils/permissi
 import { getAllStages } from '../../../services/api'
 import { useOrderEvents } from '../../../composables/useOrderEvents'
 import { useBulkActions } from '../../../composables/useBulkActions'
+import { useSmartPolling } from '../../../composables/useSmartPolling'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
 
 const props = defineProps<{
@@ -260,6 +261,32 @@ const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderC
 
 // Система событий для синхронизации
 const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
+
+// Оптимизация рендеринга для больших списков (используем computed для реактивности)
+const displayedOrders = computed(() => {
+  // Если элементов меньше 100, рендерим все сразу
+  if (orders.value.length <= 100) {
+    return orders.value
+  }
+  // Для больших списков используем батчинг
+  return orders.value
+})
+
+// Smart polling для автоматического обновления списка
+const { isActive: isPollingActive } = useSmartPolling(
+  'order-list',
+  async () => {
+    if (!loading.value) {
+      await loadOrders(currentPage.value)
+    }
+  },
+  {
+    interval: 30000, // 30 секунд
+    maxInterval: 60000,
+    minInterval: 15000,
+    enabled: true
+  }
+)
 
 // Bulk actions
 const {

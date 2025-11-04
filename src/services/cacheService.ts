@@ -17,7 +17,7 @@ interface CacheConfig {
 class FrontendCacheService {
   private cache = new Map<string, CacheEntry<any>>()
   private config: CacheConfig = {
-    defaultTTL: 30 * 60 * 1000, // 30 минут для снижения нагрузки
+    defaultTTL: 60 * 60 * 1000, // 60 минут для медленного интернета (увеличено с 30)
     maxSize: 500 // Увеличиваем до 500 записей
   }
 
@@ -180,11 +180,11 @@ export const CacheKeys = {
   CATEGORIES: 'categories'
 } as const
 
-// TTL константы (в миллисекундах)
+// TTL константы (в миллисекундах) - увеличены для медленного интернета
 export const CacheTTL = {
-  SHORT: 5 * 60 * 1000,     // 5 минут
-  MEDIUM: 15 * 60 * 1000,   // 15 минут  
-  LONG: 60 * 60 * 1000,     // 1 час
-  VERY_LONG: 4 * 60 * 60 * 1000, // 4 часа
+  SHORT: 15 * 60 * 1000,     // 15 минут (увеличено с 5)
+  MEDIUM: 30 * 60 * 1000,    // 30 минут (увеличено с 15)
+  LONG: 2 * 60 * 60 * 1000,  // 2 часа (увеличено с 1)
+  VERY_LONG: 8 * 60 * 60 * 1000, // 8 часов (увеличено с 4)
   STATIC: 24 * 60 * 60 * 1000    // 24 часа для статических данных
 } as const

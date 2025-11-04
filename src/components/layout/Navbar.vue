@@ -98,9 +98,19 @@ const showSearch = computed(() => {
   return ['/orders', '/projects', '/products', '/users', '/clients'].includes(route.path)
 })
 
+// Debounce для поиска - избегаем слишком частых обновлений URL
+let searchDebounceTimer: number | null = null
 watch(searchQuery, (val) => {
   if (showSearch.value) {
-    router.replace({ query: { ...route.query, search: val || undefined } })
+    // Очищаем предыдущий таймер
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+    }
+    
+    // Устанавливаем новый таймер для debounce
+    searchDebounceTimer = window.setTimeout(() => {
+      router.replace({ query: { ...route.query, search: val || undefined } })
+    }, 400) // 400ms debounce для поиска
   }
 })
 
