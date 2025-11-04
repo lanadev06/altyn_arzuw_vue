@@ -265,7 +265,7 @@ interface Column {
 }
 
 // Базовые колонки (без статичных колонок для ролей)
-const baseColumns = computed(() => [
+const baseColumns = computed<Column[]>(() => [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: t('products.columns.name'), sortable: true },
   { key: 'categories', label: t('products.columns.categories'), sortable: false },
@@ -357,7 +357,7 @@ const dynamicColumns = computed<Column[]>(() => {
 
     return columns
   } catch (error) {
-    return baseColumns
+    return baseColumns.value
   }
 })
 

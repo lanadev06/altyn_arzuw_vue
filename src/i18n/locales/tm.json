@@ -13,6 +13,7 @@
     "stages": "Tapgyrlar",
     "roles": "Rollar",
     "categories": "Kategoriýalar",
+    "training": "Okuw",
     "audit": "Audit",
     "settings": "Sazlamalar",
     "logout": "Çykmak",
@@ -667,6 +668,185 @@
     "columnName": "Ady",
     "columnCreatedAt": "Döredildi",
     "columnUpdatedAt": "Täzelendi"
+  },
+  "training": {
+    "title": "Ulgam bilen işlemek üçin okuw",
+    "subtitle": "Ýygnalýan soraglar we peýdaly maglumat",
+    "video": {
+      "title": "Wideo görkezme",
+      "notSupported": "Brauzeriňiz wideo görkezmäge goldamok"
+    },
+    "roles": {
+      "title": "Ulgamda kim nähili işleri ýerine ýetirip biler?",
+      "admin": "Administrator",
+      "adminDesc": "Administrator hemme zady edip biler: sargyt döretmek we üýtgetmek, işgärleri dolandyrmak, ulgamy düzgünleşdirmek (tapgyrlar, rollar), ähli statistikalary görmek we maglumatlary pozmak.",
+      "manager": "Menedžer",
+      "managerDesc": "Menedžer sargytlar bilen müşderileri dolandyryp biler: sargyt döretmek, olary işgärlere bellik etmek, sargyt tapgyrlaryny üýtgetmek, müşderiler goşmak. Ýöne ulgam sazlamalaryny (tapgyrlar, rollar) we ulanyjylary dolandyryp bilmeýär.",
+      "staff": "Işgärler",
+      "staffDesc": "Işgärler diňe özlerine bellik edilen sargytlary görýärler. Iş durmuşlaryny üýtgedip bilýärler (mysal üçin, \"işjeň\", \"tamamlandy\"), sargytlara teswir goşup bilýärler. Sargyt döretmek ýa-da üýtgetmek bolmaýar."
+    },
+    "permissions": {
+      "title": "Näme edip bolýar we näme edip bolmaýar",
+      "canDo": "Näme edip bolýar",
+      "cannotDo": "Näme edip bolmaýar",
+      "can": {
+        "staff1": "Özlerine bellik edilen sargytlary görmek",
+        "staff2": "Öz iş durmuşyny üýtgetmek",
+        "staff3": "Sargytlara teswir goşmak",
+        "staff4": "Öz iş statistikasyny görmek",
+        "staff5": "Täze bellikler hakda bildirişler almak",
+        "manager1": "Sargyt döretmek we üýtgetmek",
+        "manager2": "Sargytlary işgärlere bellik etmek",
+        "manager3": "Sargyt tapgyrlaryny üýtgetmek",
+        "manager4": "Hemme sargytlary we kompaniýa maglumatlaryny görmek",
+        "manager5": "Doly statistikany görmek"
+      },
+      "cannot": {
+        "staff1": "Täze sargyt döretmek",
+        "staff2": "Sargyt üýtgetmek",
+        "staff3": "Sargyt tapgyryny üýtgetmek",
+        "staff4": "Sargytlardaky bahalary görmek",
+        "staff5": "Kompaniýanyň hemme sargytlaryny görmek",
+        "manager1": "Tapgyrlar we rollary dolandyrmak",
+        "manager2": "Işgärleri redaktirlemek",
+        "manager3": "Sargyt pozmak"
+      }
+    },
+    "faq": {
+      "questionPrefix": "S:",
+      "answerPrefix": "J:",
+      "users": {
+        "title": "Işgärler we girip bolmak hakda",
+        "q1": "Ulgama täze işgärleri kim goşup biler?",
+        "a1": "Diňe administrator işgärleri goşup we üýtgedip biler.",
+        "q2": "Menedžer işgär maglumatyny üýtgedip bilermi?",
+        "a2": "Ýok, muny diňe administrator edip biler.",
+        "q3": "Adaty işgär beýleki işgärleri görüp bilermi?",
+        "a3": "Hawa, işgärler hemme işgärleriň sanawyny görýärler, ýöne olary üýtgedip bilmeýärler.",
+        "q4": "Administrator özüni pozup bilermi?",
+        "a4": "Ýok, administrator öz hasabyny pozup bilmeýär."
+      },
+      "orders": {
+        "title": "Sargytlar hakda",
+        "q1": "Kim täze sargyt döredip biler?",
+        "a1": "Diňe administratorlar we menedžerler sargyt döredip bilýärler.",
+        "q2": "Işgärler sargytlary redaktirleýip bilermi?",
+        "a2": "Ýok, işgärler sargytlary redaktirleýip bilmeýärler. Olar diňe özlerine bellik edilen sargytlary görüp we öz iş durmuşlaryny täzeläp bilýärler.",
+        "q3": "Işgär sargyt sanawynda näme görýär?",
+        "a3": "Işgär diňe özüne bellik edilen işleri ýerine ýetirmek üçin sargytlary görýär.",
+        "q4": "Kim sargyt tapgyryny üýtgedip biler (mysal üçin, \"dizaýn\" → \"basmak\")?",
+        "a4": "Diňe administratorlar we menedžerler sargyt tapgyryny üýtgedip bilýärler.",
+        "q5": "Sargyt tamamlandygynda näme bolýar?",
+        "a5": "Sargyt awtomatik arkly arhiwe geçýär, ony arhiwde tapyp bolýar.",
+        "q6": "Sargyt tapgyrdan tapgyra nähili geçýär?",
+        "a6": "Häzirki tapgyrdaky ähli işgärler işlerini tamamlap we tassyklap bolanynda, ulgam awtomatik arkly sargyty indiki tapgyra geçirýär.",
+        "q7": "Kim sargytlary pozup biler?",
+        "a7": "Diňe administratorlar sargytlary pozup bilýärler."
+      },
+      "assignments": {
+        "title": "Iş bellik etmek hakda",
+        "q1": "Kim sargytlary işgärlere bellik edip biler?",
+        "a1": "Administratorlar we menedžerler sargytlary işgärlere bellik edip bilýärler.",
+        "q2": "Işgär özü üçin sargyt saýlap bilermi?",
+        "a2": "Ýok, sargytlar administrator ýa-da menedžer tarapyndan bellik edilýär.",
+        "q3": "Işgär öz iş durmuşyny üýtgedip bilermi?",
+        "a3": "Hawa, işgär özüne bellik edilen işiň durmuşyny üýtgedip biler (mysal üçin, \"işjeň\" ýa-da \"tamamlandy\" belgä almak).",
+        "q4": "Häzirki wagtda nähili iş durmuşlary bar?",
+        "a4": "\"Garaşylýar\" - iş bellik edildi, ýöne entek başlanmady\n\"Işjeň\" - işgär işi ýerine ýetirmäge başlady\n\"Tamamlandy\" - iş ýerine ýetirildi\n\"Tassyklandy\" - iş barlanyldy we tassyklanýar",
+        "q5": "Bir sargyty bir wagtda birnäçe işgärlere bellik etmek bolýarmy?",
+        "a5": "Hawa, administrator ýa-da menedžer bir sargyty bir wagtda birnäçe işgärlere bellik edip bilýärler."
+      },
+      "stages": {
+        "title": "Tapgyrlar we rollar hakda",
+        "q1": "Sargyt tapgyry näme?",
+        "a1": "Tapgyr - bu sargyt öndürişiň tapgyry. Mysal üçin: \"Dizaýn\", \"Basmak\", \"Grawiýrowka\", \"Ustahan\", \"Taýýar\".",
+        "q2": "Ulgamda tapgyrlary kim düzgünleşdirip biler?",
+        "a2": "Diňe administratorlar tapgyrlary goşup, üýtgedip ýa-da pozup bilýärler.",
+        "q3": "Dürli önümler üçin tapgyrlar nähili işleýär?",
+        "a3": "Her önümiň öz elýeterli tapgyrlary bolup biler. Mysal üçin, bir önüm üçin \"Grawiýrowka\" tapgyry gerek bolup bilmez.",
+        "q4": "Ulgamda rollar näme?",
+        "a4": "Rol işgäriň nähili funksiýalaryny ulanmak hukugyny kesgitleýär. Rollar bar: Administrator, Menedžer, Dizaýner, Basmak ussasy, Ustahan işgäri, Grawer ussasy, Buhgalter.",
+        "q5": "Rollary kim düzgünleşdirip biler?",
+        "a5": "Diňe administratorlar rollary dolandyryp bilýärler.",
+        "q6": "Menedžer işgär üçin administrator roluny bellik edip bilermi?",
+        "a6": "Ýok, muny diňe administrator edip biler."
+      },
+      "permissions": {
+        "title": "Girip bolmak hukuklary we maglumat hakda",
+        "q1": "Kim sargytlardaky bahalary görüp biler?",
+        "a1": "Diňe administratorlar we menedžerler bahalary görüp bilýärler. Adaty işgärler bahalary görmeýärler.",
+        "q2": "Adaty işgär ulgamda näme görýär?",
+        "a2": "Işgär görýär:\n- Diňe özüne bellik edilen sargytlar\n- Özüne bellik edilen sargytlary bolan müşderiler hakda maglumat\n- Öz iş statistikasy (näçe sargyt ýerine ýetirdi, näçesi işjeň)",
+        "q3": "Işgär kompaniýanyň hemme sargytlaryny görüp bilermi?",
+        "a3": "Ýok, işgärler diňe öz bellik edilen sargytlaryny görýärler."
+      },
+      "stats": {
+        "title": "Statistika we hasabatlar hakda",
+        "q1": "Işgär nähili statistikany görýär?",
+        "a1": "Işgär diňe öz statistikasyny görýär:\n- Ona jemi näçe sargyt bellik edildi\n- Näçe sargyt tamamlady\n- Näçe sargyt işjeň\n- Näçe sargyt iş başlamagy garaşýar",
+        "q2": "Administrator ýa-da menedžer nähili statistikany görýär?",
+        "a2": "Olar kompaniýanyň doly statistikasyny görýärler:\n- Jemi sargytlar sany\n- Jemi müşderiler sany\n- Jemi işgärler sany\n- Aýlar boýunça girdeýji\n- Soňky 30 günde täze müşderiler\n- Hemme tapgyrlar boýunça statistika"
+      },
+      "notifications": {
+        "title": "Bildirişler hakda",
+        "q1": "Ulgamda nähili bildirişler gelýär?",
+        "a1": "Ulgamda bildirişler bar:\n- Täze sargyt bellik etmek hakda\n- Sargyt tapgyryny üýtgetmek hakda\n- Iş durmuşyny üýtgetmek hakda\n- Sargyta teswir goşmak hakda\n- Iş güni ahyry hakda ýatlatma",
+        "q2": "Bildirişler nähili gelýär?",
+        "a2": "Bildirişler programmanyň özünde gelýär (interfeýsde bildirişler görnüşinde) we, eger düzgünleşdirilse, telefon bilen push-bildirişler arkly.",
+        "q3": "Bildirişleri ýapyp bolýarmy?",
+        "a3": "Hawa, bildirişleri okalan görnüşde belgä almak bolýar. Sazlamalarda push-bildirişleri dolandyryp bolýar."
+      },
+      "bulk": {
+        "title": "Köp amallar hakda",
+        "q1": "Köp amallar näme?",
+        "a1": "Bu bir hereketi bir wagtda birnäçe sargyt, müşderi ýa-da beýleki ýazgylar üçin ýerine ýetirmek mümkinçiligi.",
+        "q2": "Nähili köp amallar elýeterli?",
+        "a2": "- Köp pozmak (bir wagtda birnäçe ýazgy pozmak)\n- Köp sargyt bellik etmek (bir wagtda birnäçe sargyt işgärlere bellik etmek)\n- Köp durmuş üýtgetmek (bir wagtda birnäçe sargyt tapgyryny üýtgetmek)",
+        "q3": "Kim köp amallary ýerine ýetirip biler?",
+        "a3": "Diňe administratorlar we menedžerler köp amallary ýerine ýetirip bilýärler."
+      },
+      "audit": {
+        "title": "Hereketler gündeligi hakda",
+        "q1": "Hereketler gündeligi näme?",
+        "a1": "Bu ulgamda hemme üýtgeşmeleriň sanawy: kim sargyt döretdi, kim tapgyry üýtgetdi, kim müşderini pozdy we ş.m.",
+        "q2": "Kim hereketler gündeligini görüp biler?",
+        "a2": "Diňe administratorlar hereketler gündeligini (audit log) görüp bilýärler.",
+        "q3": "Häzirki wagtda gündelige nähili hereketler ýazylyar?",
+        "a3": "Ähli möhüm hereketler ýazylyar: sargyt, müşderi, taslama, önüm, işgär döretmek, üýtgetmek we pozmak we beýleki amallar."
+      },
+      "clients": {
+        "title": "Müşderiler we taslamalar hakda",
+        "q1": "Kim täze müşderiler goşup biler?",
+        "a1": "Administratorlar we menedžerler müşderiler goşup bilýärler.",
+        "q2": "Işgär müşderiler hakda näme görýär?",
+        "a2": "Işgär diňe şol müşderiler hakda maglumat görýär, olaryň özüne bellik edilen sargytlary bar.",
+        "q3": "Taslama näme?",
+        "a3": "Taslama - bu bir-birine baglanyşykly sargytlar toplumy. Mysal üçin, bir uly sargyt birnäçe sargytdan ybarat bolup biler, olar taslamada birleşdirilýär.",
+        "q4": "Kim taslamalar döredip biler?",
+        "a4": "Administratorlar we menedžerler taslamalar döredip bilýärler."
+      }
+    },
+    "tips": {
+      "title": "Peýdaly maslahatlar",
+      "staff": {
+        "title": "Işgärler üçin:",
+        "item1": "Öz bellik edilen sargytlaryňyzy düzgün barlaň",
+        "item2": "Menedžerler ösüş hakda bilmek üçin iş durmuşyny täzeläň",
+        "item3": "Menedžerler bilen we beýleki işgärler bilen aragatnaşyk üçin teswirler ulanyň"
+      },
+      "manager": {
+        "title": "Menedžerler üçin:",
+        "item1": "Sargytlary döretenden soň derrew işgärlere bellik ediň",
+        "item2": "Sargyt tapgyrlaryna serediň we olary wagtly wagtynda geçiriň",
+        "item3": "Işiň dolandyryşy üçin statistikany ulanyň"
+      },
+      "admin": {
+        "title": "Administratorlar üçin:",
+        "item1": "Ygtyýarlyk üçin hereketler gündeligini düzgün barlaň",
+        "item2": "Önümiňiziň aýratynlyklaryna görä tapgyrlar we rollary düzgünleşdiriň",
+        "item3": "Statistika arkly ähli ulanyjylaryň işjeňligini dolandyryň"
+      }
+    }
   }
 }
 

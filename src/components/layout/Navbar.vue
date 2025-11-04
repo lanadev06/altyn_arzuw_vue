@@ -49,10 +49,11 @@ const pageTitleMap: Record<string, string> = {
   'Товары': 'common.products',
   'Заказы': 'common.orders',
   'Действия': 'common.audit',
-  'Управление стадиями': 'common.stages',
-  'Управление ролями': 'common.roles',
-  'Категории': 'common.categories',
-  'Вход в систему': 'login.title',
+    'Управление стадиями': 'common.stages',
+    'Управление ролями': 'common.roles',
+    'Категории': 'common.categories',
+    'Обучение': 'common.training',
+    'Вход в систему': 'login.title',
 }
 
 const pageTitle = computed(() => {
