@@ -160,7 +160,7 @@
                       v-if="item.is_archived"
                       class="inline-flex px-2 py-1 text-xs font-normal rounded-full bg-gray-100 text-gray-500 border border-gray-200"
                     >
-                      {{ item.is_archived ? (stages.value.find(s => s.name === 'archived')?.display_name || 'archived') : '' }}
+                      {{ item.is_archived ? (stages.find(s => s.name === 'archived')?.display_name || 'archived') : '' }}
                     </span>
                   </div>
                 </template>

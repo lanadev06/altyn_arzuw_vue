@@ -299,7 +299,7 @@ async function handleBulkDelete() {
 const dynamicColumns = computed<Column[]>(() => {
   try {
     // Создаем базовые колонки
-    const columns = [...baseColumns.value]
+    const columns: Column[] = [...baseColumns.value]
 
     // Получаем все уникальные стадии с назначениями из всех продуктов
     const stageAssignments = new Map()
@@ -357,7 +357,7 @@ const dynamicColumns = computed<Column[]>(() => {
 
     return columns
   } catch (error) {
-    return baseColumns
+    return baseColumns.value as Column[]
   }
 })
 
