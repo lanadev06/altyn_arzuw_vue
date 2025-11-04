@@ -80,6 +80,12 @@ const router = createRouter({
       component: createLazyComponent(() => import('../views/CategoriesView.vue'), true),
       meta: { title: 'Категории', requiresAuth: true, preload: true },
     },
+    {
+      path: '/training',
+      name: 'training',
+      component: createLazyComponent(() => import('../views/TrainingView.vue'), true),
+      meta: { title: 'Обучение', requiresAuth: true, preload: true },
+    },
   ],
 })
 
