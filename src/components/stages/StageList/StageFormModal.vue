@@ -312,7 +312,10 @@ const handleSubmit = async () => {
     let orderValue: number
     const orderInput = form.order
     
-    if (orderInput === null || orderInput === undefined || orderInput === '' || orderInput === 0) {
+    const isStringEmpty = typeof orderInput === 'string' && (orderInput === '' || String(orderInput).trim() === '')
+    const isEmpty = orderInput === null || orderInput === undefined || orderInput === 0 || isStringEmpty
+    
+    if (isEmpty) {
       // Если order не указан или равен 0, используем 1
       orderValue = 1
     } else {
