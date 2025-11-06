@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue'
+import { rateLimiter } from '../services/rateLimiter'
 
 interface PollingOptions {
   interval: number // Базовый интервал в миллисекундах
@@ -41,21 +42,46 @@ export function useSmartPolling(
     const poll = async () => {
       if (isDestroyed || !isEnabled.value) return
 
+      // Проверяем rate limiter перед выполнением callback
+      if (!rateLimiter.canMakeRequest()) {
+        const waitTime = rateLimiter.getTimeUntilRetry()
+        // Увеличиваем интервал при rate limit
+        currentInterval.value = Math.max(currentInterval.value, waitTime)
+        if (!isDestroyed && isEnabled.value) {
+          intervalId = window.setTimeout(poll, currentInterval.value)
+        }
+        return
+      }
+
       try {
         await callback()
         lastUpdate.value = new Date()
         errorCount.value = 0
-        currentInterval.value = options.interval
+        
+        // Используем рекомендуемый интервал с учетом rate limits
+        const recommendedInterval = rateLimiter.getRecommendedPollingInterval(options.interval)
+        currentInterval.value = recommendedInterval
       } catch (error) {
         errorCount.value++
         
-        // Увеличиваем интервал при ошибках
-        const backoffMultiplier = options.backoffMultiplier || 1.5
-        const maxBackoff = options.maxBackoff || options.maxInterval
-        currentInterval.value = Math.min(
-          currentInterval.value * backoffMultiplier,
-          maxBackoff
-        )
+        // Проверяем, является ли это 429 ошибкой
+        const is429Error = (error as any)?.status === 429 || 
+                          (error instanceof Error && error.message.includes('429')) ||
+                          (error instanceof Error && error.message.includes('слишком много запросов'))
+        
+        if (is429Error) {
+          // Для 429 ошибок используем рекомендуемый интервал от rate limiter
+          const recommendedInterval = rateLimiter.getRecommendedPollingInterval(options.interval)
+          currentInterval.value = Math.max(currentInterval.value, recommendedInterval)
+        } else {
+          // Для других ошибок используем стандартный backoff
+          const backoffMultiplier = options.backoffMultiplier || 1.5
+          const maxBackoff = options.maxBackoff || options.maxInterval
+          currentInterval.value = Math.min(
+            currentInterval.value * backoffMultiplier,
+            maxBackoff
+          )
+        }
       }
 
       if (!isDestroyed && isEnabled.value) {

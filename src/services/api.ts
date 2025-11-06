@@ -5,6 +5,7 @@ import { requestDeduplication } from './requestDeduplication'
 import { invalidateCache } from '../utils/cacheUtils'
 import { requestQueue } from './requestQueue'
 import { circuitBreaker } from './circuitBreaker'
+import { rateLimiter } from './rateLimiter'
 
 // Make circuit breaker globally accessible
 if (typeof window !== 'undefined') {
@@ -150,6 +151,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const timeoutId = setTimeout(() => controller.abort(), timeout)
 
   try {
+    // Проверяем rate limiter перед выполнением запроса
+    if (!rateLimiter.canMakeRequest()) {
+      const waitTime = rateLimiter.getTimeUntilRetry()
+      await new Promise((resolve) => setTimeout(resolve, waitTime))
+    }
+
     // Используем circuit breaker и очередь запросов
     const response = await circuitBreaker.execute(async () => {
       return await requestQueue.add(async () => {
@@ -170,6 +177,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     // Если запрос успешен, сбрасываем счетчик ошибок
     if (response.ok) {
       circuitBreaker.reset()
+      rateLimiter.handleSuccess()
     }
 
     clearTimeout(timeoutId)
@@ -230,6 +238,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw new Error(message)
       }
 
+      // Обработка 429 ошибок (Too Many Requests)
+      if (response.status === 429) {
+        // Пытаемся получить Retry-After из заголовка
+        const retryAfterHeader = response.headers.get('Retry-After')
+        const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
+        
+        rateLimiter.handle429Error(retryAfter)
+        
+        const waitTime = rateLimiter.getTimeUntilRetry()
+        const message = `Слишком много запросов. Повторите попытку через ${Math.ceil(waitTime / 1000)} секунд.`
+        const error = new Error(message)
+        ;(error as any).status = 429
+        ;(error as any).retryAfter = waitTime
+        throw error
+      }
+
       // Унифицированная обработка ошибок
       if (errorData.message) {
         throw new Error(errorData.message)
@@ -261,6 +285,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       if (error.name === 'AbortError') {
         throw new Error('Превышено время ожидания запроса')
       }
+      
+      // Если это 429 ошибка, она уже обработана выше, просто пробрасываем
+      if ((error as any).status === 429) {
+        throw error
+      }
+      
       throw error
     }
     throw new Error(ERROR_MESSAGES.NETWORK_ERROR)

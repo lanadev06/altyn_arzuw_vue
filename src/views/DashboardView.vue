@@ -517,6 +517,7 @@ function getOrderWord(count: number) {
 onMounted(async () => {
   try {
     // Статистика (только для admin и manager)
+    // Используем задержку между запросами для снижения нагрузки
     if (hasAdminOrManagerRole.value) {
       const statsData = await safeApiRequest<typeof stats.value>('/stats')
       if (statsData) {
@@ -524,6 +525,8 @@ onMounted(async () => {
       } else {
         stats.value = { users: 0, orders: 0, newClients: 0 }
       }
+      // Небольшая задержка перед следующим запросом
+      await new Promise(resolve => setTimeout(resolve, 200))
     } else {
       // Для обычных пользователей загружаем только базовую статистику
       const statsData = await safeApiRequest<typeof stats.value>('/stats')
@@ -536,6 +539,8 @@ onMounted(async () => {
       } else {
         stats.value = { users: 0, orders: 0, newClients: 0 }
       }
+      // Небольшая задержка перед следующим запросом
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
 
     // Активность (только для admin и manager)
@@ -554,7 +559,9 @@ onMounted(async () => {
     // Оставляем пустой массив - активность показывается в RecentActivity
     staffActivity.value = []
 
-    // Уведомления
+    // Уведомления - загружаем с задержкой после других запросов
+    // Небольшая задержка перед запросом уведомлений
+    await new Promise(resolve => setTimeout(resolve, 300))
     try {
       const token = localStorage.getItem('auth_token')
       const res = await axios.get(`${API_CONFIG.BASE_URL}/notifications/unread`, {
@@ -575,8 +582,11 @@ onMounted(async () => {
           },
         )
       }
-    } catch (notificationError) {
-      notifications.value = []
+    } catch (notificationError: any) {
+      // Игнорируем 429 ошибки для уведомлений, они обрабатываются в NotificationBell
+      if (notificationError?.response?.status !== 429) {
+        notifications.value = []
+      }
     }
 
     // Загрузка стадий
@@ -616,7 +626,8 @@ onMounted(async () => {
       ]
     }
 
-    // Новый эндпоинт для дашборда
+    // Новый эндпоинт для дашборда - загружаем с задержкой
+    await new Promise(resolve => setTimeout(resolve, 400))
     try {
       const res = (await apiRequest('/stats/dashboard')) as any
 

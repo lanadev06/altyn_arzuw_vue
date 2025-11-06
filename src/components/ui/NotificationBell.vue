@@ -181,6 +181,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { API_CONFIG } from '../../config/api'
+import { rateLimiter } from '../../services/rateLimiter'
 
 defineOptions({
   name: 'NotificationBell'
@@ -213,6 +214,10 @@ const hasNewNotifications = ref(false)
 let pollInterval: any = null
 let previousUnreadCount = 0
 
+// Сохраняем ссылки на обработчики для правильной очистки
+let focusHandler: (() => void) | null = null
+let visibilityHandler: (() => void) | null = null
+
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value
   if (dropdownOpen.value) {
@@ -221,6 +226,13 @@ function toggleDropdown() {
 }
 
 async function fetchNotifications() {
+  // Проверяем rate limiter перед запросом
+  if (!rateLimiter.canMakeRequest()) {
+    const waitTime = rateLimiter.getTimeUntilRetry()
+    console.warn(`Rate limited. Skipping notification fetch. Retry in ${Math.ceil(waitTime / 1000)}s`)
+    return
+  }
+
   loading.value = true
   try {
     const res = await fetch(`${API_CONFIG.BASE_URL}/notifications`, {
@@ -231,6 +243,15 @@ async function fetchNotifications() {
     })
 
     if (!res.ok) {
+      // Обрабатываем 429 ошибку
+      if (res.status === 429) {
+        const retryAfterHeader = res.headers.get('Retry-After')
+        const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
+        rateLimiter.handle429Error(retryAfter)
+        console.warn('Rate limit exceeded for notifications. Will retry later.')
+        return
+      }
+      
       const errorText = await res.text()
       throw new Error(`HTTP ${res.status}: ${res.statusText}`)
     }
@@ -253,10 +274,14 @@ async function fetchNotifications() {
     }
     unreadCount.value = newUnreadCount
     previousUnreadCount = newUnreadCount
+    
+    // Уведомляем rate limiter об успешном запросе
+    rateLimiter.handleSuccess()
   } catch (e) {
-    notifications.value = []
-    unreadCount.value = 0
-    previousUnreadCount = 0
+    // Не сбрасываем данные при ошибке, чтобы не терять существующие уведомления
+    if ((e as any)?.status !== 429) {
+      console.error('Error fetching notifications:', e)
+    }
   } finally {
     loading.value = false
   }
@@ -396,39 +421,65 @@ function translateStatusInText(text: string): string {
 
 onMounted(() => {
   fetchNotifications()
-  // Проверяем уведомления каждые 30 секунд для снижения нагрузки
-  pollInterval = setInterval(fetchNotifications, 30000) // Увеличиваем до 30 секунд
+  
+  // Динамический интервал polling с учетом rate limits
+  const startPolling = () => {
+    const baseInterval = 30000 // 30 секунд
+    const poll = () => {
+      fetchNotifications()
+      // Получаем рекомендуемый интервал с учетом rate limits
+      const recommendedInterval = rateLimiter.getRecommendedPollingInterval(baseInterval)
+      pollInterval = setTimeout(poll, recommendedInterval)
+    }
+    pollInterval = setTimeout(poll, baseInterval)
+  }
+  
+  startPolling()
 
   // Добавляем обработчик клика вне dropdown'а
   document.addEventListener('click', handleClickOutside)
 
   // Добавляем обработчик фокуса окна для обновления при возвращении на вкладку
-  window.addEventListener('focus', fetchNotifications)
-
-  // Добавляем обработчик видимости страницы
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
+  // Но только если не rate limited
+  focusHandler = () => {
+    if (rateLimiter.canMakeRequest()) {
       fetchNotifications()
     }
-  })
+  }
+  window.addEventListener('focus', focusHandler)
+
+  // Добавляем обработчик видимости страницы
+  visibilityHandler = () => {
+    if (!document.hidden && rateLimiter.canMakeRequest()) {
+      fetchNotifications()
+    }
+  }
+  document.addEventListener('visibilitychange', visibilityHandler)
 })
 
 // Очищаем интервал при размонтировании компонента
 onUnmounted(() => {
   if (pollInterval) {
-    clearInterval(pollInterval as number)
+    if (typeof pollInterval === 'number') {
+      clearTimeout(pollInterval)
+    } else {
+      clearInterval(pollInterval as number)
+    }
   }
 
   // Удаляем обработчик клика
   document.removeEventListener('click', handleClickOutside)
 
   // Удаляем обработчики фокуса и видимости
-  window.removeEventListener('focus', fetchNotifications)
-  document.removeEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      fetchNotifications()
-    }
-  })
+  if (focusHandler) {
+    window.removeEventListener('focus', focusHandler)
+    focusHandler = null
+  }
+  
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler)
+    visibilityHandler = null
+  }
 })
 </script>
 

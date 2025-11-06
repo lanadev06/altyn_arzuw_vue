@@ -212,7 +212,14 @@ const loadRevenueData = async (year: number) => {
         createChart()
       }, 100)
     }
-  } catch (error) {
+  } catch (error: any) {
+    // Игнорируем 429 ошибки - они обрабатываются глобально
+    if (error?.status === 429) {
+      console.warn('Rate limit exceeded for revenue data. Will retry later.')
+      // Не сбрасываем данные, оставляем предыдущие значения
+      return
+    }
+    
     revenueData.value = {
       monthly_data: [],
       total_revenue: 0,

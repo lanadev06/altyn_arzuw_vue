@@ -5,6 +5,7 @@
 
 import type { Client } from '../types/api'
 import { API_CONFIG } from '../config/api'
+import { rateLimiter } from '../services/rateLimiter'
 
 /**
  * Безопасно получает значение из объекта по пути
@@ -90,6 +91,12 @@ export function safeProcessApiResponse<T, R>(
  */
 export async function safeApiRequest<T>(url: string, options: RequestInit = {}): Promise<T | null> {
   try {
+    // Проверяем rate limiter перед запросом
+    if (!rateLimiter.canMakeRequest()) {
+      const waitTime = rateLimiter.getTimeUntilRetry()
+      await new Promise((resolve) => setTimeout(resolve, waitTime))
+    }
+
     const token = localStorage.getItem('auth_token')
     // Добавляем базовый URL если URL относительный
     let fullUrl = url
@@ -110,10 +117,19 @@ export async function safeApiRequest<T>(url: string, options: RequestInit = {}):
     })
 
     if (!response.ok) {
+      // Обрабатываем 429 ошибку
+      if (response.status === 429) {
+        const retryAfterHeader = response.headers.get('Retry-After')
+        const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
+        rateLimiter.handle429Error(retryAfter)
+        return null
+      }
       return null
     }
 
-    return await response.json()
+    const data = await response.json()
+    rateLimiter.handleSuccess()
+    return data
   } catch (error) {
     return null
   }
