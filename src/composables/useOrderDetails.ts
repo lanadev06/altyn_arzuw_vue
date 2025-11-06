@@ -315,9 +315,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
         // Источник 1: все пользователи (увеличенный per_page, чтобы не терять пользователей на последующих страницах)
         try {
           const { cachedApiRequest } = await import('../services/api')
-          const data = await cachedApiRequest('/users?per_page=1000&sort_by=id&sort_order=asc', {
-            ttl: forceRefresh ? 0 : 60000 // 1 минута кэш, если не принудительное обновление
-          })
+          const data = await cachedApiRequest('/users?per_page=1000&sort_by=id&sort_order=asc', {}, undefined, forceRefresh ? 0 : 60000) // 1 минута кэш, если не принудительное обновление
           const paged = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
           users = Array.isArray(paged) ? (paged as User[]) : []
         } catch {

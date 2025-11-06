@@ -30,7 +30,7 @@
           <span class="font-semibold text-blue-900 text-base">{{ t('navbar.notifications') }}</span>
           <div class="flex items-center gap-2">
             <button
-              @click="fetchNotifications"
+              @click="() => fetchNotifications(true)"
               :disabled="loading"
               class="text-xs text-blue-600 hover:underline disabled:opacity-50"
               :title="t('common.search')"
