@@ -288,66 +288,86 @@ export function useOrderDetails(orderId: number | null | undefined) {
     }
   }
 
+  // Флаг для предотвращения одновременных вызовов fetchAvailableUsers
+  let isFetchingUsers = false
+  let pendingFetchUsers: Promise<void> | null = null
+
   async function fetchAvailableUsers(forceRefresh = false) {
-    try {
-      let users: User[] = []
+    // Если уже идет загрузка, возвращаем существующий промис
+    if (isFetchingUsers && pendingFetchUsers) {
+      return pendingFetchUsers
+    }
 
-      // Если принудительное обновление, очищаем кэш
-      if (forceRefresh) {
-        frontendCache.invalidatePattern(CacheKeys.USERS)
-        frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
-        frontendCache.invalidatePattern('users_by_stage_roles')
-        frontendCache.invalidatePattern('stages_users_by_roles')
-      }
-
-      // Источник 1: все пользователи (увеличенный per_page, чтобы не терять пользователей на последующих страницах)
+    // Создаем промис для дедупликации
+    pendingFetchUsers = (async () => {
+      isFetchingUsers = true
       try {
-        const { apiRequest } = await import('../services/api')
-        const data = await apiRequest('/users?per_page=1000&sort_by=id&sort_order=asc')
-        const paged = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
-        users = Array.isArray(paged) ? (paged as User[]) : []
-      } catch {
-        // Продолжаем ко второму источнику
-      }
+        let users: User[] = []
 
-      // Источник 2: пользователи по ролям стадий — помогает подтянуть только активных и точно ролевых
-      try {
-        const data = await getAllUsersByStageRoles(forceRefresh)
-        let allUsers: User[] = []
-
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          Object.values(data).forEach((stageUsers: any) => {
-            if (Array.isArray(stageUsers)) {
-              // Новый формат: stageId -> [user1, user2, ...]
-              allUsers = allUsers.concat(stageUsers as User[])
-            } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
-              // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
-              const stage = stageUsers as Record<string, unknown>
-              if (stage.users_by_role) {
-                Object.values(stage.users_by_role).forEach((roleData: any) => {
-                  if (roleData && typeof roleData === 'object' && roleData !== null) {
-                    const role = roleData as Record<string, unknown>
-                    if (role.users && Array.isArray(role.users)) {
-                      allUsers = allUsers.concat(role.users as User[])
-                    }
-                  }
-                })
-              }
-            }
-          })
+        // Если принудительное обновление, очищаем кэш
+        if (forceRefresh) {
+          frontendCache.invalidatePattern(CacheKeys.USERS)
+          frontendCache.invalidatePattern(CacheKeys.USERS_BY_STAGE_ROLES)
+          frontendCache.invalidatePattern('users_by_stage_roles')
+          frontendCache.invalidatePattern('stages_users_by_roles')
         }
 
-        // Объединяем оба источника и убираем дубликаты по id
-        const merged = [...users, ...allUsers]
-        users = merged.filter((user, index, self) => index === self.findIndex((u) => u.id === user.id))
-      } catch {
-        // Игнорируем ошибку, остаёмся на users из первого источника
-      }
+        // Источник 1: все пользователи (увеличенный per_page, чтобы не терять пользователей на последующих страницах)
+        try {
+          const { cachedApiRequest } = await import('../services/api')
+          const data = await cachedApiRequest('/users?per_page=1000&sort_by=id&sort_order=asc', {
+            ttl: forceRefresh ? 0 : 60000 // 1 минута кэш, если не принудительное обновление
+          })
+          const paged = Array.isArray(data) ? data : (data as { data?: User[] })?.data || []
+          users = Array.isArray(paged) ? (paged as User[]) : []
+        } catch {
+          // Продолжаем ко второму источнику
+        }
 
-      availableUsers.value = users
-    } catch {
-      availableUsers.value = []
-    }
+        // Источник 2: пользователи по ролям стадий — помогает подтянуть только активных и точно ролевых
+        try {
+          const data = await getAllUsersByStageRoles(forceRefresh)
+          let allUsers: User[] = []
+
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            Object.values(data).forEach((stageUsers: any) => {
+              if (Array.isArray(stageUsers)) {
+                // Новый формат: stageId -> [user1, user2, ...]
+                allUsers = allUsers.concat(stageUsers as User[])
+              } else if (stageUsers && typeof stageUsers === 'object' && stageUsers !== null) {
+                // Старый формат: stageId -> { users_by_role: { roleName: { users: [...] } } }
+                const stage = stageUsers as Record<string, unknown>
+                if (stage.users_by_role) {
+                  Object.values(stage.users_by_role).forEach((roleData: any) => {
+                    if (roleData && typeof roleData === 'object' && roleData !== null) {
+                      const role = roleData as Record<string, unknown>
+                      if (role.users && Array.isArray(role.users)) {
+                        allUsers = allUsers.concat(role.users as User[])
+                      }
+                    }
+                  })
+                }
+              }
+            })
+          }
+
+          // Объединяем оба источника и убираем дубликаты по id
+          const merged = [...users, ...allUsers]
+          users = merged.filter((user, index, self) => index === self.findIndex((u) => u.id === user.id))
+        } catch {
+          // Игнорируем ошибку, остаёмся на users из первого источника
+        }
+
+        availableUsers.value = users
+      } catch {
+        availableUsers.value = []
+      } finally {
+        isFetchingUsers = false
+        pendingFetchUsers = null
+      }
+    })()
+
+    return pendingFetchUsers
   }
 
   // Функции для работы с комментариями
@@ -479,9 +499,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
           frontendCache.delete(cacheKey)
         }
 
-        // Принудительно обновляем список пользователей для селектора
-        await fetchAvailableUsers(true)
-        
+        // Обновляем данные заказа (пользователи обновятся автоматически через watch на стадию)
         await forceRefresh()
         
         toast.show('Сотрудник успешно назначен', 'success')
@@ -527,10 +545,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
         frontendCache.delete(cacheKey)
       }
 
+      // Обновляем данные без множественных вызовов fetchAvailableUsers
+      // fetchAvailableUsers будет вызван автоматически через watch на order.value?.stage
+      // если стадия изменилась, или через дебаунсинг
       setTimeout(async () => {
         try {
-          // Обновляем список пользователей при изменении статуса
-          await fetchAvailableUsers(true)
           await forceRefresh()
           resetPolling()
         } catch (error) {
@@ -637,6 +656,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
       toast.show('Стадия заказа обновлена: ' + stageDisplayName)
 
       // Отправляем глобальное событие о смене стадии
+      // Это событие автоматически также вызывает 'order-updated' через eventBus
       emitOrderStageChanged(
         order.value.id,
         oldStage,
@@ -646,11 +666,8 @@ export function useOrderDetails(orderId: number | null | undefined) {
       )
 
       // Timeline обновится автоматически через глобальные события
-      
-      // Оставляем старое событие для совместимости
-      window.dispatchEvent(new CustomEvent('order-updated', {
-        detail: { orderId }
-      }))
+      // НЕ вызываем window.dispatchEvent('order-updated') здесь, так как
+      // emitOrderStageChanged уже вызывает это событие через eventBus
     } catch (err: any) {
       // Откатываем изменения в случае ошибки
       if (order.value) {
@@ -838,7 +855,15 @@ export function useOrderDetails(orderId: number | null | undefined) {
   onOrderStageChanged((event) => {
     // Обновляем timeline только если событие относится к текущему заказу
     if (orderId && event.orderId === orderId) {
-      loadComments()
+      // Дебаунсинг: загружаем комментарии через 500мс после последнего изменения стадии
+      if (loadCommentsTimeout) {
+        clearTimeout(loadCommentsTimeout)
+      }
+      
+      loadCommentsTimeout = setTimeout(() => {
+        loadComments()
+        loadCommentsTimeout = null
+      }, 500)
     }
   })
 
@@ -851,6 +876,12 @@ export function useOrderDetails(orderId: number | null | undefined) {
     }
   })
 
+  // Дебаунсинг для fetchAvailableUsers чтобы избежать множественных запросов
+  let fetchUsersTimeout: ReturnType<typeof setTimeout> | null = null
+  
+  // Дебаунсинг для loadComments чтобы избежать множественных запросов при изменении стадии
+  let loadCommentsTimeout: ReturnType<typeof setTimeout> | null = null
+  
   watch(
     () => order.value?.stage,
     async (newStage) => {
@@ -860,11 +891,19 @@ export function useOrderDetails(orderId: number | null | undefined) {
         cancelReasonStatus.value = 'refused'
       }
 
-      try {
-        await fetchAvailableUsers(true)
-      } catch {
-        // Игнорируем ошибку
+      // Дебаунсинг: обновляем пользователей только через 2 секунды после последнего изменения стадии
+      if (fetchUsersTimeout) {
+        clearTimeout(fetchUsersTimeout)
       }
+      
+      fetchUsersTimeout = setTimeout(async () => {
+        try {
+          await fetchAvailableUsers(true)
+        } catch {
+          // Игнорируем ошибку
+        }
+        fetchUsersTimeout = null
+      }, 2000)
     },
   )
 

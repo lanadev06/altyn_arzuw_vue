@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick, computed, defineAsyncComponent } from 'vue'
+import { ref, watch, onMounted, onActivated, onUnmounted, nextTick, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -444,9 +444,9 @@ onMounted(async () => {
   await loadStages()
   
   // Проверяем, были ли недавние изменения заказов (удаление, создание, обновление)
-  // Если были изменения в последние 30 секунд, принудительно обновляем данные
+  // Если были изменения в последние 5 минут, принудительно обновляем данные
   const lastOrderChange = localStorage.getItem('lastOrderChange')
-  const shouldForceRefresh = lastOrderChange && (Date.now() - parseInt(lastOrderChange)) < 30000
+  const shouldForceRefresh = lastOrderChange && (Date.now() - parseInt(lastOrderChange)) < 300000 // 5 минут
   
   loadOrders(shouldForceRefresh)
   
@@ -457,8 +457,8 @@ onMounted(async () => {
   visibilityChangeHandler = () => {
     if (!document.hidden) {
       const lastChange = localStorage.getItem('lastOrderChange')
-      if (lastChange && (Date.now() - parseInt(lastChange)) < 60000) {
-        // Если были изменения в последнюю минуту, обновляем данные
+      if (lastChange && (Date.now() - parseInt(lastChange)) < 300000) {
+        // Если были изменения в последние 5 минут, обновляем данные
         loadOrders(true)
       }
     }
@@ -523,6 +523,16 @@ onMounted(async () => {
     }
   }
   
+})
+
+// Хук для отслеживания возврата на страницу через навигацию Vue Router
+onActivated(() => {
+  // Проверяем, были ли изменения заказов при возврате на страницу
+  const lastOrderChange = localStorage.getItem('lastOrderChange')
+  if (lastOrderChange && (Date.now() - parseInt(lastOrderChange)) < 300000) {
+    // Если были изменения в последние 5 минут, принудительно обновляем данные
+    loadOrders(true)
+  }
 })
 
 async function openOrderDetails(payload: any) {

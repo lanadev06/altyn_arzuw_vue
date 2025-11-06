@@ -710,32 +710,37 @@ onMounted(async () => {
 
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {
-    // Дебаунсинг: обновляем список только через 500ms после последнего события
+    // Дебаунсинг: обновляем список только через 1 секунду после последнего события
+    // Увеличена задержка для предотвращения 429 ошибок при множественных запросах
     if (updateTimeout) {
       clearTimeout(updateTimeout)
     }
     updateTimeout = setTimeout(() => {
-      loadOrders(currentPage.value)
+      // Используем force_refresh=true чтобы получить свежие данные, а не из кэша
+      loadOrders(currentPage.value, true)
       updateTimeout = null
-    }, 500)
+    }, 1000)
   })
   
   onOrderUpdated((event) => {
-    // Дебаунсинг: обновляем список только через 500ms после последнего события
+    // Дебаунсинг: обновляем список только через 1 секунду после последнего события
+    // Увеличена задержка для предотвращения 429 ошибок при множественных запросах
     if (updateTimeout) {
       clearTimeout(updateTimeout)
     }
     updateTimeout = setTimeout(() => {
-      loadOrders(currentPage.value)
+      // Используем force_refresh=true чтобы получить свежие данные, а не из кэша
+      loadOrders(currentPage.value, true)
       updateTimeout = null
-    }, 500)
+    }, 1000)
   })
 
   // Загружаем стадии для фильтра
   await loadStages()
 
-  // Загружаем заказы
-  loadOrders()
+  // Загрузка заказов управляется родительским компонентом OrdersView
+  // через функцию loadOrders(), поэтому здесь не вызываем loadOrders()
+  // чтобы избежать двойного запроса
 
   // Убрали автоматическое обновление для предотвращения сброса на первую страницу
   // autoRefreshInterval = window.setInterval(() => {

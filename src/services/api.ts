@@ -298,7 +298,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 }
 
 // Кэшированная версия apiRequest для GET запросов
-async function cachedApiRequest<T>(
+export async function cachedApiRequest<T>(
   endpoint: string, 
   options: RequestInit = {},
   cacheKey?: string,
@@ -417,10 +417,15 @@ export const authApi = {
     }
   },
 
-  // Получить текущего пользователя
+  // Получить текущего пользователя (с кэшированием на 5 минут)
   async me(): Promise<User> {
     try {
-      return await apiRequest<User>(API_ENDPOINTS.AUTH.ME)
+      return await cachedApiRequest<User>(
+        API_ENDPOINTS.AUTH.ME,
+        {},
+        'user_me',
+        CacheTTL.SHORT // 15 минут кэш
+      )
     } catch (error) {
       if (API_CONFIG.DEV.USE_MOCK_FALLBACK) {
         const user = localStorage.getItem('user')
@@ -514,7 +519,14 @@ export async function createClient(data: Partial<Client>): Promise<Client> {
     body: JSON.stringify(data),
   })
   if (!res.ok) throw new Error('Ошибка создания клиента')
-  return (await res.json()).data
+  const result = (await res.json()).data
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastClientChange', Date.now().toString())
+  }
+  
+  return result
 }
 
 export async function updateClient(id: number, data: Partial<Client>): Promise<Client> {
@@ -528,7 +540,14 @@ export async function updateClient(id: number, data: Partial<Client>): Promise<C
     body: JSON.stringify(data),
   })
   if (!res.ok) throw new Error('Ошибка обновления клиента')
-  return (await res.json()).data
+  const result = (await res.json()).data
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastClientChange', Date.now().toString())
+  }
+  
+  return result
 }
 
 export async function deleteClient(id: number): Promise<void> {
@@ -540,6 +559,11 @@ export async function deleteClient(id: number): Promise<void> {
     },
   })
 
+  // Сохраняем время последнего изменения перед проверкой ошибок
+  if (typeof window !== 'undefined' && res.ok) {
+    localStorage.setItem('lastClientChange', Date.now().toString())
+  }
+  
   if (!res.ok) {
     let errorMessage = 'Ошибка удаления клиента'
     let errorData = null
@@ -736,6 +760,11 @@ export async function createProduct(data: ProductForm): Promise<Product> {
   // Инвалидируем кэш продуктов
   invalidateCache.products()
   
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastProductChange', Date.now().toString())
+  }
+  
   return res.data
 }
 
@@ -758,6 +787,11 @@ export async function updateProduct(id: number, data: ProductForm): Promise<Prod
 
   // Инвалидируем кэш продуктов после обновления
   invalidateCache.products()
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastProductChange', Date.now().toString())
+  }
 
   return responseData.data
 }
@@ -790,6 +824,11 @@ export async function deleteProduct(id: number): Promise<void> {
 
   // Инвалидируем кэш продуктов после удаления
   invalidateCache.products()
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastProductChange', Date.now().toString())
+  }
 }
 
 // Product Stages API - для работы с таблицей product_stages

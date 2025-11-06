@@ -29,6 +29,7 @@ import SearchInput from '../ui/SearchInput.vue'
 import NotificationBell from '../ui/NotificationBell.vue'
 import LanguageSwitcher from '../ui/LanguageSwitcher.vue'
 import { useI18n } from 'vue-i18n'
+import { frontendCache } from '../../services/cacheService'
 
 defineOptions({
   name: 'Navbar'
@@ -135,6 +136,10 @@ function handleProfileUpdated(updatedUser: any) {
   
   // Сохраняем обновленные данные в localStorage
   localStorage.setItem('user', JSON.stringify(updatedUser))
+  
+  // Очищаем кэш /me, чтобы при следующем запросе получить свежие данные
+  frontendCache.delete('user_me')
+  localStorage.setItem('lastMeRequest', '0') // Сбрасываем время последнего запроса
 }
 
 onMounted(async () => {
@@ -156,25 +161,33 @@ onMounted(async () => {
     }
   }
 
-  try {
-    const response = await authApi.me()
+  // Проверяем, когда был последний запрос к /me
+  // Если прошло меньше 5 минут, используем данные из localStorage
+  const lastMeRequest = localStorage.getItem('lastMeRequest')
+  const shouldFetchMe = !lastMeRequest || (Date.now() - parseInt(lastMeRequest)) > 300000 // 5 минут
 
-    // Laravel API возвращает данные в формате {data: {...}}
-    const user = (response as any).data || response
+  if (shouldFetchMe) {
+    try {
+      const response = await authApi.me()
 
-    currentUser.value = {
-      id: user.id,
-      name: user.name,
-      role: user.roles?.[0]?.name || '',
-      image: user.image || null,
-      image_url: user.image_url || null,
-      roles: user.roles || [],
-      phone: user.phone || '',
+      // Laravel API возвращает данные в формате {data: {...}}
+      const user = (response as any).data || response
+
+      currentUser.value = {
+        id: user.id,
+        name: user.name,
+        role: user.roles?.[0]?.name || '',
+        image: user.image || null,
+        image_url: user.image_url || null,
+        roles: user.roles || [],
+        phone: user.phone || '',
+      }
+      // Обновляем localStorage с новыми данными
+      localStorage.setItem('user', JSON.stringify(user))
+      localStorage.setItem('lastMeRequest', Date.now().toString())
+    } catch (e) {
+      // Если API не работает, продолжаем использовать данные из localStorage
     }
-    // Обновляем localStorage с новыми данными
-    localStorage.setItem('user', JSON.stringify(user))
-  } catch (e) {
-    // Если API не работает, продолжаем использовать данные из localStorage
   }
 })
 

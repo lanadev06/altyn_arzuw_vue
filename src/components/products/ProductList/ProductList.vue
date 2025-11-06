@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, onActivated, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
@@ -520,7 +520,8 @@ function setSort(key: string, search = '') {
   localStorage.setItem(SORT_KEY, sortBy.value)
   localStorage.setItem(ORDER_KEY, sortOrder.value)
   // При изменении сортировки остаемся на той же странице
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // Используем force_refresh=true чтобы получить свежие данные
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
 }
 
 function resetSettings() {
@@ -534,7 +535,8 @@ function resetSettings() {
   localStorage.setItem('productList_perPage', perPage.value.toString())
   currentPage.value = 1
   selectedCategory.value = '' // Сбрасываем фильтр по категориям
-      fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // Используем force_refresh=true чтобы получить свежие данные
+  fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
 }
 
 function goToPage(page: number) {
@@ -543,7 +545,8 @@ function goToPage(page: number) {
   // Обновляем текущую страницу и сохраняем в localStorage
   currentPage.value = page
   localStorage.setItem('productList_currentPage', page.toString())
-      fetchProducts(page, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // Используем force_refresh=true чтобы получить свежие данные
+  fetchProducts(page, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
 }
 
 function editProduct(product: Product) {
@@ -647,7 +650,8 @@ function filterByCategory() {
   // При изменении фильтра возвращаемся на первую страницу
   currentPage.value = 1
   localStorage.setItem('productList_currentPage', '1')
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // Используем force_refresh=true чтобы получить свежие данные
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
 }
 
 // Функция загрузки категорий
@@ -667,7 +671,8 @@ watch(
     currentPage.value = 1
     localStorage.setItem('productList_currentPage', '1')
     selectedCategory.value = '' // Сбрасываем фильтр по категориям при поиске
-    fetchProducts(1, newVal, sortBy.value, sortOrder.value, perPage.value)
+    // Используем force_refresh=true чтобы получить свежие данные, а не из кэша
+    fetchProducts(1, newVal, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
   },
 )
 
@@ -702,7 +707,21 @@ onMounted(async () => {
       },
     })
   }
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  // Проверяем, были ли недавние изменения продуктов при монтировании
+  const lastProductChange = localStorage.getItem('lastProductChange')
+  const shouldForceRefresh = lastProductChange && (Date.now() - parseInt(lastProductChange)) < 300000 // 5 минут
+  
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, shouldForceRefresh, selectedCategory.value)
+})
+
+// Хук для отслеживания возврата на страницу через навигацию Vue Router
+onActivated(() => {
+  // Проверяем, были ли изменения продуктов при возврате на страницу
+  const lastProductChange = localStorage.getItem('lastProductChange')
+  if (lastProductChange && (Date.now() - parseInt(lastProductChange)) < 300000) {
+    // Если были изменения в последние 5 минут, принудительно обновляем данные
+    fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
+  }
 })
 
 

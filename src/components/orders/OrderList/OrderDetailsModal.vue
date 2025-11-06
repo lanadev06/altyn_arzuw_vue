@@ -214,10 +214,21 @@ function onOverlayClick() {
   emit('close')
 }
 
+// Дебаунсинг для handleGlobalUpdate чтобы избежать множественных обновлений
+let globalUpdateTimeout: ReturnType<typeof setTimeout> | null = null
+
 // Обработчик глобальных событий обновления
 function handleGlobalUpdate(event: CustomEvent) {
   if (event.detail?.orderId === props.orderId) {
-    forceRefresh()
+    // Дебаунсинг: обновляем только через 500ms после последнего события
+    if (globalUpdateTimeout) {
+      clearTimeout(globalUpdateTimeout)
+    }
+    
+    globalUpdateTimeout = setTimeout(() => {
+      forceRefresh()
+      globalUpdateTimeout = null
+    }, 500)
   }
 }
 

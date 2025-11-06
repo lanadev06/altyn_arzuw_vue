@@ -185,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onActivated, nextTick, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import UIButton from '@/components/ui/UIButton.vue'
@@ -197,6 +197,7 @@ import ContactTypeIcon from './ContactTypeIcon.vue'
 import { useToast } from '@/stores/toast'
 import { useBulkActions } from '../../../composables/useBulkActions'
 import BulkActionPanel from '../../ui/BulkActionPanel.vue'
+import { frontendCache, CacheKeys } from '@/services/cacheService'
 
 const { t, locale } = useI18n()
 
@@ -322,20 +323,35 @@ async function handleDeleteClient(clientId: number) {
     return
   }
 
+  // Оптимистичное обновление: сразу удаляем клиента из списка
+  const clientIndex = pagination.data.findIndex(c => c.id === clientId)
+  const wasLastOnPage = pagination.data.length === 1
+  const currentPageBeforeDelete = currentPage.value
+
+  if (clientIndex !== -1) {
+    pagination.data.splice(clientIndex, 1)
+    pagination.total = Math.max(0, (pagination.total || 0) - 1)
+  }
+
   try {
     await remove(clientId)
 
     // Показываем уведомление об успешном удалении
     toast.show(t('clients.clientDeleted'), 'success')
 
-    // Обновляем UI только после успешного удаления
+    // Закрываем модальное окно
     showEditModal.value = false
     editingClient.value = null
-    if (pagination && pagination.data.length === 1 && currentPage.value > 1) {
-      currentPage.value--
-      localStorage.setItem('clientList_currentPage', currentPage.value.toString())
-    }
+
+    // Обновляем список после удаления
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+    
+    // Если текущая страница стала больше последней, переходим на последнюю
+    if (pagination.current_page > pagination.last_page && pagination.last_page > 0) {
+      currentPage.value = pagination.last_page
+      localStorage.setItem('clientList_currentPage', currentPage.value.toString())
+      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+    }
   } catch (err: any) {
     // Если ошибка 404 (клиент не найден), считаем это успешным удалением
     if (
@@ -345,12 +361,22 @@ async function handleDeleteClient(clientId: number) {
       (err as { status: number }).status === 404
     ) {
       toast.show(t('clients.clientDeleted'), 'success')
-      // Обновляем список
+      // Обновляем список для синхронизации
       await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+      
+      // Если текущая страница стала больше последней, переходим на последнюю
+      if (pagination.current_page > pagination.last_page && pagination.last_page > 0) {
+        currentPage.value = pagination.last_page
+        localStorage.setItem('clientList_currentPage', currentPage.value.toString())
+        await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+      }
       return
     }
 
-    // Для других ошибок показываем сообщение об ошибке
+    // Для других ошибок откатываем оптимистичное обновление
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+
+    // Показываем сообщение об ошибке
     let message = t('clients.deleteError')
     if (err instanceof Error) {
       message = err.message
@@ -377,7 +403,8 @@ watch(
   (newVal) => {
     currentPage.value = 1
     localStorage.setItem('clientList_currentPage', '1')
-    fetchClients(1, newVal, sortBy.value, sortOrder.value, perPage.value)
+    // Используем force_refresh=true чтобы получить свежие данные, а не из кэша
+    fetchClients(1, newVal, sortBy.value, sortOrder.value, perPage.value, true)
   },
 )
 
@@ -412,10 +439,25 @@ onMounted(async () => {
       },
     })
   }
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  // Проверяем, были ли недавние изменения клиентов при монтировании
+  const lastClientChange = localStorage.getItem('lastClientChange')
+  const shouldForceRefresh = lastClientChange && (Date.now() - parseInt(lastClientChange)) < 300000 // 5 минут
+  
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, shouldForceRefresh)
   pollingInterval = setInterval(() => {
-    fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+    // Polling использует force_refresh для получения актуальных данных
+    fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   }, 30000) // Увеличиваем до 30 секунд
+})
+
+// Хук для отслеживания возврата на страницу через навигацию Vue Router
+onActivated(() => {
+  // Проверяем, были ли изменения клиентов при возврате на страницу
+  const lastClientChange = localStorage.getItem('lastClientChange')
+  if (lastClientChange && (Date.now() - parseInt(lastClientChange)) < 300000) {
+    // Если были изменения в последние 5 минут, принудительно обновляем данные
+    fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+  }
 })
 
 watch(perPage, (newVal) => {
@@ -423,7 +465,8 @@ watch(perPage, (newVal) => {
   localStorage.setItem('clientList_perPage', perPage.value.toString())
   currentPage.value = 1
   localStorage.setItem('clientList_currentPage', '1')
-  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value)
+  // Используем force_refresh=true чтобы получить свежие данные
+  fetchClients(1, props.search, sortBy.value, sortOrder.value, perPage.value, true)
 })
 
 onUnmounted(() => {
@@ -450,8 +493,45 @@ watch(locale, () => {
 
 
 async function handleBulkDelete() {
+  // Сохраняем выбранные ID перед удалением
+  const selectedIdsBeforeDelete = [...selectedIds.value]
+  
+  // Оптимистичное обновление: сразу удаляем выбранные клиенты из списка
+  selectedIdsBeforeDelete.forEach(id => {
+    const index = pagination.data.findIndex(c => c.id === id)
+    if (index !== -1) {
+      pagination.data.splice(index, 1)
+    }
+  })
+  pagination.total = Math.max(0, (pagination.total || 0) - selectedIdsBeforeDelete.length)
+  
   const result = await bulkDelete('clients')
+  
   if (result.deleted > 0) {
+    // Инвалидируем кэш клиентов на фронтенде
+    frontendCache.invalidatePattern(CacheKeys.CLIENTS)
+    frontendCache.invalidatePattern('clients_')
+    
+    // Инвалидируем кэш клиентов в localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lastClientChange', Date.now().toString())
+    }
+    
+    // Небольшая задержка перед обновлением, чтобы сервер успел обработать удаление
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    // Обновляем список с принудительным обновлением (force_refresh=true)
+    // Используем await чтобы убедиться, что данные загружены
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+    
+    // Если текущая страница стала больше последней, переходим на последнюю
+    if (pagination.current_page > pagination.last_page && pagination.last_page > 0) {
+      currentPage.value = pagination.last_page
+      localStorage.setItem('clientList_currentPage', currentPage.value.toString())
+      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
+    }
+  } else {
+    // Если ничего не удалилось, откатываем оптимистичное обновление
     await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   }
 }

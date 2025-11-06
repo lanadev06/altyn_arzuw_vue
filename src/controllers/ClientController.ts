@@ -59,22 +59,31 @@ export function useClientController() {
 
       if (Array.isArray(res)) {
         // when API returns array (all=true)
-        pagination.data = res
+        pagination.data = res || []
         pagination.current_page = 1
         pagination.last_page = 1
-        pagination.total = res.length
+        pagination.total = res?.length || 0
         pagination.per_page = per_page
-        clients.value = res
+        clients.value = res || []
       } else {
-        pagination.data = res.data
-        pagination.current_page = res.current_page
-        pagination.last_page = res.last_page
-        pagination.total = res.total
-        pagination.per_page = res.per_page
-        clients.value = res.data
+        // Обрабатываем пагинированный ответ
+        pagination.data = res?.data || []
+        pagination.current_page = res?.current_page || 1
+        pagination.last_page = res?.last_page || 1
+        pagination.total = res?.total || 0
+        pagination.per_page = res?.per_page || per_page
+        clients.value = res?.data || []
+        
+        // Если текущая страница больше последней, переходим на последнюю
+        if (pagination.current_page > pagination.last_page && pagination.last_page > 0) {
+          // Это обрабатывается вызывающим кодом, но здесь мы гарантируем корректные данные
+        }
       }
     } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки клиентов'
+      // При ошибке не очищаем данные полностью, чтобы не было пустого экрана
+      // Данные останутся прежними, но будет показана ошибка
+      console.error('Error fetching clients:', e)
     } finally {
       loading.value = false
     }

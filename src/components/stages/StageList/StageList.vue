@@ -422,12 +422,25 @@ const handleDeleteStage = async (stageId: number) => {
     editingStage.value = null
     await fetchStages()
   } catch (err: any) {
-    // Показываем ошибку пользователю
+    // Показываем детальное сообщение об ошибке
+    let errorMessage = t('stages.deleteError')
+    
     if (err instanceof Error) {
-      toast.show(`${t('stages.deleteError')} ${err.message}`, 'error')
+      // Если есть детальное сообщение от сервера, показываем его
+      errorMessage = err.message || errorMessage
+      
+      // Если ошибка содержит информацию о связанных заказах/продуктах, показываем детали
+      if (err.message && (err.message.includes('заказах') || err.message.includes('продуктах'))) {
+        errorMessage = err.message
+      }
+    } else if (err?.response?.data?.message) {
+      errorMessage = err.response.data.message
     } else {
-      toast.show(t('stages.unknownError'), 'error')
+      errorMessage = t('stages.unknownError')
     }
+    
+    toast.show(errorMessage, 'error')
+    console.error('Error deleting stage:', err)
   }
 }
 

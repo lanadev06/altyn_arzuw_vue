@@ -182,6 +182,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { API_CONFIG } from '../../config/api'
 import { rateLimiter } from '../../services/rateLimiter'
+import { cachedApiRequest } from '../../services/api'
+import { CacheTTL } from '../../services/cacheService'
 
 defineOptions({
   name: 'NotificationBell'
@@ -221,11 +223,12 @@ let visibilityHandler: (() => void) | null = null
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value
   if (dropdownOpen.value) {
-    fetchNotifications()
+    // При открытии dropdown принудительно обновляем уведомления
+    fetchNotifications(true)
   }
 }
 
-async function fetchNotifications() {
+async function fetchNotifications(forceRefresh = false) {
   // Проверяем rate limiter перед запросом
   if (!rateLimiter.canMakeRequest()) {
     const waitTime = rateLimiter.getTimeUntilRetry()
@@ -235,28 +238,28 @@ async function fetchNotifications() {
 
   loading.value = true
   try {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/notifications`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    })
-
-    if (!res.ok) {
-      // Обрабатываем 429 ошибку
-      if (res.status === 429) {
-        const retryAfterHeader = res.headers.get('Retry-After')
-        const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
-        rateLimiter.handle429Error(retryAfter)
-        console.warn('Rate limit exceeded for notifications. Will retry later.')
-        return
-      }
-      
-      const errorText = await res.text()
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    // Используем кэшированный запрос с коротким TTL (30 секунд)
+    // Это позволяет обновлять уведомления часто, но не делать запросы при каждом polling
+    const cacheKey = 'notifications_list'
+    
+    // Если forceRefresh, очищаем кэш
+    if (forceRefresh) {
+      const { frontendCache } = await import('../../services/cacheService')
+      frontendCache.delete(cacheKey)
     }
+    
+    const data = await cachedApiRequest<any>(
+      '/notifications',
+      {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      },
+      cacheKey,
+      30000 // 30 секунд кэш - достаточно для уменьшения запросов, но уведомления остаются актуальными
+    )
 
-    const data = await res.json()
     notifications.value = Array.isArray(data) ? data : data.data || []
     const newUnreadCount = notifications.value.filter((n) => !n.read_at).length
 
@@ -295,7 +298,10 @@ async function markAllRead() {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
     },
   })
-  fetchNotifications()
+  // Очищаем кэш и обновляем уведомления
+  const { frontendCache } = await import('../../services/cacheService')
+  frontendCache.delete('notifications_list')
+  fetchNotifications(true)
 }
 
 async function handleClick(notif: any) {
@@ -311,6 +317,10 @@ async function handleClick(notif: any) {
       })
       notif.read_at = new Date().toISOString()
       unreadCount.value = notifications.value.filter((n) => !n.read_at).length
+      
+      // Очищаем кэш, чтобы при следующем запросе получить актуальные данные
+      const { frontendCache } = await import('../../services/cacheService')
+      frontendCache.delete('notifications_list')
     } catch (error) {
     }
   }
@@ -420,13 +430,14 @@ function translateStatusInText(text: string): string {
 }
 
 onMounted(() => {
-  fetchNotifications()
+  fetchNotifications(false) // Используем кэш при первой загрузке
   
-  // Динамический интервал polling с учетом rate limits
+  // Динамический интервал polling с учетом rate limits и кэширования
+  // Увеличиваем интервал до 60 секунд, так как теперь есть кэш на 30 секунд
   const startPolling = () => {
-    const baseInterval = 30000 // 30 секунд
+    const baseInterval = 60000 // 60 секунд (кэш на 30 секунд, так что реальный запрос будет каждые 60 секунд)
     const poll = () => {
-      fetchNotifications()
+      fetchNotifications(false) // Используем кэш
       // Получаем рекомендуемый интервал с учетом rate limits
       const recommendedInterval = rateLimiter.getRecommendedPollingInterval(baseInterval)
       pollInterval = setTimeout(poll, recommendedInterval)
@@ -440,18 +451,18 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 
   // Добавляем обработчик фокуса окна для обновления при возвращении на вкладку
-  // Но только если не rate limited
+  // Но только если не rate limited - используем кэш
   focusHandler = () => {
     if (rateLimiter.canMakeRequest()) {
-      fetchNotifications()
+      fetchNotifications(false) // Используем кэш
     }
   }
   window.addEventListener('focus', focusHandler)
 
-  // Добавляем обработчик видимости страницы
+  // Добавляем обработчик видимости страницы - используем кэш
   visibilityHandler = () => {
     if (!document.hidden && rateLimiter.canMakeRequest()) {
-      fetchNotifications()
+      fetchNotifications(false) // Используем кэш
     }
   }
   document.addEventListener('visibilitychange', visibilityHandler)
