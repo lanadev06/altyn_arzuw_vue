@@ -20,40 +20,76 @@ class FrontendCacheService {
     defaultTTL: 60 * 60 * 1000, // 60 минут для медленного интернета (увеличено с 30)
     maxSize: 500 // Увеличиваем до 500 записей
   }
+  private hitCount = 0
+  private missCount = 0
+  private cleanupInterval: number | null = null
+
+  constructor() {
+    // Запускаем периодическую очистку устаревших записей каждые 5 минут
+    if (typeof window !== 'undefined') {
+      this.cleanupInterval = window.setInterval(() => {
+        this.cleanupExpired()
+      }, 5 * 60 * 1000) // 5 минут
+    }
+  }
 
   /**
    * Получить данные из кэша
    */
   get<T>(key: string): T | null {
-    const entry = this.cache.get(key)
-    
-    if (!entry) {
+    try {
+      const entry = this.cache.get(key)
+      
+      if (!entry) {
+        this.missCount++
+        return null
+      }
+
+      // Проверяем, не истек ли TTL
+      if (Date.now() - entry.timestamp > entry.ttl) {
+        this.cache.delete(key)
+        this.missCount++
+        return null
+      }
+
+      this.hitCount++
+      return entry.data
+    } catch (error) {
+      console.error('Cache get error:', error)
+      this.missCount++
       return null
     }
-
-    // Проверяем, не истек ли TTL
-    if (Date.now() - entry.timestamp > entry.ttl) {
-      this.cache.delete(key)
-      return null
-    }
-
-    return entry.data
   }
 
   /**
    * Сохранить данные в кэш
    */
   set<T>(key: string, data: T, ttl?: number): void {
-    // Очищаем старые записи если достигли лимита
-    if (this.cache.size >= this.config.maxSize) {
-      this.cleanup()
-    }
+    try {
+      // Очищаем старые записи если достигли лимита
+      if (this.cache.size >= this.config.maxSize) {
+        this.cleanup()
+      }
 
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: ttl || this.config.defaultTTL
-    })
+      this.cache.set(key, {
+        data,
+        timestamp: Date.now(),
+        ttl: ttl || this.config.defaultTTL
+      })
+    } catch (error) {
+      console.error('Cache set error:', error)
+      // В случае ошибки пытаемся очистить кэш и повторить
+      try {
+        this.cleanup()
+        this.cache.set(key, {
+          data,
+          timestamp: Date.now(),
+          ttl: ttl || this.config.defaultTTL
+        })
+      } catch (retryError) {
+        console.error('Cache set retry error:', retryError)
+      }
+    }
   }
 
   /**
@@ -67,31 +103,56 @@ class FrontendCacheService {
    * Очистить весь кэш
    */
   clear(): void {
-    this.cache.clear()
+    try {
+      this.cache.clear()
+      // Сбрасываем счетчики статистики
+      this.hitCount = 0
+      this.missCount = 0
+    } catch (error) {
+      console.error('Cache clear error:', error)
+    }
   }
 
   /**
-   * Очистить устаревшие записи
+   * Очистить устаревшие записи (вызывается периодически)
+   */
+  private cleanupExpired(): void {
+    try {
+      const now = Date.now()
+      const entriesToDelete: string[] = []
+
+      for (const [key, entry] of this.cache.entries()) {
+        if (now - entry.timestamp > entry.ttl) {
+          entriesToDelete.push(key)
+        }
+      }
+
+      entriesToDelete.forEach(key => this.cache.delete(key))
+    } catch (error) {
+      console.error('Cache cleanupExpired error:', error)
+    }
+  }
+
+  /**
+   * Очистить устаревшие записи и освободить место
    */
   private cleanup(): void {
-    const now = Date.now()
-    const entriesToDelete: string[] = []
+    try {
+      // Сначала очищаем устаревшие записи
+      this.cleanupExpired()
 
-    for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > entry.ttl) {
-        entriesToDelete.push(key)
+      // Если все еще много записей, удаляем самые старые
+      if (this.cache.size >= this.config.maxSize) {
+        const sortedEntries = Array.from(this.cache.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp)
+        
+        const toDelete = sortedEntries.slice(0, Math.floor(this.config.maxSize / 2))
+        toDelete.forEach(([key]) => this.cache.delete(key))
       }
-    }
-
-    entriesToDelete.forEach(key => this.cache.delete(key))
-
-    // Если все еще много записей, удаляем самые старые
-    if (this.cache.size >= this.config.maxSize) {
-      const sortedEntries = Array.from(this.cache.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)
-      
-      const toDelete = sortedEntries.slice(0, Math.floor(this.config.maxSize / 2))
-      toDelete.forEach(([key]) => this.cache.delete(key))
+    } catch (error) {
+      console.error('Cache cleanup error:', error)
+      // В случае критической ошибки очищаем весь кэш
+      this.cache.clear()
     }
   }
 
@@ -119,9 +180,6 @@ class FrontendCacheService {
     }
   }
 
-  private hitCount = 0
-  private missCount = 0
-
   private calculateHitRate(): number {
     const total = this.hitCount + this.missCount
     return total > 0 ? (this.hitCount / total) * 100 : 0
@@ -131,34 +189,101 @@ class FrontendCacheService {
    * Создать ключ кэша для API запроса
    */
   createCacheKey(endpoint: string, params?: Record<string, any>): string {
-    const baseKey = endpoint.replace(/[^a-zA-Z0-9]/g, '_')
-    
-    if (!params || Object.keys(params).length === 0) {
-      return baseKey
+    try {
+      const baseKey = endpoint.replace(/[^a-zA-Z0-9]/g, '_')
+      
+      if (!params || Object.keys(params).length === 0) {
+        return baseKey
+      }
+
+      // Сортируем ключи для консистентности
+      const sortedParams = Object.keys(params)
+        .sort()
+        .map(key => {
+          const value = params[key]
+          // Обрабатываем объекты и массивы
+          const stringValue = typeof value === 'object' 
+            ? JSON.stringify(value) 
+            : String(value)
+          return `${key}=${stringValue}`
+        })
+        .join('&')
+
+      // Используем безопасное кодирование вместо btoa для поддержки non-ASCII
+      // btoa может упасть на non-ASCII символах, поэтому используем encodeURIComponent
+      const encodedParams = encodeURIComponent(sortedParams)
+        .replace(/%/g, '_') // Заменяем % на _ для читаемости
+        .replace(/[^a-zA-Z0-9_]/g, '_') // Оставляем только безопасные символы
+
+      return `${baseKey}_${encodedParams}`
+    } catch (error) {
+      console.error('Cache key creation error:', error)
+      // Fallback: используем простой ключ
+      return endpoint.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Date.now()
     }
-
-    const sortedParams = Object.keys(params)
-      .sort()
-      .map(key => `${key}=${params[key]}`)
-      .join('&')
-
-    return `${baseKey}_${btoa(sortedParams)}`
   }
 
   /**
    * Инвалидировать кэш по паттерну
    */
   invalidatePattern(pattern: string): void {
-    const regex = new RegExp(pattern)
-    const keysToDelete: string[] = []
-
-    for (const key of this.cache.keys()) {
-      if (regex.test(key)) {
-        keysToDelete.push(key)
+    try {
+      // Экранируем специальные символы regex для безопасности
+      // Если паттерн уже содержит regex-символы, используем его как есть
+      // Иначе экранируем и делаем простой поиск подстроки
+      let regex: RegExp
+      
+      // Проверяем, является ли паттерн простой строкой или regex
+      const hasRegexChars = /[.*+?^${}()|[\]\\]/.test(pattern)
+      
+      if (hasRegexChars) {
+        // Используем как regex, но с флагом для безопасности
+        try {
+          regex = new RegExp(pattern, 'i') // case-insensitive
+        } catch (regexError) {
+          // Если паттерн некорректный, используем простой поиск подстроки
+          regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+        }
+      } else {
+        // Простой поиск подстроки (быстрее и безопаснее)
+        const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        regex = new RegExp(escapedPattern, 'i')
       }
-    }
 
-    keysToDelete.forEach(key => this.cache.delete(key))
+      const keysToDelete: string[] = []
+
+      for (const key of this.cache.keys()) {
+        try {
+          if (regex.test(key)) {
+            keysToDelete.push(key)
+          }
+        } catch (testError) {
+          // Пропускаем ключи, которые вызывают ошибки
+          console.warn('Cache pattern test error for key:', key, testError)
+        }
+      }
+
+      keysToDelete.forEach(key => {
+        try {
+          this.cache.delete(key)
+        } catch (deleteError) {
+          console.warn('Cache delete error for key:', key, deleteError)
+        }
+      })
+    } catch (error) {
+      console.error('Cache invalidatePattern error:', error)
+    }
+  }
+
+  /**
+   * Уничтожить сервис и очистить интервалы
+   */
+  destroy(): void {
+    if (this.cleanupInterval !== null && typeof window !== 'undefined') {
+      window.clearInterval(this.cleanupInterval)
+      this.cleanupInterval = null
+    }
+    this.clear()
   }
 }
 

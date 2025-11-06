@@ -648,6 +648,10 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
   })
   if (!res.ok) throw new Error('Ошибка создания проекта')
   const json = await res.json()
+  
+  // Инвалидируем кэш проектов после создания
+  invalidateCache.projects()
+  
   return json.data || json
 }
 
@@ -662,7 +666,13 @@ export async function updateProject(id: number, data: Partial<Project>): Promise
     body: JSON.stringify(data),
   })
   if (!res.ok) throw new Error('Ошибка обновления проекта')
-  return (await res.json()).data
+  const result = (await res.json()).data
+  
+  // Инвалидируем кэш проектов после обновления
+  invalidateCache.projects()
+  frontendCache.delete(`project_${id}`)
+  
+  return result
 }
 
 export async function deleteProject(id: number): Promise<void> {
@@ -674,6 +684,10 @@ export async function deleteProject(id: number): Promise<void> {
     },
   })
   if (!res.ok) throw new Error('Ошибка удаления проекта')
+  
+  // Инвалидируем кэш проектов после удаления
+  invalidateCache.projects()
+  frontendCache.delete(`project_${id}`)
 }
 
 // --- Товары ---
@@ -742,6 +756,9 @@ export async function updateProduct(id: number, data: ProductForm): Promise<Prod
 
   const responseData = await res.json()
 
+  // Инвалидируем кэш продуктов после обновления
+  invalidateCache.products()
+
   return responseData.data
 }
 
@@ -770,6 +787,9 @@ export async function deleteProduct(id: number): Promise<void> {
       throw new Error('Ошибка удаления товара')
     }
   }
+
+  // Инвалидируем кэш продуктов после удаления
+  invalidateCache.products()
 }
 
 // Product Stages API - для работы с таблицей product_stages
@@ -953,21 +973,41 @@ export async function getAllOrdersForAdmin({
 }
 
 export async function createOrder(data: CreateOrderData): Promise<Order> {
-  return await apiRequest('/orders', {
+  const result = await apiRequest('/orders', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов после создания
+  invalidateCache.orders()
+  frontendCache.invalidatePattern(`order_details_`)
+  frontendCache.invalidatePattern(`order_status_logs_`)
+  
+  return result
 }
 
 export async function updateOrder(id: number, data: UpdateOrderData): Promise<Order> {
-  return await apiRequest(`/orders/${id}`, {
+  const result = await apiRequest(`/orders/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов после обновления
+  invalidateCache.orders()
+  frontendCache.delete(`order_details_${id}`)
+  frontendCache.invalidatePattern(`order_status_logs_${id}`)
+  
+  return result
 }
 
 export async function deleteOrder(id: number): Promise<void> {
   await apiRequest(`/orders/${id}`, { method: 'DELETE' })
+  
+  // Инвалидируем кэш заказов после удаления
+  invalidateCache.orders()
+  frontendCache.delete(`order_details_${id}`)
+  frontendCache.invalidatePattern(`order_status_logs_${id}`)
+  frontendCache.invalidatePattern(`order_comments_${id}`)
 }
 export async function getOrderDetails(orderId: number) {
   return await cachedApiRequest(`/orders/${orderId}`, {}, `order_details_${orderId}`, CacheTTL.MEDIUM)
@@ -1020,6 +1060,11 @@ export async function updateOrderStage(orderId: number, stage: string, additiona
     method: 'PUT',
     body: JSON.stringify(payload),
   })
+  
+  // Инвалидируем кэш заказов после изменения стадии
+  invalidateCache.orders()
+  frontendCache.delete(`order_details_${orderId}`)
+  frontendCache.invalidatePattern(`order_status_logs_${orderId}`)
 }
 
 export async function createUser(data: CreateUserData & { image?: File }): Promise<User> {
