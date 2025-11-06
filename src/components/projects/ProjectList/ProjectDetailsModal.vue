@@ -293,10 +293,10 @@
                     </div>
                   </div>
                 </div>
-                <div v-if="orders.length === 0" class="text-gray-500">{{ t('projects.details.noRelatedOrders') }}</div>
+                <div v-if="localOrders.length === 0" class="text-gray-500">{{ t('projects.details.noRelatedOrders') }}</div>
                 <div v-else class="flex flex-col gap-3">
                   <div
-                    v-for="order in orders"
+                    v-for="order in localOrders"
                     :key="order.id"
                     :class="[
                       'rounded-xl shadow p-4 border border-blue-100 flex flex-col gap-2 transition-all duration-200',
@@ -525,8 +525,10 @@
     </transition>
     
     <!-- Модалка для добавления существующего заказа -->
+    <!-- Используем key для пересоздания модалки при каждом открытии -->
     <AttachOrderModal
       v-if="showAttachExistingModal && props.project"
+      :key="`attach-modal-${props.project.id}-${showAttachExistingModal}`"
       :project-id="props.project.id"
       @close="showAttachExistingModal = false"
       @attach="handleAttachOrder"
@@ -606,6 +608,14 @@ const props = defineProps<{
   comments: Comment[]
   assignments: { order_id: number; user_id: number }[]
 }>()
+
+// Локальное состояние для списка заказов (для реактивного обновления)
+const localOrders = ref<Order[]>(props.orders)
+
+// Обновляем локальный список при изменении props
+watch(() => props.orders, (newOrders) => {
+  localOrders.value = newOrders
+}, { deep: true, immediate: true })
 
 const newComment = ref('')
 const commentFocused = ref(false)
@@ -837,41 +847,79 @@ function clearDetachSelection() {
 }
 
 function toggleSelectAllOrders() {
-  if (selectedOrdersForDetach.value.length === props.orders.length) {
+  if (selectedOrdersForDetach.value.length === localOrders.value.length) {
     // Если все выбраны - снять выбор
     selectedOrdersForDetach.value = []
   } else {
     // Выбрать все
-    selectedOrdersForDetach.value = props.orders.map(order => order.id)
+    selectedOrdersForDetach.value = localOrders.value.map(order => order.id)
   }
 }
 
-// Отвязываем несколько заказов одновременно
+// Отвязываем несколько заказов одновременно (используем batch endpoint)
 async function detachSelectedOrders() {
   if (selectedOrdersForDetach.value.length === 0) return
   
   try {
-    for (const orderId of selectedOrdersForDetach.value) {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({ project_id: null })
+    // Используем batch endpoint для массовой отвязки
+    const response = await fetch(`${API_CONFIG.BASE_URL}/orders/bulk-detach-from-project`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+      body: JSON.stringify({ 
+        order_ids: selectedOrdersForDetach.value 
       })
+    })
+    
+    if (response.ok) {
+      const result = await response.json()
       
-      if (response.ok) {
+      // Отправляем события для каждого отвязанного заказа
+      selectedOrdersForDetach.value.forEach((orderId) => {
         emit('detach-order', orderId)
         window.dispatchEvent(new CustomEvent('order-updated', {
           detail: { orderId }
         }))
+      })
+      
+      toast.show(
+        result.message || t('projects.details.detachedOrders', { count: result.detached || selectedOrdersForDetach.value.length }), 
+        'success'
+      )
+      
+      // Показываем предупреждения, если были ошибки
+      if (result.errors && result.errors.length > 0) {
+        console.warn('Некоторые заказы не были отвязаны:', result.errors)
       }
+      
+      // Обновляем локальный список заказов - загружаем свежие данные проекта
+      const projectResponse = await fetch(`${API_CONFIG.BASE_URL}/projects/${props.project.id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      
+      if (projectResponse.ok) {
+        const freshProject = await projectResponse.json()
+        if (freshProject && freshProject.orders) {
+          localOrders.value = freshProject.orders
+        }
+      } else {
+        console.warn('Не удалось загрузить обновленный проект после массовой отвязки')
+        // Все равно обновляем через родительский компонент
+        // События detach-order уже отправлены выше
+      }
+      
+      selectedOrdersForDetach.value = []
+    } else {
+      const errorData = await response.json().catch(() => ({ message: t('projects.details.detachOrdersError') }))
+      console.error('Ошибка отвязки заказов:', response.status, errorData)
+      toast.show(`${t('messages.error')}: ${errorData.message || t('projects.details.detachOrdersError')}`, 'error')
     }
-    
-    toast.show(t('projects.details.detachedOrders', { count: selectedOrdersForDetach.value.length }), 'success')
-    selectedOrdersForDetach.value = []
   } catch (error) {
     console.error('Ошибка при отвязке заказов:', error)
     toast.show(t('projects.details.detachOrdersError'), 'error')
@@ -895,8 +943,25 @@ async function detachOrder(orderId: number) {
     if (response.ok) {
       toast.show(t('projects.details.orderDetached'), 'success')
       
+      // Обновляем локальный список заказов - загружаем свежие данные проекта
+      const projectResponse = await fetch(`${API_CONFIG.BASE_URL}/projects/${props.project.id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      
+      if (projectResponse.ok) {
+        const freshProject = await projectResponse.json()
+        if (freshProject && freshProject.orders) {
+          localOrders.value = freshProject.orders
+        }
+      } else {
+        console.warn('Не удалось загрузить обновленный проект после отвязки заказа')
+      }
+      
       // Отправляем событие в родительский компонент
-      // Родительский компонент сам обновит список
+      // Родительский компонент обновит props.orders, что автоматически обновится через watch
       emit('detach-order', orderId)
       
       // Отправляем глобальное событие обновления заказа
@@ -932,7 +997,29 @@ async function handleAttachOrder(orderId: number) {
       const updatedOrder = await response.json()
       
       toast.show(t('projects.details.orderAttached'), 'success')
-      emit('attach-order', orderId)
+      
+      // Обновляем список заказов проекта - загружаем свежие данные проекта
+      const projectResponse = await fetch(`${API_CONFIG.BASE_URL}/projects/${props.project.id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      
+      if (projectResponse.ok) {
+        const freshProject = await projectResponse.json()
+        // Обновляем локальный список заказов сразу
+        if (freshProject && freshProject.orders) {
+          localOrders.value = freshProject.orders
+        }
+        // Отправляем событие в родительский компонент для обновления списка заказов
+        // Родитель обновит props.orders, что автоматически обновится через watch
+        emit('attach-order', orderId)
+      } else {
+        console.warn('Не удалось загрузить обновленный проект после привязки заказа')
+        // Все равно отправляем событие, чтобы родитель обновил
+        emit('attach-order', orderId)
+      }
       
       // Отправляем глобальное событие обновления заказа
       window.dispatchEvent(new CustomEvent('order-updated', {
@@ -944,7 +1031,7 @@ async function handleAttachOrder(orderId: number) {
       toast.show(t('projects.details.attachOrderError'), 'error')
     }
   } catch (error) {
-    console.error('Ошибка при добавлении заказа:', error)
+    console.error('Ошибка при привязке заказа:', error)
     toast.show(t('projects.details.attachOrderError'), 'error')
   }
 }

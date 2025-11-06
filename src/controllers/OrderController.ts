@@ -34,6 +34,7 @@ export function useOrderController() {
     per_page = 30,
     assignment_status?: string,
     admin_view = false,
+    force_refresh = false,
   ) {
     loading.value = true
     error.value = ''
@@ -50,6 +51,7 @@ export function useOrderController() {
         is_archived: isArchived,
         assignment_status,
         admin_view,
+        force_refresh,
       })
 
       pagination.data = res.data
@@ -60,9 +62,18 @@ export function useOrderController() {
       pagination.from = res.from
       pagination.to = res.to
 
-      orders.value = res.data
+      orders.value = res.data || []
+      
+      // Если данные не были получены, но ошибки нет - устанавливаем пустой массив
+      if (!orders.value || orders.value.length === 0) {
+        orders.value = []
+      }
     } catch (e: any) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки заказов'
+      orders.value = []
+      pagination.data = []
+      pagination.total = 0
+      console.error('Error loading orders:', e)
     } finally {
       loading.value = false
     }

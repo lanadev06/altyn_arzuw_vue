@@ -354,13 +354,13 @@ async function handleCreateProject(newProject: Project) {
   // Проект уже создан в модальном окне, просто обновляем список и закрываем модалку
   showCreateModal.value = false
   currentPage.value = 1
-  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
 }
 
 async function handleUpdateProject(updatedProject: Project) {
   await update(updatedProject.id, updatedProject)
   showEditModal.value = false
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
 }
 
 async function handleDeleteProject(projectId: number) {
@@ -377,6 +377,7 @@ async function handleDeleteProject(projectId: number) {
       sortBy.value,
       sortOrder.value,
       perPage.value,
+      true,
     )
   } catch (err: any) {
     // Показываем ошибку пользователю
@@ -444,7 +445,7 @@ function handleCloseOrderForm() {
   selectedProject.value = null
 }
 async function onUpdateProject(updatedProject: any) {
-  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+  await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   
   // Если проект удален (updatedProject === null), закрываем модальное окно
   if (updatedProject === null) {
@@ -497,15 +498,24 @@ async function onOrderCreated(order: any) {
 async function handleDetachOrder(orderId: number) {
   // Перезагружаем проект с обновленным списком заказов
   if (selectedProject.value) {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    })
-    const freshProject = await res.json()
-    selectedProject.value = freshProject
-    selectedProjectOrders.value = freshProject.orders || []
+    try {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      
+      if (res.ok) {
+        const freshProject = await res.json()
+        selectedProject.value = freshProject
+        selectedProjectOrders.value = freshProject.orders || []
+      } else {
+        console.warn('Не удалось загрузить обновленный проект после отвязки заказа')
+      }
+    } catch (error) {
+      console.error('Ошибка при обновлении проекта после отвязки заказа:', error)
+    }
   }
 }
 
@@ -513,15 +523,24 @@ async function handleDetachOrder(orderId: number) {
 async function handleAttachOrder(orderId: number) {
   // Перезагружаем проект с обновленным списком заказов
   if (selectedProject.value) {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    })
-    const freshProject = await res.json()
-    selectedProject.value = freshProject
-    selectedProjectOrders.value = freshProject.orders || []
+    try {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/projects/${selectedProject.value.id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      })
+      
+      if (res.ok) {
+        const freshProject = await res.json()
+        selectedProject.value = freshProject
+        selectedProjectOrders.value = freshProject.orders || []
+      } else {
+        console.warn('Не удалось загрузить обновленный проект после привязки заказа')
+      }
+    } catch (error) {
+      console.error('Ошибка при обновлении проекта после привязки заказа:', error)
+    }
   }
 }
 
@@ -655,7 +674,7 @@ watch(perPage, (newVal) => {
 async function handleBulkDelete() {
   const result = await bulkDelete('projects')
   if (result.deleted > 0) {
-    await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value)
+    await fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   }
 }
 
@@ -706,7 +725,7 @@ onMounted(async () => {
       },
     })
   }
-  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false)
   try {
     const res = await fetch('/api/clients/all', {
       headers: {

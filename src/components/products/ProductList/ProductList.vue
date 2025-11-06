@@ -291,7 +291,8 @@ const {
 async function handleBulkDelete() {
   const result = await bulkDelete('products')
   if (result.deleted > 0) {
-    await goToPage(1)
+    currentPage.value = 1
+    await fetchProducts(1, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
   }
 }
 
@@ -560,7 +561,7 @@ function editProduct(product: Product) {
 async function handleCreateProduct(newProduct: Product) {
   showCreateModal.value = false
   currentPage.value = 1
-  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false, selectedCategory.value)
+  fetchProducts(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true, selectedCategory.value)
 }
 
 async function handleProductSaved() {
@@ -617,7 +618,7 @@ async function handleDeleteProduct(productId: number) {
         sortBy.value,
         sortOrder.value,
         perPage.value,
-        false,
+        true,
         selectedCategory.value,
       )
       return

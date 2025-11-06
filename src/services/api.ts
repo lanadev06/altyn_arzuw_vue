@@ -445,6 +445,7 @@ export async function getClients({
   sort_order = 'asc',
   per_page,
   all,
+  force_refresh = false,
 }: {
   page?: string
   search?: string
@@ -452,6 +453,7 @@ export async function getClients({
   sort_order?: string
   per_page?: string
   all?: boolean
+  force_refresh?: boolean
 } = {}): Promise<PaginatedResponse<Client> | Client[]> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
@@ -460,6 +462,7 @@ export async function getClients({
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
   if (all) params.push('all=true')
+  if (force_refresh) params.push('force_refresh=true')
   const query = params.length ? `?${params.join('&')}` : ''
 
   return await cachedApiRequest<PaginatedResponse<Client> | Client[]>(
@@ -584,6 +587,7 @@ export async function getProjects({
   sort_by = 'id',
   sort_order = 'desc',
   per_page = 30,
+  force_refresh = false,
 } = {}): Promise<PaginatedResponse<Project>> {
   const params = []
   if (search) params.push(`search=${encodeURIComponent(search)}`)
@@ -591,6 +595,7 @@ export async function getProjects({
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
+  if (force_refresh) params.push('force_refresh=true')
   const query = params.length ? `?${params.join('&')}` : ''
   
   return await cachedApiRequest<PaginatedResponse<Project>>(
@@ -662,7 +667,7 @@ export async function getProducts({
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
   if (category_id) params.push(`category_id=${encodeURIComponent(category_id)}`)
-  if (forceRefresh) params.push(`_t=${Date.now()}`) // Принудительное обновление кэша
+  if (forceRefresh) params.push('force_refresh=true') // Принудительное обновление кэша на бэкенде
   const query = params.length ? `?${params.join('&')}` : ''
 
   // Если forceRefresh, очищаем кэш
@@ -812,6 +817,7 @@ export async function getOrders({
   is_archived,
   assignment_status,
   admin_view = false,
+  force_refresh = false,
 }: {
   page?: string
   search?: string
@@ -822,6 +828,7 @@ export async function getOrders({
   is_archived?: boolean
   assignment_status?: string
   admin_view?: boolean
+  force_refresh?: boolean
 } = {}): Promise<PaginatedResponse<Order>> {
   const params = new URLSearchParams({
     page,
@@ -834,6 +841,7 @@ export async function getOrders({
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
   if (assignment_status) params.append('assignment_status', assignment_status)
   if (admin_view) params.append('admin_view', 'true')
+  if (force_refresh) params.append('force_refresh', 'true')
 
   const cacheKey = `orders_${params.toString()}`
   return await cachedApiRequest<PaginatedResponse<Order>>(
@@ -1028,6 +1036,7 @@ export async function getUsers({
   per_page = 30,
   role = '',
   is_active = null,
+  force_refresh = false,
 } = {}): Promise<PaginatedResponse<User>> {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -1040,6 +1049,7 @@ export async function getUsers({
   if (is_active !== null) {
     params.append('is_active', String(is_active))
   }
+  if (force_refresh) params.append('force_refresh', 'true')
   const cacheKey = `users_${params.toString()}`
   const res = await cachedApiRequest<PaginatedResponse<User>>(
     `/users?${params.toString()}`,
@@ -1373,7 +1383,7 @@ export async function getCategories({
   if (sort_by) params.push(`sort_by=${encodeURIComponent(sort_by)}`)
   if (sort_order) params.push(`sort_order=${encodeURIComponent(sort_order)}`)
   if (per_page) params.push(`per_page=${per_page}`)
-  if (forceRefresh) params.push(`_t=${Date.now()}`)
+  if (forceRefresh) params.push('force_refresh=true') // Принудительное обновление кэша на бэкенде
   const query = params.length ? `?${params.join('&')}` : ''
 
   // Если forceRefresh, очищаем кэш

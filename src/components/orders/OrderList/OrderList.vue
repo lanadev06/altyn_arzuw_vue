@@ -184,9 +184,14 @@
                 {{ t('order.loading') }}
               </td>
             </tr>
-            <tr v-if="!loading && orders.length === 0">
+            <tr v-if="!loading && orders.length === 0 && !error">
               <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-gray-500 text-base">
                 {{ props.search ? t('order.notFound') : t('order.noOrders') }}
+              </td>
+            </tr>
+            <tr v-if="error">
+              <td :colspan="columns.length + 1" class="px-3 py-8 text-center text-red-500 text-base">
+                {{ error }}
               </td>
             </tr>
           </tbody>
@@ -244,7 +249,7 @@ import Pagination from '../../users/UserList/Pagination.vue'
 import UIButton from '../../ui/UIButton.vue'
 import { OrderController } from '../../../controllers/OrderController'
 import type { Order } from '../../../types/order'
-import { canCreateEdit, canViewPrices, canDelete } from '../../../utils/permissions'
+import { canCreateEdit, canViewPrices, canDelete, canViewAllOrders } from '../../../utils/permissions'
 import { getAllStages } from '../../../services/api'
 import { useOrderEvents } from '../../../composables/useOrderEvents'
 import { useBulkActions } from '../../../composables/useBulkActions'
@@ -257,7 +262,7 @@ const props = defineProps<{
 
 const { t, locale } = useI18n()
 
-const { getAll, removeOrder, orders, pagination, loading, fetchOrders } = OrderController()
+const { getAll, removeOrder, orders, pagination, loading, error, fetchOrders } = OrderController()
 
 // Система событий для синхронизации
 const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
@@ -303,14 +308,14 @@ const {
 async function handleBulkDelete() {
   const result = await bulkDelete('orders')
   if (result.deleted > 0) {
-    loadOrders(currentPage.value)
+    loadOrders(currentPage.value, true)
   }
 }
 
 async function handleBulkStatusUpdate(stage: string) {
   const result = await bulkUpdateOrderStatus(stage)
   if (result.updated > 0) {
-    loadOrders(currentPage.value)
+    loadOrders(currentPage.value, true)
   }
 }
 
@@ -381,6 +386,9 @@ const selectedAssignmentStatus = ref<string | null>(null)
 const stages = ref<any[]>([])
 const loadingStages = ref(false)
 
+// Дебаунсинг для предотвращения множественных обновлений
+let updateTimeout: ReturnType<typeof setTimeout> | null = null
+
 const allowedPerPage = [10, 20, 50, 100, 200, 500]
 const perPage = ref(savedPerPage ? parseInt(savedPerPage) : 30)
 function validatePerPage(val: any) {
@@ -406,7 +414,7 @@ watch(perPage, (newVal) => {
   loadOrders(1)
 })
 
-function loadOrders(page = currentPage.value) {
+function loadOrders(page = currentPage.value, hard = false) {
   const isArchived =
     selectedArchive.value === 'archived'
       ? true
@@ -427,6 +435,8 @@ function loadOrders(page = currentPage.value) {
     isArchived,
     perPage.value,
     selectedAssignmentStatus.value || undefined,
+    canViewAllOrders(), // Передаем admin_view только для админов и менеджеров
+    hard, // force_refresh при необходимости
   )
 }
 
@@ -473,19 +483,20 @@ async function deleteOrder(id: number) {
   if (confirm(t('order.deleteConfirm'))) {
     try {
       await removeOrder(id)
-      // Синглтон контроллер автоматически обновит состояние
+      // Принудительно обновляем список
+      loadOrders(currentPage.value, true)
     } catch (e) {}
   }
 }
 
 function handleOrderCreated() {
   showCreateModal.value = false
-  loadOrders() // Немедленно обновляем список
+  loadOrders(undefined as any, true) // Немедленно обновляем список с force_refresh
 }
 
 function handleProjectCreated() {
   showCreateProjectModal.value = false
-  loadOrders() // Немедленно обновляем список
+  loadOrders(undefined as any, true) // Немедленно обновляем список с force_refresh
 }
 
 function getStatusClass(stage: string) {
@@ -698,13 +709,25 @@ onMounted(async () => {
 
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {
-    // Обновляем список заказов
-    loadOrders()
+    // Дебаунсинг: обновляем список только через 500ms после последнего события
+    if (updateTimeout) {
+      clearTimeout(updateTimeout)
+    }
+    updateTimeout = setTimeout(() => {
+      loadOrders(currentPage.value)
+      updateTimeout = null
+    }, 500)
   })
   
   onOrderUpdated((event) => {
-    // Обновляем список заказов
-    loadOrders()
+    // Дебаунсинг: обновляем список только через 500ms после последнего события
+    if (updateTimeout) {
+      clearTimeout(updateTimeout)
+    }
+    updateTimeout = setTimeout(() => {
+      loadOrders(currentPage.value)
+      updateTimeout = null
+    }, 500)
   })
 
   // Загружаем стадии для фильтра
@@ -726,6 +749,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // Очищаем таймер обновления при размонтировании
+  if (updateTimeout) {
+    clearTimeout(updateTimeout)
+    updateTimeout = null
+  }
   // Убрали очистку интервала и обработчика фокуса
   // if (autoRefreshInterval) {
   //   clearInterval(autoRefreshInterval)

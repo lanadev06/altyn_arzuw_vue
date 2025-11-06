@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { API_CONFIG } from '@/config/api'
 import { toast } from '@/stores/toast'
 
@@ -177,6 +177,43 @@ const searchQuery = ref('')
 const selectedOrders = ref<number[]>([])
 const attaching = ref(false)
 
+// Слушатель события обновления заказов с дебаунсингом
+let orderUpdateTimeout: ReturnType<typeof setTimeout> | null = null
+function handleOrderUpdated() {
+  // Дебаунсинг: перезагружаем заказы только через 300ms после последнего события
+  // Это предотвращает множественные перезагрузки при быстрых обновлениях
+  if (orderUpdateTimeout) {
+    clearTimeout(orderUpdateTimeout)
+  }
+  orderUpdateTimeout = setTimeout(() => {
+    loadOrders()
+    orderUpdateTimeout = null
+  }, 300)
+}
+
+onMounted(() => {
+  loadOrders()
+  // Добавляем слушателя события обновления заказов
+  window.addEventListener('order-updated', handleOrderUpdated)
+})
+
+onUnmounted(() => {
+  // Удаляем слушателя при размонтировании
+  window.removeEventListener('order-updated', handleOrderUpdated)
+  // Очищаем таймер если есть
+  if (orderUpdateTimeout) {
+    clearTimeout(orderUpdateTimeout)
+    orderUpdateTimeout = null
+  }
+})
+
+// Отслеживаем изменения projectId для перезагрузки при необходимости
+watch(() => props.projectId, () => {
+  if (props.projectId) {
+    loadOrders()
+  }
+}, { immediate: false })
+
 const filteredOrders = computed(() => {
   if (!searchQuery.value) return orders.value
   
@@ -194,7 +231,8 @@ async function loadOrders() {
   loading.value = true
   try {
     // Загружаем все заказы с правильными отношениями
-    const response = await fetch(`${API_CONFIG.BASE_URL}/orders?per_page=1000&admin_view=true&with=product,client,stage`, {
+    // Добавляем force_refresh для обхода кэша и получения актуальных данных
+    const response = await fetch(`${API_CONFIG.BASE_URL}/orders?per_page=1000&admin_view=true&force_refresh=true&with=product,client,stage`, {
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -207,6 +245,8 @@ async function loadOrders() {
       
       // Фильтруем только заказы без проекта (project_id = null или отсутствует)
       orders.value = allOrders.filter((order: any) => !order.project_id)
+    } else {
+      console.error('Failed to load orders:', response.status)
     }
   } catch (error) {
     console.error('Error loading orders:', error)
@@ -240,27 +280,59 @@ async function attachSelectedOrders() {
   attaching.value = true
   
   try {
+    const attachedOrderIds: number[] = []
+    const failedOrderIds: number[] = []
+    
     // Привязываем все выбранные заказы
     for (const orderId of selectedOrders.value) {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({ project_id: props.projectId })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Failed to attach order ${orderId}`)
+      try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
+          method: 'PUT',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+          body: JSON.stringify({ project_id: props.projectId })
+        })
+        
+        if (response.ok) {
+          attachedOrderIds.push(orderId)
+          // Отправляем событие для каждого привязанного заказа
+          emit('attach', orderId)
+          // Отправляем глобальное событие обновления заказа
+          window.dispatchEvent(new CustomEvent('order-updated', {
+            detail: { orderId }
+          }))
+        } else {
+          const errorData = await response.json().catch(() => ({ message: 'Ошибка привязки' }))
+          console.error(`Не удалось привязать заказ ${orderId}:`, errorData)
+          failedOrderIds.push(orderId)
+        }
+      } catch (error) {
+        console.error(`Ошибка при привязке заказа ${orderId}:`, error)
+        failedOrderIds.push(orderId)
       }
     }
     
-    toast.show(`Добавлено заказов: ${selectedOrders.value.length}`, 'success')
-    emit('close')
+    // Показываем результат
+    if (attachedOrderIds.length > 0) {
+      if (failedOrderIds.length > 0) {
+        toast.show(`Добавлено заказов: ${attachedOrderIds.length}, ошибок: ${failedOrderIds.length}`, 'warning')
+      } else {
+        toast.show(`Добавлено заказов: ${attachedOrderIds.length}`, 'success')
+      }
+      
+      // Закрываем модалку только если были успешные привязки
+      emit('close')
+    } else {
+      toast.show('Не удалось привязать ни одного заказа', 'error')
+    }
+    
+    // Очищаем выбор
+    selectedOrders.value = []
   } catch (error) {
-    console.error('Ошибка при добавлении заказов:', error)
+    console.error('Критическая ошибка при добавлении заказов:', error)
     toast.show('Ошибка при добавлении заказов', 'error')
   } finally {
     attaching.value = false

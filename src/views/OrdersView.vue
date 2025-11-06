@@ -323,7 +323,7 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
   }
 }
 
-const loadOrders = async () => {
+const loadOrders = async (hard = false) => {
   try {
     if (!isTableView.value) {
       // Для Kanban используем fetchAllOrdersForKanban
@@ -346,6 +346,7 @@ const loadOrders = async () => {
         30,
         undefined,
         canViewAllOrders(), // Передаем admin_view только для админов и менеджеров
+        hard, // force_refresh при необходимости
       )
     }
   } catch (error) {
@@ -605,7 +606,7 @@ function closeCreateOrderModal() {
 
 async function handleOrderCreated(newOrder: any) {
   showCreateModal.value = false
-  await loadOrders()
+  await loadOrders(true)
 }
 
 async function handleChangeStatus({ order, newStatus }: { order: any; newStatus: any }) {

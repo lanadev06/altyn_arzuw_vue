@@ -68,7 +68,7 @@ export function useCategoryController() {
     loading.value = true
     try {
       const created = await createCategory(category as any)
-      await fetchCategories(pagination.current_page)
+      await fetchCategories(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       return created
     } finally {
       loading.value = false
@@ -79,7 +79,7 @@ export function useCategoryController() {
     loading.value = true
     try {
       const updated = await updateCategory(id, category as any)
-      await fetchCategories(pagination.current_page)
+      await fetchCategories(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       return updated
     } finally {
       loading.value = false
@@ -90,7 +90,7 @@ export function useCategoryController() {
     loading.value = true
     try {
       await deleteCategory(id)
-      await fetchCategories(pagination.current_page)
+      await fetchCategories(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
     } finally {
       loading.value = false
     }

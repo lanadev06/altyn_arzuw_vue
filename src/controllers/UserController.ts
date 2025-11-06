@@ -33,6 +33,7 @@ export function useUserController() {
     per_page = 30,
     role = '',
     is_active: boolean | null = null,
+    force_refresh = false,
   ) {
     loading.value = true
     error.value = ''
@@ -45,6 +46,7 @@ export function useUserController() {
         per_page,
         role,
         is_active,
+        force_refresh,
       })
 
       pagination.data = res.data
@@ -138,7 +140,7 @@ export function useUserController() {
       frontendCache.invalidatePattern('users_by_stage_roles')
       frontendCache.invalidatePattern('stages_users_by_roles')
       
-      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value)
+      await fetchUsers(pagination.current_page, '', sortBy.value, sortOrder.value, 30, '', null, true)
       
       // Отправляем глобальное событие обновления пользователей
       window.dispatchEvent(new CustomEvent('users-updated'))
@@ -161,7 +163,7 @@ export function useUserController() {
       frontendCache.invalidatePattern('users_by_stage_roles')
       frontendCache.invalidatePattern('stages_users_by_roles')
       
-      await fetchUsers(page, '', sortBy.value, sortOrder.value)
+      await fetchUsers(page, '', sortBy.value, sortOrder.value, 30, '', null, true)
       
       // Отправляем глобальное событие обновления пользователей
       window.dispatchEvent(new CustomEvent('users-updated'))

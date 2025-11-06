@@ -35,6 +35,7 @@ export function useClientController() {
     sortByParam?: string,
     sortOrderParam?: 'asc' | 'desc',
     per_page = 30,
+    force_refresh = false,
   ) {
     // Используем переданные параметры или текущие значения из контроллера
     if (sortByParam !== undefined) {
@@ -53,6 +54,7 @@ export function useClientController() {
         per_page: String(per_page),
         sort_by: sortBy.value,
         sort_order: sortOrder.value,
+        force_refresh,
       })
 
       if (Array.isArray(res)) {

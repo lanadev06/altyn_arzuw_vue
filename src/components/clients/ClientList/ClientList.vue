@@ -306,14 +306,14 @@ async function handleCreateClient() {
   showCreateModal.value = false
   currentPage.value = 1
   localStorage.setItem('clientList_currentPage', '1')
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
 }
 
 async function handleUpdateClient(updatedClient: Client) {
   await update(updatedClient.id, updatedClient)
   showEditModal.value = false
   // Сохраняем текущее состояние (страницу, сортировку, perPage)
-  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+  fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
 }
 
 async function handleDeleteClient(clientId: number) {
@@ -335,7 +335,7 @@ async function handleDeleteClient(clientId: number) {
       currentPage.value--
       localStorage.setItem('clientList_currentPage', currentPage.value.toString())
     }
-    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   } catch (err: any) {
     // Если ошибка 404 (клиент не найден), считаем это успешным удалением
     if (
@@ -346,7 +346,7 @@ async function handleDeleteClient(clientId: number) {
     ) {
       toast.show(t('clients.clientDeleted'), 'success')
       // Обновляем список
-      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+      await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
       return
     }
 
@@ -452,7 +452,7 @@ watch(locale, () => {
 async function handleBulkDelete() {
   const result = await bulkDelete('clients')
   if (result.deleted > 0) {
-    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+    await fetchClients(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   }
 }
 

@@ -265,7 +265,8 @@ const {
 async function handleBulkDelete() {
   const result = await bulkDelete('categories')
   if (result.deleted > 0) {
-    await goToPage(1)
+    currentPage.value = 1
+    await fetchCategories(1, props.search, sortBy.value, sortOrder.value, perPage.value, true)
   }
 }
 
@@ -346,7 +347,7 @@ async function deleteCategory(category: Category) {
     try {
       await remove(category.id)
       toast.show(t('categories.categoryDeleted'), 'success')
-      fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value)
+      fetchCategories(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, true)
     } catch (error: any) {
       toast.show(error.message || t('categories.deleteError'), 'error')
     }

@@ -420,12 +420,12 @@ async function toggleUserActive(userId: number) {
     const result = await toggleActive(userId)
     // Если локальное обновление не сработало, перезагружаем данные
     if (!result || result.is_active === undefined) {
-      fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
+      fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
     } else {
     }
   } catch (e) {
     // В случае ошибки перезагружаем данные
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
+    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
   }
 }
 
@@ -513,7 +513,7 @@ async function handleCreateUser(userData: any) {
     await create(userData)
     emit('close-create-modal')
     toast.show(t('users.userCreated'), 'success')
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
+    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
   } catch (err: any) {
     // Если есть ошибки валидации полей, передаем их в модальное окно
     if (err.fieldErrors) {
@@ -535,7 +535,7 @@ async function handleUpdateUser(userData: any) {
     await updateUser(editingUser.value.id, userData)
     showEditModal.value = false
     toast.show(t('users.userUpdated'), 'success')
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
+    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
   } catch (err: any) {
     // Если есть ошибки валидации полей, передаем их в модальное окно
     if (err.fieldErrors) {
@@ -566,7 +566,7 @@ async function handleDeleteUser(userId: number) {
 async function handleBulkDelete() {
   const result = await bulkDelete('users')
   if (result.deleted > 0) {
-    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter())
+    fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
   }
 }
 

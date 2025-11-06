@@ -22,11 +22,12 @@ export function ProjectController() {
     sort_by = sortBy.value,
     sort_order = sortOrder.value,
     per_page = pagination.per_page,
+    force_refresh = false,
   ) {
     loading.value = true
     error.value = ''
     try {
-      const res = await getProjects({ page, search, sort_by, sort_order, per_page })
+      const res = await getProjects({ page, search, sort_by, sort_order, per_page, force_refresh })
       pagination.data = res.data || []
       pagination.current_page = res.current_page || 1
       pagination.last_page = res.last_page || 1
@@ -44,7 +45,7 @@ export function ProjectController() {
     loading.value = true
     try {
       const created = await createProject(newProject)
-      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
+      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       return created
     } finally {
       loading.value = false
@@ -55,7 +56,7 @@ export function ProjectController() {
     loading.value = true
     try {
       const updated = await updateProject(id, updatedProject)
-      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
+      await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       return updated
     } finally {
       loading.value = false
@@ -67,9 +68,9 @@ export function ProjectController() {
     try {
       await deleteProject(id)
       if (pagination.data.length === 1 && pagination.current_page > 1) {
-        await fetchProjects(pagination.current_page - 1, '', sortBy.value, sortOrder.value)
+        await fetchProjects(pagination.current_page - 1, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       } else {
-        await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value)
+        await fetchProjects(pagination.current_page, '', sortBy.value, sortOrder.value, pagination.per_page, true)
       }
     } finally {
       loading.value = false
