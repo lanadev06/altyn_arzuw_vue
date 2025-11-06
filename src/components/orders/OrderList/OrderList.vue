@@ -411,7 +411,8 @@ watch(perPage, (newVal) => {
   // При изменении количества элементов на странице возвращаемся на первую страницу
   currentPage.value = 1
   localStorage.setItem('orderList_currentPage', '1')
-  loadOrders(1)
+  // Принудительно обновляем данные при смене per_page, чтобы избежать проблем с кешем
+  loadOrders(1, true)
 })
 
 function loadOrders(page = currentPage.value, hard = false) {

@@ -430,17 +430,40 @@ const handleOpenOrderDetailsEvent = async (event: any) => {
   }
 }
 
-// Очищаем обработчик при размонтировании компонента
+// Очищаем обработчики при размонтировании компонента
+let visibilityChangeHandler: (() => void) | null = null
+
 onUnmounted(() => {
   document.removeEventListener('openOrderDetails', handleOpenOrderDetailsEvent as EventListener)
+  if (visibilityChangeHandler) {
+    document.removeEventListener('visibilitychange', visibilityChangeHandler)
+  }
 })
 
 onMounted(async () => {
   await loadStages()
-  loadOrders()
+  
+  // Проверяем, были ли недавние изменения заказов (удаление, создание, обновление)
+  // Если были изменения в последние 30 секунд, принудительно обновляем данные
+  const lastOrderChange = localStorage.getItem('lastOrderChange')
+  const shouldForceRefresh = lastOrderChange && (Date.now() - parseInt(lastOrderChange)) < 30000
+  
+  loadOrders(shouldForceRefresh)
   
   // Добавляем обработчик для событий от NotificationBell
   document.addEventListener('openOrderDetails', handleOpenOrderDetailsEvent)
+  
+  // Отслеживаем возврат на вкладку и принудительно обновляем данные, если были изменения
+  visibilityChangeHandler = () => {
+    if (!document.hidden) {
+      const lastChange = localStorage.getItem('lastOrderChange')
+      if (lastChange && (Date.now() - parseInt(lastChange)) < 60000) {
+        // Если были изменения в последнюю минуту, обновляем данные
+        loadOrders(true)
+      }
+    }
+  }
+  document.addEventListener('visibilitychange', visibilityChangeHandler)
   
   // Подписываемся на глобальные события смены стадий
   onOrderStageChanged((event) => {

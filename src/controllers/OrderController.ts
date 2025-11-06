@@ -188,7 +188,8 @@ export function useOrderController() {
     loading.value = true
     try {
       await deleteOrder(id)
-      await fetchOrders(pagination.current_page)
+      // Принудительно обновляем список с force_refresh, чтобы не использовать кеш
+      await fetchOrders(pagination.current_page, '', 'id', 'desc', undefined, false, pagination.per_page, undefined, false, true)
     } finally {
       loading.value = false
     }

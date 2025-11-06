@@ -20,6 +20,9 @@ class FrontendCacheService {
     defaultTTL: 60 * 60 * 1000, // 60 минут для медленного интернета (увеличено с 30)
     maxSize: 500 // Увеличиваем до 500 записей
   }
+  
+  // Флаг для принудительной очистки кеша заказов
+  private ordersCacheInvalidated = false
   private hitCount = 0
   private missCount = 0
   private cleanupInterval: number | null = null
@@ -38,6 +41,14 @@ class FrontendCacheService {
    */
   get<T>(key: string): T | null {
     try {
+      // Если кеш заказов был недавно инвалидирован, не возвращаем данные для заказов
+      if (this.ordersCacheInvalidated && key.startsWith('orders_')) {
+        this.missCount++
+        // Удаляем ключ, чтобы он не использовался
+        this.cache.delete(key)
+        return null
+      }
+      
       const entry = this.cache.get(key)
       
       if (!entry) {
@@ -272,6 +283,51 @@ class FrontendCacheService {
       })
     } catch (error) {
       console.error('Cache invalidatePattern error:', error)
+    }
+  }
+
+  /**
+   * Получить все ключи кеша, начинающиеся с префикса
+   */
+  getKeysByPrefix(prefix: string): string[] {
+    const keys: string[] = []
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) {
+        keys.push(key)
+      }
+    }
+    return keys
+  }
+
+  /**
+   * Инвалидировать все ключи, начинающиеся с префикса
+   */
+  invalidateByPrefix(prefix: string): void {
+    const keys = this.getKeysByPrefix(prefix)
+    let deletedCount = 0
+    keys.forEach(key => {
+      try {
+        this.cache.delete(key)
+        deletedCount++
+      } catch (error) {
+        console.warn('Cache delete error for key:', key, error)
+      }
+    })
+    
+    // Логируем для отладки
+    if (keys.length > 0 && deletedCount > 0) {
+      console.log(`[Cache] Invalidated ${deletedCount} keys with prefix "${prefix}"`)
+    }
+    
+    // Устанавливаем флаг для заказов
+    if (prefix.startsWith('orders_')) {
+      this.ordersCacheInvalidated = true
+      // Сбрасываем флаг через 5 секунд
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          this.ordersCacheInvalidated = false
+        }, 5000)
+      }
     }
   }
 

@@ -894,6 +894,12 @@ export async function getOrders({
   if (force_refresh) params.append('force_refresh', 'true')
 
   const cacheKey = `orders_${params.toString()}`
+  
+  // Если force_refresh, очищаем кеш для этого конкретного ключа перед запросом
+  if (force_refresh) {
+    frontendCache.delete(cacheKey)
+  }
+  
   return await cachedApiRequest<PaginatedResponse<Order>>(
     `/orders?${params.toString()}`,
     {},
@@ -978,10 +984,13 @@ export async function createOrder(data: CreateOrderData): Promise<Order> {
     body: JSON.stringify(data),
   }) as any
   
-  // Инвалидируем кэш заказов после создания
+  // Инвалидируем весь кэш заказов (все списки с фильтрами, детали, логи, комментарии)
   invalidateCache.orders()
-  frontendCache.invalidatePattern(`order_details_`)
-  frontendCache.invalidatePattern(`order_status_logs_`)
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastOrderChange', Date.now().toString())
+  }
   
   return result.data || result
 }
@@ -992,10 +1001,13 @@ export async function updateOrder(id: number, data: UpdateOrderData): Promise<Or
     body: JSON.stringify(data),
   }) as any
   
-  // Инвалидируем кэш заказов после обновления
+  // Инвалидируем весь кэш заказов (все списки с фильтрами, детали, логи, комментарии)
   invalidateCache.orders()
-  frontendCache.delete(`order_details_${id}`)
-  frontendCache.invalidatePattern(`order_status_logs_${id}`)
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastOrderChange', Date.now().toString())
+  }
   
   return result.data || result
 }
@@ -1003,11 +1015,13 @@ export async function updateOrder(id: number, data: UpdateOrderData): Promise<Or
 export async function deleteOrder(id: number): Promise<void> {
   await apiRequest(`/orders/${id}`, { method: 'DELETE' })
   
-  // Инвалидируем кэш заказов после удаления
+  // Инвалидируем весь кэш заказов (все списки с фильтрами, детали, логи, комментарии)
   invalidateCache.orders()
-  frontendCache.delete(`order_details_${id}`)
-  frontendCache.invalidatePattern(`order_status_logs_${id}`)
-  frontendCache.invalidatePattern(`order_comments_${id}`)
+  
+  // Сохраняем время последнего изменения для принудительного обновления при возврате на страницу
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastOrderChange', Date.now().toString())
+  }
 }
 export async function getOrderDetails(orderId: number) {
   return await cachedApiRequest(`/orders/${orderId}`, {}, `order_details_${orderId}`, CacheTTL.MEDIUM)
@@ -1028,7 +1042,8 @@ export async function postOrderComment(orderId: number, text: string) {
   })
   
   // Очищаем кэш комментариев для этого заказа
-  frontendCache.invalidatePattern(`order_comments_${orderId}`)
+  // Также инвалидируем списки заказов, так как комментарии могут влиять на отображение
+  invalidateCache.orders()
   
   return result
 }
@@ -1039,8 +1054,8 @@ export async function deleteOrderComment(orderId: number, commentId: number): Pr
     method: 'DELETE',
   })
   
-  // Очищаем кэш комментариев для этого заказа
-  frontendCache.invalidatePattern(`order_comments_${orderId}`)
+  // Очищаем кэш комментариев и списки заказов
+  invalidateCache.orders()
 }
 
 // --- Проекты ---
@@ -1061,10 +1076,14 @@ export async function updateOrderStage(orderId: number, stage: string, additiona
     body: JSON.stringify(payload),
   })
   
-  // Инвалидируем кэш заказов после изменения стадии
+  // Инвалидируем весь кэш заказов после изменения стадии
+  // Это важно, так как изменение стадии влияет на фильтрацию по стадиям
   invalidateCache.orders()
-  frontendCache.delete(`order_details_${orderId}`)
-  frontendCache.invalidatePattern(`order_status_logs_${orderId}`)
+  
+  // Сохраняем время последнего изменения
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lastOrderChange', Date.now().toString())
+  }
 }
 
 export async function createUser(data: CreateUserData & { image?: File }): Promise<User> {
@@ -1380,6 +1399,10 @@ export async function assignOrderToUser(orderId: number, data: any): Promise<any
     method: 'POST',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов, так как назначение влияет на фильтрацию по assignment_status
+  invalidateCache.orders()
+  
   return res
 }
 
@@ -1388,6 +1411,10 @@ export async function bulkAssignOrders(orderId: number, data: any): Promise<any>
     method: 'POST',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов после массового назначения
+  invalidateCache.orders()
+  
   return res
 }
 
@@ -1409,6 +1436,10 @@ export async function updateOrderAssignmentStatus(
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
+  
+  // Инвалидируем кэш заказов, так как изменение статуса назначения влияет на фильтрацию
+  invalidateCache.orders()
+  
   return res
 }
 
@@ -1416,6 +1447,9 @@ export async function deleteOrderAssignment(assignmentId: number): Promise<void>
   await apiRequest(`/assignments/${assignmentId}`, {
     method: 'DELETE',
   })
+  
+  // Инвалидируем кэш заказов после удаления назначения
+  invalidateCache.orders()
 }
 
 // Массовые операции с назначениями
@@ -1424,6 +1458,10 @@ export async function bulkAssignGlobal(data: any): Promise<any> {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов после массового назначения
+  invalidateCache.orders()
+  
   return res
 }
 
@@ -1432,6 +1470,10 @@ export async function bulkReassignOrders(data: any): Promise<any> {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  
+  // Инвалидируем кэш заказов после массового переназначения
+  invalidateCache.orders()
+  
   return res
 }
 
