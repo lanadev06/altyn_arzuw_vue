@@ -181,8 +181,11 @@ import type { Role } from '../../../types/role'
 import { getAvailableRoles } from '../../../services/api'
 import { AVAILABLE_COLORS } from '../../../utils/stageColors'
 import { canDelete, canEdit } from '../../../utils/permissions'
+import StageController from '../../../controllers/StageController'
+import { useToast } from '../../../stores/toast'
 
 const { t } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   stage?: Stage | null
@@ -191,6 +194,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   submit: [data: any]
+  created: []
+  updated: []
   delete: [id: number]
 }>()
 
@@ -287,8 +292,9 @@ const validateForm = () => {
     valid = false
   }
 
-  if (!form.color) {
-    errors.color = t('stages.colorRequired')
+  // Color is optional in backend, but we'll validate format if provided
+  if (form.color && form.color.trim() && !form.color.match(/^#[0-9A-Fa-f]{3,6}$/)) {
+    errors.color = t('stages.colorInvalid')
     valid = false
   }
 
@@ -302,17 +308,90 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const data = {
-      name: form.name,
-      display_name: form.display_name,
-      description: form.description.trim() || null, // Исправлено: используем trim() и null вместо undefined
-      order: form.order,
-      color: form.color, // Добавляем цвет
-      roles: selectedRoles.value, // Добавляем выбранные роли
+    // Убеждаемся, что order является целым числом >= 1
+    let orderValue: number
+    const orderInput = form.order
+    
+    if (orderInput === null || orderInput === undefined || orderInput === '' || orderInput === 0) {
+      // Если order не указан или равен 0, используем 1
+      orderValue = 1
+    } else {
+      // Преобразуем в число и затем в целое
+      const numValue = typeof orderInput === 'number' ? orderInput : parseFloat(String(orderInput))
+      orderValue = Math.floor(Math.abs(numValue)) // Берем целую часть и абсолютное значение
+      
+      if (isNaN(orderValue) || orderValue < 1) {
+        errors.order = t('stages.orderRequired')
+        loading.value = false
+        return
+      }
     }
 
-    emit('submit', data)
-  } catch (error) {
+    // Убеждаемся, что color соответствует формату (6 hex цифр)
+    let colorValue: string | null = form.color
+    if (colorValue) {
+      colorValue = colorValue.trim()
+      if (colorValue && !colorValue.match(/^#[0-9A-Fa-f]{6}$/)) {
+        // Если цвет в формате #RGB, конвертируем в #RRGGBB
+        if (colorValue.match(/^#[0-9A-Fa-f]{3}$/)) {
+          colorValue = '#' + colorValue.slice(1).split('').map(c => c + c).join('')
+        } else {
+          errors.color = t('stages.colorInvalid')
+          loading.value = false
+          return
+        }
+      }
+    } else {
+      colorValue = null
+    }
+
+    const data: any = {
+      name: form.name.trim(),
+      display_name: form.display_name.trim(),
+      description: form.description.trim() || null,
+      order: Number.isInteger(orderValue) ? orderValue : Math.floor(orderValue), // Гарантируем, что это целое число >= 1
+    }
+
+    // Добавляем color только если он есть
+    if (colorValue) {
+      data.color = colorValue
+    }
+
+    // Добавляем roles только если они есть
+    if (selectedRoles.value.length > 0) {
+      data.roles = selectedRoles.value
+    }
+
+    // Логируем данные для отладки (можно удалить после исправления)
+    console.log('Sending stage data:', JSON.stringify(data, null, 2))
+
+    // Вызываем API напрямую для лучшей обработки ошибок
+    if (props.stage) {
+      // Обновление существующей стадии
+      await StageController.update(props.stage.id, data)
+      toast.show(t('stages.stageUpdated'), 'success')
+      emit('updated')
+    } else {
+      // Создание новой стадии
+      await StageController.create(data)
+      toast.show(t('stages.stageCreated'), 'success')
+      emit('created')
+    }
+    
+    emit('close')
+  } catch (error: any) {
+    // Обрабатываем ошибки валидации
+    if (error?.fieldErrors) {
+      Object.keys(error.fieldErrors).forEach((field) => {
+        if (field in errors) {
+          errors[field as keyof typeof errors] = error.fieldErrors[field]
+        }
+      })
+      toast.show(Object.values(error.fieldErrors).join(', '), 'error')
+    } else {
+      const errorMessage = error?.message || (props.stage ? t('stages.updateError') : t('stages.createError'))
+      toast.show(errorMessage, 'error')
+    }
   } finally {
     loading.value = false
   }
