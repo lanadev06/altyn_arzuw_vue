@@ -976,28 +976,28 @@ export async function createOrder(data: CreateOrderData): Promise<Order> {
   const result = await apiRequest('/orders', {
     method: 'POST',
     body: JSON.stringify(data),
-  })
+  }) as any
   
   // Инвалидируем кэш заказов после создания
   invalidateCache.orders()
   frontendCache.invalidatePattern(`order_details_`)
   frontendCache.invalidatePattern(`order_status_logs_`)
   
-  return result
+  return result.data || result
 }
 
 export async function updateOrder(id: number, data: UpdateOrderData): Promise<Order> {
   const result = await apiRequest(`/orders/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }) as any
   
   // Инвалидируем кэш заказов после обновления
   invalidateCache.orders()
   frontendCache.delete(`order_details_${id}`)
   frontendCache.invalidatePattern(`order_status_logs_${id}`)
   
-  return result
+  return result.data || result
 }
 
 export async function deleteOrder(id: number): Promise<void> {
