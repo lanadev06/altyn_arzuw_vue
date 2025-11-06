@@ -318,7 +318,7 @@ async function attachSelectedOrders() {
     // Показываем результат
     if (attachedOrderIds.length > 0) {
       if (failedOrderIds.length > 0) {
-        toast.show(`Добавлено заказов: ${attachedOrderIds.length}, ошибок: ${failedOrderIds.length}`, 'warning')
+        toast.show(`Добавлено заказов: ${attachedOrderIds.length}, ошибок: ${failedOrderIds.length}`, 'error')
       } else {
         toast.show(`Добавлено заказов: ${attachedOrderIds.length}`, 'success')
       }
