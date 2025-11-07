@@ -294,6 +294,8 @@
     "totalRevenueForYear": "Jemi girdeýji (hemme taslamalar we sargytlar üçin) {year} ýyl üçin",
     "includesAllProjects": "* Töleg durmuşyndan baglaşyklylykda, hemme taslamalary we sargytlary öz içine alýar",
     "loadingData": "Maglumatlar ýüklenýär...",
+    "selectYear": "Ýyly saýlaň",
+    "currentYear": "Häzirki ýyl",
     "revenueChart": "Girdeýji (TMT)",
     "order": "sargyt",
     "orders2": "sargyt",

@@ -294,6 +294,8 @@
     "totalRevenueForYear": "Общая выручка (по всем проектам и заказам) за {year} год",
     "includesAllProjects": "* Включает все проекты и заказы, независимо от статуса оплаты",
     "loadingData": "Загрузка данных...",
+    "selectYear": "Выберите год",
+    "currentYear": "Текущий год",
     "revenueChart": "Выручка (TMT)",
     "order": "заказ",
     "orders2": "заказа",

@@ -360,9 +360,13 @@ const handleSubmit = async () => {
       data.color = colorValue
     }
 
-    // Добавляем roles только если они есть
-    if (selectedRoles.value.length > 0) {
-      data.roles = selectedRoles.value
+    const rolesPayload = selectedRoles.value.map((role) => ({ ...role }))
+    if (props.stage) {
+      // Для обновления всегда отправляем массив ролей, даже если он пустой (чтобы отвязать роли)
+      data.roles = rolesPayload
+    } else if (rolesPayload.length > 0) {
+      // При создании отправляем только если есть выбранные роли
+      data.roles = rolesPayload
     }
 
     // Логируем данные для отладки (можно удалить после исправления)
