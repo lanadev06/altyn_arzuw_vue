@@ -86,6 +86,7 @@ import { useEntityEvents } from '../composables/useEntityEvents'
 import { useComponentOptimization } from '../composables/useComponentOptimization'
 import { useOrderModal } from '../stores/orderModal'
 import BulkActionPanel from '../components/ui/BulkActionPanel.vue'
+import { invalidateCache } from '../utils/cacheUtils'
 
 // Ленивая загрузка тяжелых компонентов
 const OrderList = defineAsyncComponent({
@@ -280,6 +281,12 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
         toast.show(`Успешно удалено: ${result.deleted}. Пропущено: ${result.skipped}`, 'error')
       } else {
         toast.success(`Успешно удалено: ${result.deleted}`)
+      }
+
+      // Инвалидируем кэш заказов и отмечаем время изменения
+      invalidateCache.orders()
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lastOrderChange', Date.now().toString())
       }
     }
 
@@ -563,7 +570,7 @@ async function handleKanbanBulkDelete() {
     // Очищаем выбранные элементы
     kanbanSelectedIds.value = []
     // Обновляем данные
-    loadOrders()
+    loadOrders(true)
   }
 }
 

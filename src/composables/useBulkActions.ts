@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { apiRequest } from '../services/api'
 import { useToast } from '../stores/toast'
+import { invalidateCache } from '../utils/cacheUtils'
 
 export function useBulkActions<T extends { id: number }>(items: Ref<T[]> | ComputedRef<T[]>) {
   const toast = useToast()
@@ -70,6 +71,36 @@ export function useBulkActions<T extends { id: number }>(items: Ref<T[]> | Compu
           toast.show(`Успешно удалено: ${result.deleted}. Пропущено: ${result.skipped}`, 'error')
         } else {
           toast.success(`Успешно удалено: ${result.deleted}`)
+        }
+
+        // Инвалидируем соответствующий кэш сущности
+        switch (entity) {
+          case 'orders':
+            invalidateCache.orders()
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('lastOrderChange', Date.now().toString())
+            }
+            break
+          case 'clients':
+            invalidateCache.clients()
+            break
+          case 'products':
+            invalidateCache.products()
+            break
+          case 'projects':
+            invalidateCache.projects()
+            break
+          case 'users':
+            invalidateCache.users()
+            break
+          case 'stages':
+            invalidateCache.stages()
+            break
+          case 'roles':
+            invalidateCache.roles()
+            break
+          default:
+            break
         }
       }
 
