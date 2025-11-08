@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, defineAsyncComponent, watch } from 'vue'
+import { computed, ref, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import Navbar from './Navbar.vue'
@@ -51,6 +51,8 @@ const orderModal = useOrderModal()
 
 const orderModalOrderId = computed(() => orderModal.orderId.value)
 const orderModalErrorMsg = computed(() => orderModal.errorMsg.value)
+
+let orderNotFoundHandler: ((event: Event) => void) | null = null
 
 function syncQueryToModal(orderParam: unknown) {
   const value = Array.isArray(orderParam) ? orderParam[0] : orderParam
@@ -102,4 +104,19 @@ async function handleLogout() {
     router.push('/login')
   }
 }
+
+onMounted(() => {
+  orderNotFoundHandler = () => {
+    orderModal.close()
+    clearOrderQuery()
+  }
+
+  window.addEventListener('order-not-found', orderNotFoundHandler as EventListener)
+})
+
+onUnmounted(() => {
+  if (orderNotFoundHandler) {
+    window.removeEventListener('order-not-found', orderNotFoundHandler as EventListener)
+  }
+})
 </script>

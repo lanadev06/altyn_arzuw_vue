@@ -1,6 +1,8 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderModal } from '../stores/orderModal'
+import { useToast } from '../stores/toast'
+import { getOrderDetails } from '../services/api'
 
 /**
  * Composable для глобальной обработки уведомлений
@@ -9,31 +11,42 @@ import { useOrderModal } from '../stores/orderModal'
 export function useGlobalNotifications() {
   const router = useRouter()
   const orderModal = useOrderModal()
+  const toast = useToast()
 
   function handleOpenOrderDetails(event: CustomEvent) {
     const { orderId, commentId, highlightComments } = event.detail
     if (!orderId) return
-    
-    // Сохраняем данные для подсветки комментариев
-    if (commentId) {
-      localStorage.setItem('highlightCommentId', commentId.toString())
-    }
-    if (highlightComments) {
-      sessionStorage.setItem('highlightComments', 'true')
-    }
-    
-    // Открываем глобальную модалку заказа
-    orderModal.open(orderId)
 
-    // Синхронизируем параметр order в URL для прямых ссылок и обновления страницы
-    router.replace({
-      query: {
-        ...router.currentRoute.value.query,
-        order: orderId.toString(),
-      },
-    }).catch(() => {
-      // Игнорируем ошибки навигации
-    })
+    ;(async () => {
+      try {
+        await getOrderDetails(orderId)
+      } catch (error: any) {
+        const status = error?.status
+        if (status === 404) {
+          toast.error('Этот заказ был удалён')
+        } else {
+          const message = error instanceof Error && error.message ? error.message : 'Не удалось открыть заказ'
+          toast.error(message)
+        }
+        return
+      }
+
+      if (commentId) {
+        localStorage.setItem('highlightCommentId', commentId.toString())
+      }
+      if (highlightComments) {
+        sessionStorage.setItem('highlightComments', 'true')
+      }
+
+      orderModal.open(orderId)
+
+      router.replace({
+        query: {
+          ...router.currentRoute.value.query,
+          order: orderId.toString(),
+        },
+      }).catch(() => {})
+    })()
   }
 
   function handleOpenProjectDetails(event: CustomEvent) {

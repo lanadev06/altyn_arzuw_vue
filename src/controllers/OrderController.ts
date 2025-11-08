@@ -86,6 +86,7 @@ export function useOrderController() {
     sortOrder = 'desc',
     stage?: string,
     isArchived = false,
+    forceRefresh = false,
   ) {
     // Проверяем права пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -101,6 +102,7 @@ export function useOrderController() {
           sort_order: sortOrder,
           stage: undefined, // без фильтра по стадии
           is_archived: null, // загружаем все заказы (и активные, и архивированные)
+          force_refresh: forceRefresh,
         })
 
         // Обновляем состояние
@@ -128,6 +130,9 @@ export function useOrderController() {
         undefined, // без фильтра по стадии
         null, // загружаем все заказы (и активные, и архивированные)
         1000, // оптимизированное количество на страницу
+        undefined,
+        false,
+        forceRefresh,
       )
     }
   }
@@ -212,6 +217,11 @@ export function useOrderController() {
   }
 }
 
+let orderControllerInstance: ReturnType<typeof useOrderController> | null = null
+
 export function OrderController() {
-  return useOrderController()
+  if (!orderControllerInstance) {
+    orderControllerInstance = useOrderController()
+  }
+  return orderControllerInstance
 }

@@ -75,6 +75,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
+const toast = useToast()
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
@@ -93,14 +94,44 @@ const OrderList = defineAsyncComponent({
   loader: () => import('../components/orders/OrderList/OrderList.vue'),
   loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
   delay: 200,
-  timeout: 5000
+  timeout: 5000,
+  onError(error, retry, fail, attempts) {
+    const message = error instanceof Error ? error.message : String(error)
+    const isChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError')
+
+    if (isChunkError && attempts <= 3) {
+      setTimeout(() => retry(), 500)
+      return
+    }
+
+    toast.error('Не удалось загрузить таблицу заказов. Обновите страницу.')
+    fail()
+  }
 })
 
 const OrderKanban = defineAsyncComponent({
   loader: () => import('../components/orders/OrderKanban/OrderKanban.vue'),
   loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
   delay: 200,
-  timeout: 5000
+  timeout: 5000,
+  onError(error, retry, fail, attempts) {
+    const message = error instanceof Error ? error.message : String(error)
+    const isChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError')
+
+    if (isChunkError && attempts <= 3) {
+      setTimeout(() => retry(), 500)
+      return
+    }
+
+    toast.error('Не удалось загрузить Kanban. Попробуйте обновить страницу.')
+    fail()
+  }
 })
 
 const OrderFormModal = defineAsyncComponent({
@@ -166,8 +197,6 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
   kanbanIsProcessing.value = true
 
   try {
-    const toast = useToast()
-
     const payload: Record<string, any> = {
       ids: kanbanSelectedIds.value,
       stage
@@ -221,8 +250,6 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
   } catch (error: any) {
     console.error('Bulk status update error:', error)
     
-    const toast = useToast()
-    
     // Parse the error message to extract order IDs and provide better feedback
     let errorMessage = error.message || 'Ошибка при обновлении статуса заказов'
     
@@ -259,8 +286,6 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
   kanbanIsProcessing.value = true
 
   try {
-    const toast = useToast()
-
     const response = await apiRequest('/bulk-delete/orders', {
       method: 'POST',
       body: JSON.stringify({
@@ -303,7 +328,6 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
   } catch (error: any) {
     console.error('Bulk delete error:', error)
     
-    const toast = useToast()
     toast.error(error.message || 'Ошибка при удалении заказов')
 
     return { deleted: 0, errors: [error.message] }
@@ -322,6 +346,7 @@ const loadOrders = async (hard = false) => {
         'desc',
         undefined, // НЕ передаем фильтр по стадии для получения ВСЕХ заказов
         false, // только активные заказы
+        hard,
       )
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
@@ -423,20 +448,26 @@ onMounted(async () => {
   onOrderStageChanged((event) => {
     // Обновляем данные во всех компонентах
     loadOrders()
-    fetchAllOrdersForKanban()
+    if (!isTableView.value) {
+      fetchAllOrdersForKanban()
+    }
   })
   
   onOrderUpdated((event) => {
     // Обновляем данные во всех компонентах
     loadOrders()
-    fetchAllOrdersForKanban()
+    if (!isTableView.value) {
+      fetchAllOrdersForKanban()
+    }
   })
   
   // Слушаем события создания сущностей
   onAnyEntityCreated((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   
@@ -444,7 +475,9 @@ onMounted(async () => {
   onAnyEntityUpdated((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   
@@ -452,7 +485,9 @@ onMounted(async () => {
   onAnyEntityDeleted((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   

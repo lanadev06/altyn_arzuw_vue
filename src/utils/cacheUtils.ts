@@ -41,6 +41,9 @@ export const invalidateCache = {
   // Инвалидировать кэш продуктов
   products: () => {
     frontendCache.invalidatePattern(CacheKeys.PRODUCTS)
+    frontendCache.invalidatePattern('product_stages_')
+    frontendCache.invalidatePattern('product_assignments_')
+    frontendCache.invalidatePattern('available_users_for_product_')
   },
 
   // Инвалидировать кэш клиентов

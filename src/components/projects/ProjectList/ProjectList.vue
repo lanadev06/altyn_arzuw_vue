@@ -219,6 +219,7 @@ import ProjectDetailsModal from './ProjectDetailsModal.vue'
 import OrderDetailsModal from '@/components/orders/OrderList/OrderDetailsModal.vue'
 import OrderFormModal from '@/components/orders/OrderList/OrderFormModal.vue'
 import projectController from '@/controllers/projectControllerInstance'
+import { getAllClients } from '@/services/api'
 import type { Project } from '@/types/project'
 import { canCreateEdit, canViewPrices } from '@/utils/permissions'
 import { useToast } from '@/stores/toast'
@@ -727,14 +728,7 @@ onMounted(async () => {
   }
   fetchProjects(currentPage.value, props.search, sortBy.value, sortOrder.value, perPage.value, false)
   try {
-    const res = await fetch('/api/clients/all', {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    })
-    const data = await res.json()
-    allClients.value = Array.isArray(data) ? data : ([] as any[])
+    allClients.value = await getAllClients()
   } catch (e) {
     allClients.value = []
   }

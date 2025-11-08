@@ -183,10 +183,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     clearTimeout(timeoutId)
 
     if (!response.ok) {
+      const status = response.status
       const errorData = await response.json().catch(() => ({}))
 
       // Обработка Laravel validation errors
-      if (response.status === 422 && errorData.errors) {
+      if (status === 422 && errorData.errors) {
         // Создаем объект с ошибками по полям
         const fieldErrors: Record<string, string> = {}
         Object.keys(errorData.errors).forEach(field => {
@@ -198,18 +199,23 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         
         // Если есть ошибки полей, создаем специальный объект ошибки
         if (Object.keys(fieldErrors).length > 0) {
-          const error = new Error('Validation failed')
+          const error = new Error('Validation failed') as Error & { fieldErrors?: Record<string, string>; status?: number; data?: any }
           ;(error as any).fieldErrors = fieldErrors
+          error.status = status
+          error.data = errorData
           throw error
         }
         
         // Fallback к старому поведению
         const validationErrors = Object.values(errorData.errors).flat().join(', ')
-        throw new Error(validationErrors)
+        const error = new Error(validationErrors) as Error & { status?: number; data?: any }
+        error.status = status
+        error.data = errorData
+        throw error
       }
 
       // Обработка 401 ошибок (неавторизован)
-      if (response.status === 401) {
+      if (status === 401) {
         const message = errorData.message || 'Сессия истекла. Необходимо войти в систему заново.'
 
         // Не вызываем handle401Error для определенных endpoints, которые могут быть недоступны
@@ -229,17 +235,23 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
           handle401Error(message)
         }
 
-        throw new Error(message)
+        const error = new Error(message) as Error & { status?: number; data?: any }
+        error.status = status
+        error.data = errorData
+        throw error
       }
 
       // Обработка 403 ошибок (доступ запрещен) - НЕ выбиваем из системы
-      if (response.status === 403) {
+      if (status === 403) {
         const message = errorData.message || 'У вас нет прав на это действие'
-        throw new Error(message)
+        const error = new Error(message) as Error & { status?: number; data?: any }
+        error.status = status
+        error.data = errorData
+        throw error
       }
 
       // Обработка 429 ошибок (Too Many Requests)
-      if (response.status === 429) {
+      if (status === 429) {
         // Пытаемся получить Retry-After из заголовка
         const retryAfterHeader = response.headers.get('Retry-After')
         const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
@@ -256,9 +268,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
       // Унифицированная обработка ошибок
       if (errorData.message) {
-        throw new Error(errorData.message)
+        const error = new Error(errorData.message) as Error & { status?: number; data?: any }
+        error.status = status
+        error.data = errorData
+        throw error
       } else {
-        throw new Error(ERROR_MESSAGES.UNKNOWN_ERROR)
+        const error = new Error(ERROR_MESSAGES.UNKNOWN_ERROR) as Error & { status?: number; data?: any }
+        error.status = status
+        error.data = errorData
+        throw error
       }
     }
 
@@ -846,8 +864,12 @@ export async function getProductStages(productId: number) {
     return mockData
   }
 
-  const response = await apiRequest(`/products/${productId}/stages`, { method: 'GET' })
-  return response
+  return await cachedApiRequest(
+    `/products/${productId}/stages`,
+    {},
+    `product_stages_${productId}`,
+    CacheTTL.MEDIUM,
+  )
 }
 
 export async function updateProductStages(
@@ -862,6 +884,7 @@ export async function updateProductStages(
     method: 'PUT',
     body: JSON.stringify({ stages }),
   })
+  frontendCache.invalidatePattern(`product_stages_${productId}`)
   return response
 }
 
@@ -984,6 +1007,7 @@ export async function getAllOrdersForAdmin({
   stage,
   is_archived = false,
   assignment_status,
+  force_refresh = false,
 }: {
   search?: string
   sort_by?: string
@@ -991,23 +1015,26 @@ export async function getAllOrdersForAdmin({
   stage?: string
   is_archived?: boolean
   assignment_status?: string
+  force_refresh?: boolean
 } = {}): Promise<PaginatedResponse<Order>> {
   const params = new URLSearchParams({
     search,
     sort_by,
     sort_order,
     per_page: '1000', // Оптимизированное количество для снижения нагрузки
-    force_refresh: 'true', // Принудительная очистка кэша
     admin_view: 'true', // Специальный флаг для админа
   })
   if (stage) params.append('stage', stage)
   if (typeof is_archived === 'boolean') params.append('is_archived', String(is_archived))
   if (assignment_status) params.append('assignment_status', assignment_status)
+  if (force_refresh) params.append('force_refresh', 'true')
 
   // Используем cachedApiRequest но с коротким TTL, так как это для админа с force_refresh
   const cacheKey = `orders_admin_${params.toString()}`
   // Если force_refresh, очищаем кэш
-  frontendCache.invalidatePattern(`orders_admin_`)
+  if (force_refresh) {
+    frontendCache.invalidatePattern(`orders_admin_`)
+  }
   
   return await cachedApiRequest<PaginatedResponse<Order>>(
     `/orders?${params.toString()}`,
@@ -1194,8 +1221,12 @@ export async function getUsers({
 }
 
 export async function getUsersByRole(role: string): Promise<any> {
-  const res = await apiRequest(`/users/role/${role}`)
-  return res
+  return await cachedApiRequest(
+    `/users/role/${role}`,
+    {},
+    `users_by_role_${role}`,
+    CacheTTL.LONG,
+  )
 }
 
 export async function toggleUserActive(id: number): Promise<any> {
@@ -1325,9 +1356,14 @@ export async function getAllRoles(): Promise<any> {
 }
 
 // Получить роли со связанными стадиями и их цветами
-export async function getRolesWithStages(): Promise<any> {
-  const res = await apiRequest('/roles?with=stages')
-  return res
+export async function getRolesWithStages(forceRefresh = false): Promise<any> {
+  const cacheKey = 'roles_with_stages'
+
+  if (forceRefresh) {
+    frontendCache.invalidatePattern(cacheKey)
+  }
+
+  return await cachedApiRequest('/roles?with=stages', {}, cacheKey, CacheTTL.LONG)
 }
 
 export async function createRole(data: any): Promise<any> {
@@ -1386,8 +1422,12 @@ export async function removeStageFromProduct(productId: number, stageId: number)
 
 // --- Назначения продуктов (Product Assignments) ---
 export async function getProductAssignments(productId: number): Promise<any> {
-  const res = await apiRequest(`/products/${productId}/assignments`)
-  return res
+  return await cachedApiRequest(
+    `/products/${productId}/assignments`,
+    {},
+    `product_assignments_${productId}`,
+    CacheTTL.MEDIUM,
+  )
 }
 
 export async function createProductAssignment(productId: number, data: any): Promise<any> {
@@ -1395,6 +1435,8 @@ export async function createProductAssignment(productId: number, data: any): Pro
     method: 'POST',
     body: JSON.stringify(data),
   })
+  frontendCache.invalidatePattern(`product_assignments_${productId}`)
+  frontendCache.invalidatePattern(`available_users_for_product_${productId}`)
   return res
 }
 
@@ -1407,6 +1449,8 @@ export async function updateProductAssignment(
     method: 'PUT',
     body: JSON.stringify(data),
   })
+  frontendCache.invalidatePattern(`product_assignments_${productId}`)
+  frontendCache.invalidatePattern(`available_users_for_product_${productId}`)
   return res
 }
 
@@ -1417,6 +1461,8 @@ export async function deleteProductAssignment(
   await apiRequest(`/products/${productId}/assignments/${assignmentId}`, {
     method: 'DELETE',
   })
+  frontendCache.invalidatePattern(`product_assignments_${productId}`)
+  frontendCache.invalidatePattern(`available_users_for_product_${productId}`)
 }
 
 export async function bulkAssignProductUsers(productId: number, data: any): Promise<any> {
@@ -1424,12 +1470,18 @@ export async function bulkAssignProductUsers(productId: number, data: any): Prom
     method: 'POST',
     body: JSON.stringify(data),
   })
+  frontendCache.invalidatePattern(`product_assignments_${productId}`)
+  frontendCache.invalidatePattern(`available_users_for_product_${productId}`)
   return res
 }
 
 export async function getAvailableUsersForProduct(productId: number): Promise<any> {
-  const res = await apiRequest(`/products/${productId}/assignments/available-users`)
-  return res
+  return await cachedApiRequest(
+    `/products/${productId}/assignments/available-users`,
+    {},
+    `available_users_for_product_${productId}`,
+    CacheTTL.MEDIUM,
+  )
 }
 
 // --- Назначения заказов (Order Assignments) ---
