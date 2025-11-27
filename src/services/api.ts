@@ -880,9 +880,29 @@ export async function getAllClients(): Promise<any[]> {
   return Array.isArray(res) ? res : []
 }
 
-export async function getAllProducts(): Promise<any[]> {
-  const res = await cachedApiRequest('/products/all', {}, CacheKeys.PRODUCTS, CacheTTL.MEDIUM)
-  return Array.isArray(res) ? res : []
+export async function getAllProducts(forceRefresh = false): Promise<any[]> {
+  if (forceRefresh) {
+    invalidateCache.products()
+  }
+
+  // Запрашиваем все товары (лимит 5000, что больше чем нужно)
+  // Используем отдельный ключ кэша с лимитом, чтобы не конфликтовать со старым кэшем
+  const cacheKey = `${CacheKeys.PRODUCTS}_limit_5000`
+  const res = await cachedApiRequest('/products/all?limit=5000', {}, cacheKey, CacheTTL.MEDIUM)
+
+  if (Array.isArray(res)) {
+    return res
+  }
+
+  if (res && typeof res === 'object' && 'data' in res) {
+    const data = (res as any).data
+    if (Array.isArray(data)) {
+      return data
+    }
+  }
+
+  console.warn('[getAllProducts] Unexpected response format:', res)
+  return []
 }
 
 export async function getAllUsers(): Promise<any[]> {

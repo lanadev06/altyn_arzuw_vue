@@ -232,6 +232,7 @@
                   <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.product') }}</label>
                   <div class="flex gap-2">
                     <Vue3Select
+                      :key="`bulk-product-select-${index}-${productsKey}`"
                       v-model="order.product_id"
                       :options="products"
                       label="name"
@@ -486,6 +487,7 @@
           </label>
           <div class="flex gap-2">
             <Vue3Select
+              :key="`product-select-${productsKey}`"
               v-model="form.product_id"
               :options="products"
               label="name"
@@ -496,6 +498,8 @@
               :error="errors.product_id"
               required
               class="flex-1"
+              @update:model-value="onProductChange"
+              :disabled="products.length === 0"
             />
             <UIButton
               type="button"
@@ -762,7 +766,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Modal from '../../ui/Modal.vue'
 import UIInput from '../../ui/UIInput.vue'
@@ -807,6 +811,7 @@ const loading = ref(false)
 const stagesLoading = ref(false)
 const clients = ref<Array<{ id: number; name: string; company_name?: string }>>([])
 const products = ref<Product[]>([])
+const productsKey = ref(0) // Ключ для принудительного обновления Vue3Select
 const projects = ref<Array<{ id: number; title: string }>>([])
 const availableStages = ref<Stage[]>([])
 const selectedOrderStages = ref<number[]>([])
@@ -896,15 +901,20 @@ const isFormValid = computed(() => {
   }
 })
 
+// Computed для продуктов - гарантирует реактивность
+const productsOptions = computed(() => {
+  if (!Array.isArray(products.value)) {
+    return []
+  }
+  return products.value
+})
+
 // Выбранный продукт для отображения назначений
 const selectedProduct = computed(() => {
   if (!Array.isArray(products.value)) {
-    // products.value is not an array
     return null
   }
-  const product = products.value.find((p) => p.id === form.product_id) || null
-
-  return product
+  return products.value.find((p) => p.id === form.product_id) || null
 })
 
 // Вычисляемое свойство для получения только рабочих стадий (исключаем служебные)
@@ -1142,9 +1152,10 @@ function clearAllStages() {
   }
 }
 
-async function onProductChange(productId: number | null) {
+async function onProductChange(productId: number | null | undefined) {
   try {
-    form.product_id = productId || undefined
+    const productIdValue = productId || null
+    form.product_id = productIdValue || undefined
     selectedOrderStages.value = [] // Сбрасываем выбранные стадии
 
     // Очищаем назначения
@@ -1155,12 +1166,12 @@ async function onProductChange(productId: number | null) {
     }
 
     // Если выбран продукт, показываем все доступные стадии
-    if (productId && selectedProduct.value) {
+    if (productIdValue && selectedProduct.value) {
       stagesLoading.value = true
 
       try {
         // Загружаем назначения продукта для автоматического подтягивания
-        const productAssignmentsResponse = await getProductAssignments(productId)
+        const productAssignmentsResponse = await getProductAssignments(productIdValue)
         if (
           productAssignmentsResponse &&
           productAssignmentsResponse.assignments &&
@@ -1323,17 +1334,14 @@ onMounted(async () => {
       clients.value = []
     }
 
-    // Обрабатываем данные продуктов
+    // Обрабатываем данные продуктов (getAllProducts уже нормализует формат)
     if (Array.isArray(productsData)) {
-      products.value = productsData
-    } else if (
-      productsData &&
-      typeof productsData === 'object' &&
-      'data' in productsData &&
-      Array.isArray((productsData as any).data)
-    ) {
-      products.value = (productsData as any).data
+      // Создаём новый массив для гарантии реактивности
+      products.value = [...productsData]
+      await nextTick()
+      productsKey.value++ // Обновляем ключ для принудительного обновления Vue3Select
     } else {
+      console.warn('[OrderFormModal] Unexpected products data format:', productsData)
       products.value = []
     }
 
@@ -1626,17 +1634,9 @@ watch(
   { deep: true },
 )
 
-// Отслеживаем изменения продукта
-watch(
-  () => form.product_id,
-  (newProductId, oldProductId) => {
-    // form.product_id changed
-    if (newProductId !== oldProductId) {
-      onProductChange(newProductId || null)
-    }
-  },
-  { immediate: false },
-)
+// Отслеживаем изменения списка продуктов (только для отладки, если нужно)
+// Watcher убран, так как он срабатывал при инициализации с пустым массивом
+
 
 function getTodayDateTime(): string {
   const now = new Date()
@@ -2221,61 +2221,47 @@ function onProjectCreated(project: { id: number; title: string }) {
   toast.show(t('order.form.projectCreated'), 'success')
 }
 
-function onProductCreated() {
+async function onProductCreated() {
   // Закрываем модальное окно
   showProductModal.value = false
 
   // Показываем уведомление
   toast.show(t('order.form.productCreated'), 'success')
 
-  // Загружаем обновленный список продуктов
-  getAllProducts()
-    .then((productsData) => {
-      // Обрабатываем данные продуктов
-      if (Array.isArray(productsData)) {
-        products.value = productsData
-      } else if (
-        productsData &&
-        typeof productsData === 'object' &&
-        'data' in productsData &&
-        Array.isArray((productsData as any).data)
-      ) {
-        products.value = (productsData as any).data
-      }
+  try {
+    const productsData = await getAllProducts(true)
 
-      // Находим последний созданный продукт (предполагаем, что он последний в списке)
-      if (products.value.length > 0) {
-        const lastProduct = products.value[products.value.length - 1]
+    if (Array.isArray(productsData) && productsData.length > 0) {
+      // Обновляем список продуктов - создаём новый массив для гарантии реактивности
+      products.value = [...productsData]
+      await nextTick()
+      productsKey.value++ // Обновляем ключ для принудительного обновления Vue3Select
 
-        // Устанавливаем новый продукт как выбранный
-        form.product_id = lastProduct.id
+      // Находим продукт с максимальным ID (самый новый)
+      const newProduct = products.value.reduce((max, product) => {
+        return product.id > (max?.id || 0) ? product : max
+      }, products.value[0])
 
-        // Автоматически загружаем стадии и назначения для нового продукта
-        if (lastProduct.id) {
-          // Небольшая задержка для корректной работы
-          setTimeout(() => {
-            // Для одиночного режима
-            if (orderMode.value === 'single' || props.order) {
-              onProductChange(lastProduct.id)
+      if (newProduct && newProduct.id) {
+        if (orderMode.value === 'single' || props.order) {
+          // Устанавливаем продукт и загружаем стадии
+          await onProductChange(newProduct.id)
+        } else if (orderMode.value === 'bulk') {
+          // Для массового заказа добавляем в первый пустой заказ
+          bulkOrders.value.forEach((order, index) => {
+            if (!order.product_id) {
+              order.product_id = newProduct.id
+              onBulkOrderProductChange(index)
             }
-
-            // Для массового режима - обновляем все заказы с пустыми продуктами
-            if (orderMode.value === 'bulk') {
-              bulkOrders.value.forEach((order, index) => {
-                if (!order.product_id) {
-                  order.product_id = lastProduct.id
-                  // Автоматически загружаем стадии для этого заказа
-                  onBulkOrderProductChange(index)
-                }
-              })
-            }
-          }, 100)
+          })
         }
       }
-    })
-    .catch(() => {
-      // В случае ошибки просто показываем уведомление
-    })
+    } else {
+      console.warn('[OrderFormModal] No products loaded after creation')
+    }
+  } catch (error) {
+    console.error('[OrderFormModal] Error loading products after creation:', error)
+  }
 }
 
 // Вспомогательные функции для шаблона

@@ -41,6 +41,8 @@ export const invalidateCache = {
   // Инвалидировать кэш продуктов
   products: () => {
     frontendCache.invalidatePattern(CacheKeys.PRODUCTS)
+    // Также очищаем кэш с лимитом
+    frontendCache.invalidateByPrefix(`${CacheKeys.PRODUCTS}_limit_`)
   },
 
   // Инвалидировать кэш клиентов
