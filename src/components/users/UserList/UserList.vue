@@ -272,6 +272,21 @@ const emit = defineEmits(['close-create-modal', 'open-create-modal'])
 
 const toast = useToast()
 
+const currentUserId = ref<number | null>(null)
+if (typeof window !== 'undefined') {
+  try {
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser)
+      if (parsed && typeof parsed.id === 'number') {
+        currentUserId.value = parsed.id
+      }
+    }
+  } catch (error) {
+    currentUserId.value = null
+  }
+}
+
 const {
   users,
   loading,
@@ -421,9 +436,16 @@ async function toggleUserActive(userId: number) {
     // Если локальное обновление не сработало, перезагружаем данные
     if (!result || result.is_active === undefined) {
       fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
-    } else {
     }
-  } catch (e) {
+  } catch (e: any) {
+    const isSelf = currentUserId.value !== null && userId === currentUserId.value
+    if (isSelf) {
+      toast.error('Нельзя деактивировать самого себя')
+    } else if (e?.message) {
+      toast.error(e.message)
+    } else {
+      toast.error('Ошибка при изменении статуса пользователя')
+    }
     // В случае ошибки перезагружаем данные
     fetchUsers(currentPage.value, props.search || '', sortBy.value, sortOrder.value, perPage.value, props.role, getActiveFilter(), true)
   }

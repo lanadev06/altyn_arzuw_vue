@@ -289,7 +289,8 @@ const { isActive: isPollingActive } = useSmartPolling(
     interval: 30000, // 30 секунд
     maxInterval: 60000,
     minInterval: 15000,
-    enabled: true
+    enabled: true,
+    startImmediately: false,
   }
 )
 
@@ -377,8 +378,17 @@ const detailsOrderId = ref<number | null>(null)
 // Add search variable to the component
 const search = ref('')
 // Сохраняем текущую страницу в localStorage
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback
+  const parsed = parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback
+  }
+  return parsed
+}
+
 const savedCurrentPage = localStorage.getItem('orderList_currentPage')
-const currentPage = ref(savedCurrentPage ? parseInt(savedCurrentPage) : 1)
+const currentPage = ref(parsePositiveInt(savedCurrentPage, 1))
 const selectedStage = ref<string>('')
 const selectedArchive = ref('')
 const isArchived = ref<boolean>(false)
@@ -400,8 +410,7 @@ function changePerPage() {
   perPage.value = validatePerPage(perPage.value)
   localStorage.setItem('orderList_perPage', perPage.value.toString())
   // При изменении количества элементов на странице возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
+  setCurrentPage(1)
   loadOrders(1)
 }
 
@@ -409,11 +418,22 @@ watch(perPage, (newVal) => {
   perPage.value = validatePerPage(newVal)
   localStorage.setItem('orderList_perPage', perPage.value.toString())
   // При изменении количества элементов на странице возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
+  setCurrentPage(1)
   // Принудительно обновляем данные при смене per_page, чтобы избежать проблем с кешем
   loadOrders(1, true)
 })
+
+function getSafePage(page?: number) {
+  if (typeof page !== 'number' || !Number.isFinite(page)) return currentPage.value || 1
+  const normalized = Math.floor(page)
+  return normalized > 0 ? normalized : 1
+}
+
+function setCurrentPage(page: number) {
+  const safePage = getSafePage(page)
+  currentPage.value = safePage
+  localStorage.setItem('orderList_currentPage', safePage.toString())
+}
 
 function loadOrders(page = currentPage.value, hard = false) {
   const isArchived =
@@ -424,11 +444,10 @@ function loadOrders(page = currentPage.value, hard = false) {
         : undefined
 
   // Обновляем текущую страницу и сохраняем в localStorage
-  currentPage.value = page
-  localStorage.setItem('orderList_currentPage', page.toString())
+  setCurrentPage(page)
 
   fetchOrders(
-    page,
+    currentPage.value,
     props.search || '',
     sortBy.value,
     sortOrder.value,
@@ -547,22 +566,19 @@ function formatDate(date: string) {
 
 function filterByStage() {
   // При изменении фильтра возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
+  setCurrentPage(1)
   loadOrders(1)
 }
 
 function filterByArchive() {
   // При изменении фильтра возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
+  setCurrentPage(1)
   loadOrders(1)
 }
 
 function filterByAssignmentStatus() {
   // При изменении фильтра возвращаемся на первую страницу
-  currentPage.value = 1
-  localStorage.setItem('orderList_currentPage', '1')
+  setCurrentPage(1)
   loadOrders(1)
 }
 
@@ -674,8 +690,7 @@ watch(
   () => props.search,
   () => {
     // При изменении поиска возвращаемся на первую страницу
-    currentPage.value = 1
-    localStorage.setItem('orderList_currentPage', '1')
+    setCurrentPage(1)
     loadOrders(1)
   },
 )

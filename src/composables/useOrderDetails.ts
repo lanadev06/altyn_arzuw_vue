@@ -140,9 +140,30 @@ export function useOrderDetails(orderId: number | null | undefined) {
       const orderData = await getOrderDetails(orderId)
       order.value = orderData as OrderInfoType
       loading.value = false // Показываем основную информацию сразу
-    } catch (error) {
-      toast.show('Ошибка загрузки заказа', 'error')
+    } catch (error: any) {
       loading.value = false
+      stopPolling()
+
+      const status = (error && typeof error === 'object') ? (error as any).status : undefined
+
+      if (status === 404) {
+        order.value = null
+        project.value = null
+        comments.value = []
+        statusLogs.value = []
+        assignments.value = []
+
+        toast.show('Этот заказ был удалён', 'error')
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('order-not-found', {
+            detail: { orderId }
+          }))
+        }
+      } else {
+        const message = error instanceof Error && error.message ? error.message : 'Ошибка загрузки заказа'
+        toast.show(message, 'error')
+      }
       return
     }
 

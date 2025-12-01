@@ -172,13 +172,13 @@
       v-if="props.showCreateModal"
       :stage="null"
       @close="$emit('close-create-modal')"
-      @submit="handleCreateStage"
+      @created="handleStageCreated"
     />
     <StageFormModal
       v-if="showEditModal"
       :stage="editingStage"
       @close="showEditModal = false"
-      @submit="handleUpdateStage"
+      @updated="handleStageUpdated"
       @delete="handleDeleteStage"
     />
 
@@ -369,36 +369,15 @@ const fetchStages = async () => {
   }
 }
 
-const handleCreateStage = async (stageData: {
-  name: string
-  display_name: string
-  description?: string
-  order?: number
-  color?: string
-  roles?: Array<{ role_id: number }>
-}) => {
-  try {
-    await StageController.create(stageData)
-    emit('close-create-modal')
-    await fetchStages()
-  } catch (err: any) {}
+const handleStageCreated = async () => {
+  emit('close-create-modal')
+  await fetchStages()
 }
 
-const handleUpdateStage = async (stageData: {
-  name?: string
-  display_name?: string
-  description?: string
-  order?: number
-  color?: string
-  roles?: Array<{ role_id: number }>
-}) => {
-  try {
-    if (!editingStage.value) return
-    await StageController.update(editingStage.value.id, stageData)
-    showEditModal.value = false
-    editingStage.value = null
-    await fetchStages()
-  } catch (err: any) {}
+const handleStageUpdated = async () => {
+  showEditModal.value = false
+  editingStage.value = null
+  await fetchStages()
 }
 
 const handleDeleteStage = async (stageId: number) => {

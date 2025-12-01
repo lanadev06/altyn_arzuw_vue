@@ -8,6 +8,7 @@ interface PollingOptions {
   enabled: boolean | Ref<boolean> // Включен ли polling
   backoffMultiplier?: number // Множитель для увеличения интервала при ошибках
   maxBackoff?: number // Максимальный интервал при ошибках
+  startImmediately?: boolean // Запускать ли первый запрос сразу
 }
 
 interface PollingState {
@@ -90,7 +91,11 @@ export function useSmartPolling(
     }
 
     // Запускаем первый poll
-    poll()
+    if (options.startImmediately === false) {
+      intervalId = window.setTimeout(poll, currentInterval.value)
+    } else {
+      poll()
+    }
   }
 
   const stopPolling = () => {

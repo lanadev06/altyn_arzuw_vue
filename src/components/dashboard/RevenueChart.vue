@@ -1,17 +1,32 @@
 <template>
   <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
     <!-- Заголовок -->
-    <div class="mb-6">
-      <h3 class="text-xl font-bold text-gray-900 mb-1">{{ t('dashboard.totalRevenueByMonth') }}</h3>
-      <p class="text-3xl font-bold text-blue-600">
-        {{ revenueData.total_revenue_formatted }} <span class="text-lg text-gray-500">TMT</span>
-      </p>
-      <p class="text-sm text-gray-500 mt-1">
-        {{ t('dashboard.totalRevenueForYear', { year: revenueData.year }) }}
-      </p>
-      <p class="text-xs text-gray-400 mt-1">
-        {{ t('dashboard.includesAllProjects') }}
-      </p>
+  <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900 mb-1">{{ t('dashboard.totalRevenueByMonth') }}</h3>
+        <p class="text-3xl font-bold text-blue-600">
+          {{ revenueData.total_revenue_formatted }} <span class="text-lg text-gray-500">TMT</span>
+        </p>
+        <p class="text-sm text-gray-500 mt-1">
+          {{ t('dashboard.totalRevenueForYear', { year: revenueData.year }) }}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 md:self-start md:justify-end">
+        <select
+          id="revenue-year-select"
+          v-model.number="selectedYear"
+          class="h-10 min-w-[120px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option
+            v-for="year in availableYears"
+            :key="year"
+            :value="year"
+          >
+            {{ year }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- Индикатор загрузки -->
@@ -53,6 +68,9 @@ const currentYear = new Date().getFullYear()
 const loading = ref(false)
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 let chartInstance: Chart | null = null
+
+const availableYears = ref<number[]>([])
+const selectedYear = ref<number>(currentYear)
 
 const revenueData = ref<RevenueByMonthResponse>({
   monthly_data: [],
@@ -231,6 +249,12 @@ const loadRevenueData = async (year: number) => {
   }
 }
 
+watch(selectedYear, (newYear, oldYear) => {
+  if (newYear && newYear !== oldYear) {
+    loadRevenueData(newYear)
+  }
+})
+
 // Следим за изменениями данных и пересоздаем график
 watch(() => revenueData.value.monthly_data, () => {
   if (revenueData.value.monthly_data.length > 0) {
@@ -243,7 +267,11 @@ watch(() => revenueData.value.monthly_data, () => {
 }, { deep: true })
 
 onMounted(() => {
-  loadRevenueData(currentYear)
+  availableYears.value = Array.from({ length: 5 }, (_, index) => currentYear - index)
+  if (!availableYears.value.includes(currentYear)) {
+    availableYears.value.unshift(currentYear)
+  }
+  loadRevenueData(selectedYear.value)
 })
 
 onUpdated(() => {

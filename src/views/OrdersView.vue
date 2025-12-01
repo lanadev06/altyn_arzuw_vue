@@ -60,13 +60,6 @@
         @delete="handleKanbanBulkDelete"
       />
 
-      <OrderDetailsModal
-        v-if="detailsOrderId"
-        :order-id="detailsOrderId"
-        :error-msg="detailsErrorMsg"
-        @close="closeOrderDetails"
-        @updated="handleOrderUpdatedFromModal"
-      />
       <OrderFormModal
         v-if="showCreateModal"
         @close="closeCreateOrderModal"
@@ -79,39 +72,66 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onActivated, onUnmounted, nextTick, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
+const toast = useToast()
 import { OrderController } from '../controllers/OrderController'
 import Layout from '../components/layout/Layout.vue'
 import ReadOnlyMessage from '../components/ui/ReadOnlyMessage.vue'
 import { canCreateEdit, canViewAllUsers, canViewAllOrders, isStaff, canDelete } from '../utils/permissions'
 import { getAllStages, apiRequest } from '../services/api'
-import { API_CONFIG } from '../config/api'
 import { useToast } from '../stores/toast'
 import { useOrderEvents } from '../composables/useOrderEvents'
 import { useEntityEvents } from '../composables/useEntityEvents'
 import { useComponentOptimization } from '../composables/useComponentOptimization'
+import { useOrderModal } from '../stores/orderModal'
 import BulkActionPanel from '../components/ui/BulkActionPanel.vue'
+import { invalidateCache } from '../utils/cacheUtils'
 
 // Ленивая загрузка тяжелых компонентов
 const OrderList = defineAsyncComponent({
   loader: () => import('../components/orders/OrderList/OrderList.vue'),
   loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
   delay: 200,
-  timeout: 5000
+  timeout: 5000,
+  onError(error, retry, fail, attempts) {
+    const message = error instanceof Error ? error.message : String(error)
+    const isChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError')
+
+    if (isChunkError && attempts <= 3) {
+      setTimeout(() => retry(), 500)
+      return
+    }
+
+    toast.error('Не удалось загрузить таблицу заказов. Обновите страницу.')
+    fail()
+  }
 })
 
 const OrderKanban = defineAsyncComponent({
   loader: () => import('../components/orders/OrderKanban/OrderKanban.vue'),
   loadingComponent: () => import('../components/ui/LoadingSpinner.vue').catch(() => null),
   delay: 200,
-  timeout: 5000
-})
+  timeout: 5000,
+  onError(error, retry, fail, attempts) {
+    const message = error instanceof Error ? error.message : String(error)
+    const isChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError')
 
-const OrderDetailsModal = defineAsyncComponent({
-  loader: () => import('../components/orders/OrderList/OrderDetailsModal.vue'),
-  delay: 100
+    if (isChunkError && attempts <= 3) {
+      setTimeout(() => retry(), 500)
+      return
+    }
+
+    toast.error('Не удалось загрузить Kanban. Попробуйте обновить страницу.')
+    fail()
+  }
 })
 
 const OrderFormModal = defineAsyncComponent({
@@ -119,18 +139,19 @@ const OrderFormModal = defineAsyncComponent({
   delay: 100
 })
 
+const orderModal = useOrderModal()
 const route = useRoute()
+const router = useRouter()
 const search = ref(
   Array.isArray(route.query.search) ? route.query.search[0] || '' : route.query.search || '',
 )
 const isTableView = ref(true)
-const detailsOrderId = ref(null)
-const detailsErrorMsg = ref('')
 const showCreateModal = ref(false)
 const selectedAssignmentStatus = ref('')
 const currentPage = ref(1)
 const selectedStage = ref<string | null>(null)
 const isArchived = ref<boolean>(false)
+const detailsOrderId = computed(() => orderModal.orderId.value)
 
 // Оптимизация компонентов
 const { isVisible, isLoaded } = useComponentOptimization()
@@ -140,13 +161,6 @@ const { orders, fetchOrders, fetchAllOrdersForKanban } = OrderController()
 // Система событий для синхронизации
 const { onOrderStageChanged, onOrderUpdated } = useOrderEvents()
 const { onAnyEntityCreated, onAnyEntityUpdated, onAnyEntityDeleted } = useEntityEvents()
-
-// Watch для автоматического открытия модалки при изменении detailsOrderId
-watch(detailsOrderId, (newOrderId) => {
-  if (newOrderId) {
-    // Модалка автоматически откроется, так как она привязана к detailsOrderId
-  }
-})
 
 // Фильтрация заказов для канбана по поисковому запросу
 const filteredKanbanOrders = computed(() => {
@@ -183,8 +197,6 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
   kanbanIsProcessing.value = true
 
   try {
-    const toast = useToast()
-
     const payload: Record<string, any> = {
       ids: kanbanSelectedIds.value,
       stage
@@ -238,8 +250,6 @@ async function bulkUpdateKanbanStatus(stage: string): Promise<{ updated: number;
   } catch (error: any) {
     console.error('Bulk status update error:', error)
     
-    const toast = useToast()
-    
     // Parse the error message to extract order IDs and provide better feedback
     let errorMessage = error.message || 'Ошибка при обновлении статуса заказов'
     
@@ -276,8 +286,6 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
   kanbanIsProcessing.value = true
 
   try {
-    const toast = useToast()
-
     const response = await apiRequest('/bulk-delete/orders', {
       method: 'POST',
       body: JSON.stringify({
@@ -299,6 +307,12 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
       } else {
         toast.success(`Успешно удалено: ${result.deleted}`)
       }
+
+      // Инвалидируем кэш заказов и отмечаем время изменения
+      invalidateCache.orders()
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lastOrderChange', Date.now().toString())
+      }
     }
 
     // Показываем ошибки если есть
@@ -314,7 +328,6 @@ async function bulkDeleteKanban(): Promise<{ deleted: number; errors?: string[] 
   } catch (error: any) {
     console.error('Bulk delete error:', error)
     
-    const toast = useToast()
     toast.error(error.message || 'Ошибка при удалении заказов')
 
     return { deleted: 0, errors: [error.message] }
@@ -333,6 +346,7 @@ const loadOrders = async (hard = false) => {
         'desc',
         undefined, // НЕ передаем фильтр по стадии для получения ВСЕХ заказов
         false, // только активные заказы
+        hard,
       )
     } else {
       // Для таблицы используем обычную пагинацию и передаём search
@@ -370,6 +384,13 @@ watch(isTableView, (newValue) => {
   loadOrders()
 })
 
+watch(() => orderModal.updateTick.value, () => {
+  orderListRef.value?.loadOrders()
+  if (!isTableView.value) {
+    fetchAllOrdersForKanban()
+  }
+})
+
 async function loadStages() {
   try {
     const stagesData = await getAllStages()
@@ -392,49 +413,10 @@ async function loadStages() {
   }
 }
 
-// Обработчик для событий от NotificationBell
-const handleOpenOrderDetailsEvent = async (event: any) => {
-  const { orderId } = event.detail
-  if (orderId) {
-    try {
-      // Проверяем существование заказа перед открытием модалки
-      const response = await fetch(`${API_CONFIG.BASE_URL}/orders/${orderId}`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
-      
-      if (response.ok) {
-        detailsOrderId.value = orderId
-        detailsErrorMsg.value = ''
-      } else if (response.status === 404) {
-        // Заказ был удален - показываем toast
-        const { useToast } = await import('../stores/toast')
-        const toast = useToast()
-        toast.error('Заказ #' + orderId + ' был удалён')
-        detailsErrorMsg.value = ''
-      } else {
-        // Другие ошибки
-        const { useToast } = await import('../stores/toast')
-        const toast = useToast()
-        toast.error('Ошибка при загрузке заказа')
-        detailsErrorMsg.value = ''
-      }
-    } catch (error) {
-      const { useToast } = await import('../stores/toast')
-      const toast = useToast()
-      toast.error('Ошибка при загрузке заказа')
-      detailsErrorMsg.value = ''
-    }
-  }
-}
-
 // Очищаем обработчики при размонтировании компонента
 let visibilityChangeHandler: (() => void) | null = null
 
 onUnmounted(() => {
-  document.removeEventListener('openOrderDetails', handleOpenOrderDetailsEvent as EventListener)
   if (visibilityChangeHandler) {
     document.removeEventListener('visibilitychange', visibilityChangeHandler)
   }
@@ -449,9 +431,6 @@ onMounted(async () => {
   const shouldForceRefresh = lastOrderChange && (Date.now() - parseInt(lastOrderChange)) < 300000 // 5 минут
   
   loadOrders(shouldForceRefresh)
-  
-  // Добавляем обработчик для событий от NotificationBell
-  document.addEventListener('openOrderDetails', handleOpenOrderDetailsEvent)
   
   // Отслеживаем возврат на вкладку и принудительно обновляем данные, если были изменения
   visibilityChangeHandler = () => {
@@ -469,20 +448,26 @@ onMounted(async () => {
   onOrderStageChanged((event) => {
     // Обновляем данные во всех компонентах
     loadOrders()
-    fetchAllOrdersForKanban()
+    if (!isTableView.value) {
+      fetchAllOrdersForKanban()
+    }
   })
   
   onOrderUpdated((event) => {
     // Обновляем данные во всех компонентах
     loadOrders()
-    fetchAllOrdersForKanban()
+    if (!isTableView.value) {
+      fetchAllOrdersForKanban()
+    }
   })
   
   // Слушаем события создания сущностей
   onAnyEntityCreated((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   
@@ -490,7 +475,9 @@ onMounted(async () => {
   onAnyEntityUpdated((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   
@@ -498,28 +485,18 @@ onMounted(async () => {
   onAnyEntityDeleted((event) => {
     if (event.entityType === 'order') {
       loadOrders()
-      fetchAllOrdersForKanban()
+      if (!isTableView.value) {
+        fetchAllOrdersForKanban()
+      }
     }
   })
   
   // Проверяем, есть ли ID заказа в localStorage для автоматического открытия модалки
-  const orderIdToOpen = localStorage.getItem('openOrderModal')
-  if (orderIdToOpen) {
-    // Удаляем из localStorage
-    localStorage.removeItem('openOrderModal')
-    
-    // Открываем модалку с деталями заказа
-    detailsOrderId.value = parseInt(orderIdToOpen)
-    detailsErrorMsg.value = ''
-  }
-  
-  // Проверяем, есть ли параметр order в URL для автоматического открытия модального окна
   const orderParam = route.query.order
   if (orderParam && typeof orderParam === 'string') {
     const orderId = parseInt(orderParam)
     if (!isNaN(orderId)) {
-      detailsOrderId.value = orderId
-      detailsErrorMsg.value = ''
+      orderModal.open(orderId)
     }
   }
   
@@ -536,34 +513,33 @@ onActivated(() => {
 })
 
 async function openOrderDetails(payload: any) {
-  if (payload && payload.order) {
-    // Если открываем тот же заказ, сначала закрываем модалку
-    if (detailsOrderId.value === payload.order.id) {
-      detailsOrderId.value = null
-      detailsErrorMsg.value = ''
-      await nextTick()
-    }
+  const rawId = payload?.order?.id ?? payload?.id ?? payload
+  const numericId = Number(rawId)
 
-    // Сохраняем информацию о подсветке назначений
-    if (payload.highlightAssignments) {
-      sessionStorage.setItem('highlightAssignments', 'true')
-      sessionStorage.setItem('assignmentMessage', payload.message || '')
-    }
-
-    // Открываем модалку
-    detailsOrderId.value = payload.order.id
-    detailsErrorMsg.value = payload.errorMsg || ''
-  } else if (payload && payload.id) {
-    detailsOrderId.value = payload.id
-    detailsErrorMsg.value = ''
-  } else {
-    detailsOrderId.value = payload
-    detailsErrorMsg.value = ''
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return
   }
-}
-function closeOrderDetails() {
-  detailsOrderId.value = null
-  detailsErrorMsg.value = ''
+
+  if (detailsOrderId.value === numericId) {
+    orderModal.close()
+    await nextTick()
+  }
+
+  if (payload?.highlightAssignments) {
+    sessionStorage.setItem('highlightAssignments', 'true')
+    sessionStorage.setItem('assignmentMessage', payload.message || '')
+  }
+
+  orderModal.open(numericId, { errorMsg: payload?.errorMsg })
+
+  router.replace({
+    query: {
+      ...route.query,
+      order: numericId.toString(),
+    },
+  }).catch(() => {
+    // игнорируем ошибки навигации (например, дубликаты)
+  })
 }
 function handleOrderUpdatedFromModal() {
   orderListRef.value?.loadOrders()
@@ -629,7 +605,7 @@ async function handleKanbanBulkDelete() {
     // Очищаем выбранные элементы
     kanbanSelectedIds.value = []
     // Обновляем данные
-    loadOrders()
+    loadOrders(true)
   }
 }
 
