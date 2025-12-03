@@ -24,6 +24,7 @@
             :stages="stages"
             :current-stage="getCurrentStage(order)"
             :completed-stages="completedStages"
+            :order="order"
             @stage-click="handleStageClick"
           />
 

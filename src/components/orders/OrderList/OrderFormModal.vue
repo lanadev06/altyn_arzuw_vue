@@ -227,7 +227,7 @@
                 </UIButton>
               </div>
 
-              <div class="grid grid-cols-4 gap-3">
+              <div class="grid grid-cols-5 gap-3">
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.product') }}</label>
                   <div class="flex gap-2">
@@ -271,7 +271,7 @@
                     :placeholder="t('order.form.quantity')"
                   />
                 </div>
-                <div>
+                <div v-if="canViewPrices()">
                   <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.price') }}</label>
                   <UIInput
                     :model-value="order.price ?? null"
@@ -280,6 +280,17 @@
                     step="0.01"
                     min="0"
                     :placeholder="t('order.form.price')"
+                  />
+                </div>
+                <div v-if="canViewPrices()">
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.paymentAmount') }}</label>
+                  <UIInput
+                    :model-value="order.payment_amount ?? null"
+                    @update:model-value="(val) => (order.payment_amount = val === null ? null : Number(val))"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :placeholder="t('order.form.enterPaymentAmount')"
                   />
                 </div>
                 <div>
@@ -539,7 +550,7 @@
               required
             />
           </div>
-          <div>
+          <div v-if="canViewPrices()">
             <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('order.form.price') }}</label>
             <UIInput
               :model-value="form.price ?? null"
@@ -548,6 +559,19 @@
               step="0.01"
               min="0"
               :placeholder="t('order.form.enterPrice')"
+            />
+          </div>
+        </div>
+        <div v-if="(orderMode === 'single' || order) && canViewPrices()" class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('order.form.paymentAmount') }}</label>
+            <UIInput
+              :model-value="form.payment_amount ?? null"
+              @update:model-value="(val) => (form.payment_amount = val === null ? undefined : Number(val))"
+              type="number"
+              step="0.01"
+              min="0"
+              :placeholder="t('order.form.enterPaymentAmount')"
             />
           </div>
         </div>
@@ -792,7 +816,7 @@ import type { ProductAssignment, ProductAssignmentMinimal } from '../../../types
 import type { User } from '../../../types/user'
 import orderController from '../../../controllers/orderControllerInstance'
 import { toast } from '../../../stores/toast'
-import { canDelete } from '../../../utils/permissions'
+import { canDelete, canViewPrices } from '../../../utils/permissions'
 import ClientFormModal from '../../clients/ClientList/ClientFormModal.vue'
 import ProjectFormModal from '../../projects/ProjectList/ProjectFormModal.vue'
 import ProductFormModal from '../../products/ProductList/ProductFormModal.vue'
@@ -832,6 +856,7 @@ const bulkOrders = ref<
     product_id: number | null
     quantity: number
     price: number | null
+    payment_amount: number | null
     deadline: string | null
     selected_stages: number[]
     assignments: Record<number, Record<string, ProductAssignment[]>>
@@ -844,6 +869,7 @@ const form = reactive<OrderForm>({
   product_id: undefined,
   quantity: 1,
   price: undefined,
+  payment_amount: undefined,
   deadline: getTodayDateTime(),
 })
 
@@ -1583,6 +1609,7 @@ onMounted(async () => {
         product_id: props.order.product_id || null,
         quantity: props.order.quantity || 1,
         price: props.order.price || null,
+        payment_amount: props.order.payment_amount || null,
         deadline: props.order.deadline
           ? formatDateForInput(props.order.deadline)
           : getTodayDateTime(),
@@ -1752,6 +1779,7 @@ async function handleSubmit() {
       ...form,
       deadline: form.deadline || null,
       price: form.price || null,
+      payment_amount: form.payment_amount || null,
     }
 
     // Для массового заказа создаем несколько заказов
@@ -1814,6 +1842,7 @@ async function handleSubmit() {
             product_id: order.product_id,
             quantity: order.quantity,
             price: order.price || null,
+            payment_amount: order.payment_amount || null,
             deadline: order.deadline || null,
             is_bulk: true, // Флаг для массового заказа
             stages: order.selected_stages,
@@ -1996,6 +2025,7 @@ function addBulkOrder() {
     product_id: null,
     quantity: 1,
     price: null,
+    payment_amount: null,
     deadline: getTodayDateTime(),
     selected_stages: [],
     assignments: {},

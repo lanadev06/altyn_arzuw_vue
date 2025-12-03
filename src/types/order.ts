@@ -9,6 +9,7 @@ export interface OrderUpdateForm {
   quantity?: number
   deadline?: string
   price?: number
+  payment_amount?: number
   stage?: string
   work_type?: string
   stages?: number[]

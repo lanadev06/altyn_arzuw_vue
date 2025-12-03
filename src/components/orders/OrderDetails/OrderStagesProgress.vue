@@ -14,12 +14,13 @@
         'transition-all duration-150',
       ]"
       @click="handleStageClick(stage.value)"
-      :disabled="currentStage === stage.value"
+      :disabled="currentStage === stage.value || isCompletedDisabled(stage.value)"
       :style="{
         zIndex: stages.length - idx,
         ...getStageStyle(stage.value, currentStage, completedStages),
+        ...(isCompletedDisabled(stage.value) ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
       }"
-      :title="!canViewAllOrders() ? 'Только администраторы и менеджеры могут менять стадии' : ''"
+      :title="getStageTitle(stage.value)"
     >
       {{ stage.label }}
       <span
@@ -39,10 +40,16 @@ interface Stage {
   color?: string
 }
 
+interface Order {
+  price?: number
+  payment_amount?: number
+}
+
 interface Props {
   stages: Stage[]
   currentStage: string
   completedStages: string[]
+  order?: Order | null
 }
 
 const props = defineProps<Props>()
@@ -56,7 +63,34 @@ function handleStageClick(stageValue: string) {
     return
   }
   
+  // Блокируем переход в completed если не оплачено полностью
+  if (stageValue === 'completed' && isCompletedDisabled(stageValue)) {
+    return
+  }
+  
   emit('stageClick', stageValue)
+}
+
+function isCompletedDisabled(stageValue: string): boolean {
+  if (stageValue !== 'completed') return false
+  if (!props.order) return false
+  
+  const paymentAmount = props.order.payment_amount ?? 0
+  const price = props.order.price ?? 0
+  
+  return paymentAmount < price
+}
+
+function getStageTitle(stageValue: string): string {
+  if (!canViewAllOrders()) {
+    return 'Только администраторы и менеджеры могут менять стадии'
+  }
+  
+  if (stageValue === 'completed' && isCompletedDisabled(stageValue)) {
+    return 'Нельзя завершить заказ — он не полностью оплачен'
+  }
+  
+  return ''
 }
 
 function getStageColor(stage: string, current: string, completed: string[]) {

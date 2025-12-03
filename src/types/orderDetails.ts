@@ -87,6 +87,7 @@ export interface OrderInfo {
   id: number
   quantity: number
   price?: number
+  payment_amount?: number
   deadline?: string
   stage: string | { name: string }
   product?: { name: string }

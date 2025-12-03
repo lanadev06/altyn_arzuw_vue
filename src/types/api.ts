@@ -60,6 +60,7 @@ export interface Order {
   quantity: number
   deadline?: string
   price?: number
+  payment_amount?: number
   stage?: string | { id: number; name: string; display_name?: string }
   work_type?: string
   stages?: number[]
@@ -302,6 +303,7 @@ export interface OrderForm {
   quantity?: number
   deadline?: string
   price?: number
+  payment_amount?: number
   stage?: string
   work_type?: string
   stages?: number[]

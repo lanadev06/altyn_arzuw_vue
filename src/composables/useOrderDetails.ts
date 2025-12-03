@@ -734,8 +734,34 @@ export function useOrderDetails(orderId: number | null | undefined) {
       // Убираем оптимистично добавленный лог
       statusLogs.value = statusLogs.value.filter(log => log.id !== newLog.id)
       
-      const msg = err instanceof Error ? err.message : 'Ошибка смены стадии'
-      toast.show(msg, 'error')
+      // Показываем понятное сообщение об ошибке
+      let errorMessage = 'Ошибка смены стадии'
+      
+      // Проверяем разные источники ошибки
+      let serverMessage = ''
+      
+      if (err instanceof Error) {
+        serverMessage = err.message || ''
+        // Проверяем data.message если есть
+        if ((err as any).data?.message) {
+          serverMessage = (err as any).data.message
+        }
+      } else if (err?.data?.message) {
+        serverMessage = err.data.message
+      } else if (err?.message) {
+        serverMessage = err.message
+      }
+      
+      // Обрабатываем сообщение от сервера
+      if (serverMessage.includes('не полностью оплачен') || serverMessage.includes('оплачен')) {
+        errorMessage = 'Нельзя завершить заказ — он не полностью оплачен'
+      } else if (serverMessage.includes('неодобренные назначения')) {
+        errorMessage = serverMessage
+      } else if (serverMessage) {
+        errorMessage = serverMessage
+      }
+      
+      toast.show(errorMessage, 'error')
     }
   }
 
@@ -745,15 +771,24 @@ export function useOrderDetails(orderId: number | null | undefined) {
     payload[field] = value
     
     try {
-      await update(order.value.id, payload)
+      const updatedOrder = await update(order.value.id, payload)
+      
+      // Обновляем локальное состояние
       if (order.value) {
         (order.value as any)[field] = value
+        // Если сервер вернул обновленный заказ, обновляем все поля
+        if (updatedOrder && typeof updatedOrder === 'object') {
+          Object.assign(order.value, updatedOrder)
+        }
       }
       
       if (orderId) {
         const cacheKey = `order_details_${orderId}`
         frontendCache.delete(cacheKey)
       }
+      
+      // Перезагружаем данные для получения актуальной информации
+      await fetchAll()
       
       window.dispatchEvent(new CustomEvent('order-updated', {
         detail: { orderId }

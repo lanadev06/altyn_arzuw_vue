@@ -29,6 +29,20 @@
         <span v-else-if="order" class="text-gray-900">{{ order.price }}</span>
         <span class="ml-1">TMT</span>
       </div>
+      <div v-if="canViewPrices()" class="flex items-center gap-2 text-base text-gray-800">
+        <span class="font-semibold w-28">{{ t('order.details.paymentAmount') }}</span>
+        <EditableField
+          v-if="order && canViewAllOrders()"
+          :model-value="order.payment_amount ?? 0"
+          type="number"
+          :min="0"
+          step="0.01"
+          @save="(val) => $emit('update-field', 'payment_amount', val)"
+          class="w-32"
+        />
+        <span v-else-if="order" class="text-gray-900">{{ order.payment_amount ?? 0 }}</span>
+        <span class="ml-1">TMT</span>
+      </div>
       <div class="flex items-center gap-2 text-base text-gray-800 group">
         <span class="font-semibold w-28">{{ t('order.details.deadline') }}</span>
         <div class="flex-1">

@@ -173,6 +173,12 @@
                   </span>
                   <span v-else class="text-gray-400">—</span>
                 </template>
+                <template v-else-if="col.key === 'payment_amount'">
+                  <span v-if="canViewPrices()" :class="getPaymentClass(item)">
+                    {{ item.payment_amount ?? '-' }} <span class="text-sm">TMT</span>
+                  </span>
+                  <span v-else class="text-gray-400">—</span>
+                </template>
                 <template v-else-if="col.key === 'created_at'">
                   <span class="text-gray-600">{{ formatDate(item.created_at) }}</span>
                 </template>
@@ -336,17 +342,39 @@ const defaultColumns = computed(() => [
   { key: 'quantity', label: t('table.quantity'), sortable: true },
   { key: 'stage', label: t('table.status'), sortable: true },
   { key: 'deadline', label: t('table.deadline'), sortable: true },
-  ...(canViewPrices() ? [{ key: 'price', label: t('table.price'), sortable: true }] : []),
+  ...(canViewPrices() ? [
+    { key: 'price', label: t('table.price'), sortable: true },
+    { key: 'payment_amount', label: t('table.paymentAmount'), sortable: true }
+  ] : []),
   { key: 'created_at', label: t('table.created'), sortable: true },
 ])
 
 // Функция для инициализации колонок с правильными переводами
 const initializeColumns = (savedCols: any) => {
   if (!savedCols) return defaultColumns.value
-  return JSON.parse(savedCols).map((col: any) => {
+  
+  const saved = JSON.parse(savedCols)
+  const result = saved.map((col: any) => {
     const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
     return defaultCol ? { ...col, label: defaultCol.label } : col
   })
+  
+  // Проверяем, есть ли payment_amount в сохраненных колонках
+  const hasPaymentAmount = result.some((col: any) => col.key === 'payment_amount')
+  const shouldHavePaymentAmount = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_amount')
+  
+  // Если колонка должна быть, но её нет - добавляем её после price
+  if (shouldHavePaymentAmount && !hasPaymentAmount) {
+    const priceIndex = result.findIndex((col: any) => col.key === 'price')
+    if (priceIndex !== -1) {
+      const paymentCol = defaultColumns.value.find((col: any) => col.key === 'payment_amount')
+      if (paymentCol) {
+        result.splice(priceIndex + 1, 0, paymentCol)
+      }
+    }
+  }
+  
+  return result
 }
 
 const columns = ref(initializeColumns(savedColumns))
@@ -467,7 +495,7 @@ function setSort(key: string) {
     'quantity',
     'stage',
     'deadline',
-    ...(canViewPrices() ? ['price'] : []),
+    ...(canViewPrices() ? ['price', 'payment_amount'] : []),
     'created_at',
   ]
   if (!allowedSortFields.includes(key)) return
@@ -562,6 +590,14 @@ function formatDate(date: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function getPaymentClass(order: Order) {
+  if (order.price == null || order.payment_amount == null) return 'text-gray-400'
+  const percent = order.payment_amount / order.price
+  if (percent < 0.5) return 'text-red-600 font-semibold'
+  if (percent < 0.9) return 'text-orange-500 font-semibold'
+  return 'text-green-600 font-semibold'
 }
 
 function filterByStage() {
@@ -697,6 +733,32 @@ watch(
 
 onMounted(async () => {
   await nextTick()
+  
+  // Проверяем и обновляем колонки при монтировании
+  // Если в сохраненных колонках нет payment_amount, но она должна быть - добавляем
+  const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
+  if (currentSavedColumns) {
+    const saved = JSON.parse(currentSavedColumns)
+    const hasPaymentAmount = saved.some((col: any) => col.key === 'payment_amount')
+    const shouldHavePaymentAmount = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_amount')
+    
+    if (shouldHavePaymentAmount && !hasPaymentAmount) {
+      // Добавляем колонку payment_amount после price
+      const priceIndex = saved.findIndex((col: any) => col.key === 'price')
+      if (priceIndex !== -1) {
+        const paymentCol = defaultColumns.value.find((col: any) => col.key === 'payment_amount')
+        if (paymentCol) {
+          saved.splice(priceIndex + 1, 0, paymentCol)
+          columns.value = saved.map((col: any) => {
+            const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+            return defaultCol ? { ...col, label: defaultCol.label } : col
+          })
+          localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+        }
+      }
+    }
+  }
+  
   if (columnsHeader.value) {
     Sortable.create(columnsHeader.value, {
       animation: 150,
