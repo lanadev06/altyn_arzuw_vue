@@ -410,7 +410,7 @@
                         class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative"
                       >
                         <button
-                          @click="$emit('delete-comment', comment.id)"
+                          @click="showDeleteCommentConfirm(comment.id)"
                           :title="t('projects.details.delete')"
                           class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400"
                         >
@@ -508,7 +508,7 @@
               <!-- Кнопка удаления проекта -->
               <div v-if="canDelete()" class="mt-4 flex justify-end">
                 <button
-                  @click="deleteProjectHandler"
+                  @click="showDeleteConfirm = true"
                   class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-colors duration-200"
                   :title="t('projects.details.deleteProject')"
                 >
@@ -533,6 +533,26 @@
       @close="showAttachExistingModal = false"
       @attach="handleAttachOrder"
     />
+
+    <!-- Модальное окно подтверждения удаления проекта -->
+    <ConfirmationModal
+      :visible="showDeleteConfirm"
+      :title="t('projects.details.deleteProject')"
+      :message="t('projects.form.deleteConfirm')"
+      @confirm="confirmDeleteProject"
+      @cancel="showDeleteConfirm = false"
+      @close="showDeleteConfirm = false"
+    />
+
+    <!-- Модальное окно подтверждения удаления комментария -->
+    <ConfirmationModal
+      :visible="showDeleteCommentConfirmModal"
+      :title="t('order.details.deleteComment')"
+      :message="t('order.details.deleteCommentConfirm')"
+      @confirm="confirmDeleteComment"
+      @cancel="cancelDeleteComment"
+      @close="cancelDeleteComment"
+    />
   </div>
 </template>
 
@@ -549,6 +569,7 @@ import { canCreateEdit, canViewPrices, getCurrentUser, canDelete } from '@/utils
 import { deleteProject } from '@/services/api'
 import { toast } from '@/stores/toast'
 import AttachOrderModal from './AttachOrderModal.vue'
+import ConfirmationModal from '@/components/ui/ConfirmationModal.vue'
 
 const { t } = useI18n()
 
@@ -627,6 +648,9 @@ const showClientSelect = ref(false)
 const showDeadlineInput = ref(false)
 const showAttachExistingModal = ref(false)
 const selectedOrdersForDetach = ref<number[]>([])
+const showDeleteConfirm = ref(false)
+const showDeleteCommentConfirmModal = ref(false)
+const commentIdToDelete = ref<number | null>(null)
 
 // Прокси для v-model, чтобы не было null
 const selectedClientIdProxy = computed({
@@ -666,9 +690,11 @@ function onOverlayClick(e: MouseEvent) {
   if (e.target === e.currentTarget) emit('close')
 }
 
-// Функция удаления проекта
-async function deleteProjectHandler() {
+// Функция подтверждения удаления проекта
+async function confirmDeleteProject() {
   if (!props.project) return
+  
+  showDeleteConfirm.value = false
   
   try {
     await deleteProject(props.project.id)
@@ -679,6 +705,24 @@ async function deleteProjectHandler() {
   } catch (error) {
     toast.show(t('projects.details.deleteError'), 'error')
   }
+}
+
+// Функции для удаления комментария
+function showDeleteCommentConfirm(commentId: number) {
+  commentIdToDelete.value = commentId
+  showDeleteCommentConfirmModal.value = true
+}
+
+function confirmDeleteComment() {
+  if (commentIdToDelete.value !== null) {
+    emit('delete-comment', commentIdToDelete.value)
+    cancelDeleteComment()
+  }
+}
+
+function cancelDeleteComment() {
+  showDeleteCommentConfirmModal.value = false
+  commentIdToDelete.value = null
 }
 
 type ProjectField = keyof Project | 'client_id' | 'total_price' | 'payment_amount'

@@ -248,7 +248,11 @@ export function useOrderDetails(orderId: number | null | undefined) {
         // Обрабатываем комментарии и нормализуем пользователей
         const processedComments = (rawComments as OrderComment[]).map((c: OrderComment) => ({
           ...c,
-          user: normalizeUser(c.user),
+          user: c.user ? normalizeUser(c.user) : {
+            id: 0,
+            name: 'Неизвестный пользователь',
+            roles: []
+          } as User,
         }))
         
         // Обновляем массив комментариев
@@ -393,6 +397,13 @@ export function useOrderDetails(orderId: number | null | undefined) {
   async function addComment(text: string) {
     if (!text.trim()) return
     
+    // Проверяем, что orderId существует
+    if (!orderId) {
+      toast.show('Ошибка: не указан ID заказа', 'error')
+      console.error('addComment: orderId is null or undefined')
+      return
+    }
+    
     const tempId = Date.now()
     
     try {
@@ -429,7 +440,7 @@ export function useOrderDetails(orderId: number | null | undefined) {
           orderId as number,
           (result as any).id,
           text.trim(),
-          (result as any).user_id || 0,
+          (result as any).user?.id || 0,
           (result as any).user?.name || 'Сотрудник',
           'modal'
         )
@@ -443,11 +454,38 @@ export function useOrderDetails(orderId: number | null | undefined) {
       // Удаляем временный комментарий при ошибке
       comments.value = comments.value.filter(c => c.id !== tempId)
       
-      toast.show('Ошибка добавления комментария', 'error')
+      // Логируем ошибку для диагностики
+      console.error('Error adding comment:', error)
+      
+      // Определяем сообщение об ошибке
+      let errorMessage = 'Ошибка добавления комментария'
+      if (error instanceof Error) {
+        // Если есть детали ошибки от сервера, используем их
+        const errorData = (error as any).data
+        if (errorData?.error) {
+          errorMessage = errorData.error
+        } else if (errorData?.message) {
+          errorMessage = errorData.message
+        } else if ((error as any).status === 422) {
+          errorMessage = 'Ошибка валидации данных'
+        } else if ((error as any).status === 403) {
+          errorMessage = 'Доступ запрещён'
+        } else if ((error as any).status === 401) {
+          errorMessage = 'Сессия истекла. Необходимо войти заново.'
+        }
+      }
+      
+      toast.show(errorMessage, 'error')
     }
   }
 
   async function deleteComment(commentId: number) {
+    if (!orderId) {
+      toast.show('Ошибка: не указан ID заказа', 'error')
+      console.error('deleteComment: orderId is null or undefined')
+      return
+    }
+    
     const commentToDelete = comments.value.find(c => c.id === commentId)
     comments.value = comments.value.filter(c => c.id !== commentId)
     

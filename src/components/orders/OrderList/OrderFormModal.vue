@@ -1779,41 +1779,111 @@ async function handleSubmit() {
 
       // Создаем все заказы
       const createdOrders = []
+      const failedOrders = []
+      
       for (let i = 0; i < bulkOrders.value.length; i++) {
         const order = bulkOrders.value[i]
 
-        // Подготавливаем данные заказа
-        const orderData = {
-          client_id: form.client_id,
-          project_id: projectId, // Используем один project_id для всех заказов
-          product_id: order.product_id || undefined,
-          quantity: order.quantity,
-          price: order.price,
-          deadline: order.deadline || null,
-          is_bulk: true, // Флаг для массового заказа
-          stages: order.selected_stages || [],
-          assignments: getBulkOrderAssignments(i),
+        // Проверяем обязательные поля для массового заказа
+        if (!order.product_id || order.quantity <= 0) {
+          failedOrders.push({ index: i + 1, reason: t('order.form.invalidBulkOrderData', { index: i + 1 }) })
+          continue
         }
 
-        // Creating bulk order
-        const createdOrder = await create(orderData)
-        createdOrders.push(createdOrder)
+        // Проверяем, что есть выбранные стадии
+        if (!order.selected_stages || order.selected_stages.length === 0) {
+          failedOrders.push({ index: i + 1, reason: t('order.form.selectAtLeastOneStage') })
+          continue
+        }
+
+        try {
+          // Подготавливаем данные заказа
+          const bulkAssignments = getBulkOrderAssignments(i)
+          // Фильтруем невалидные назначения
+          const validBulkAssignments = bulkAssignments.filter(assignment => {
+            return assignment && 
+                   assignment.user_id && 
+                   assignment.user_id > 0 && 
+                   assignment.role_type && 
+                   assignment.role_type.trim() !== ''
+          })
+
+          const orderData = {
+            client_id: form.client_id,
+            project_id: projectId, // Используем один project_id для всех заказов
+            product_id: order.product_id,
+            quantity: order.quantity,
+            price: order.price || null,
+            deadline: order.deadline || null,
+            is_bulk: true, // Флаг для массового заказа
+            stages: order.selected_stages,
+            assignments: validBulkAssignments.length > 0 ? validBulkAssignments : undefined,
+          }
+
+          // Creating bulk order
+          const createdOrder = await create(orderData)
+          createdOrders.push(createdOrder)
+        } catch (error) {
+          console.error(`Error creating bulk order ${i + 1}:`, error)
+          failedOrders.push({ 
+            index: i + 1, 
+            reason: error instanceof Error ? error.message : t('order.form.saveError') 
+          })
+        }
       }
 
-      toast.show(t('order.form.ordersCreated', { count: createdOrders.length }), 'success')
-      emit('submit')
-      emit('close')
+      // Показываем результаты
+      if (createdOrders.length > 0) {
+        toast.show(t('order.form.ordersCreated', { count: createdOrders.length }), 'success')
+      }
+      
+      if (failedOrders.length > 0) {
+        const errorMessage = failedOrders.map(f => `Заказ ${f.index}: ${f.reason}`).join('; ')
+        toast.show(`Ошибки при создании заказов: ${errorMessage}`, 'error')
+      }
+
+      // Если создан хотя бы один заказ, считаем операцию частично успешной
+      if (createdOrders.length > 0) {
+        emit('submit')
+        emit('close')
+      } else {
+        // Если ни один заказ не создан, не закрываем форму
+        loading.value = false
+      }
       return
     } else {
       // Для одиночного заказа добавляем все данные
       const assignments = getAllAssignments()
       // Assignments for order
 
+      // Проверяем, что stages не пустой массив
+      if (!selectedOrderStages.value || selectedOrderStages.value.length === 0) {
+        toast.show(t('order.form.selectAtLeastOneStage'), 'error')
+        loading.value = false
+        return
+      }
+
+      // Фильтруем невалидные назначения перед отправкой
+      const validAssignments = assignments.filter(assignment => {
+        return assignment && 
+               assignment.user_id && 
+               assignment.user_id > 0 && 
+               assignment.role_type && 
+               assignment.role_type.trim() !== ''
+      })
+
       orderData = {
         ...orderData,
         stages: selectedOrderStages.value,
-        assignments: assignments,
+        assignments: validAssignments.length > 0 ? validAssignments : undefined, // Отправляем undefined если нет валидных назначений
       }
+    }
+
+    // Дополнительная проверка перед отправкой
+    if (!orderData.client_id || orderData.client_id <= 0) {
+      toast.show(t('order.form.selectClientError'), 'error')
+      loading.value = false
+      return
     }
 
     // Saving order with data
@@ -1841,7 +1911,35 @@ async function handleSubmit() {
     emit('submit')
     emit('close')
   } catch (error) {
-    toast.show(t('order.form.saveError'), 'error')
+    // Логируем ошибку для диагностики
+    console.error('Error creating/updating order:', error)
+    
+    // Определяем сообщение об ошибке
+    let errorMessage = t('order.form.saveError')
+    if (error instanceof Error) {
+      const errorData = (error as any).data
+      if (errorData?.message) {
+        errorMessage = errorData.message
+      } else if (errorData?.error) {
+        errorMessage = errorData.error
+      } else if ((error as any).status === 422) {
+        // Ошибки валидации
+        if (errorData?.errors) {
+          const fieldErrors = Object.values(errorData.errors).flat()
+          errorMessage = Array.isArray(fieldErrors) ? fieldErrors.join(', ') : t('order.form.validationError')
+        } else {
+          errorMessage = t('order.form.validationError')
+        }
+      } else if ((error as any).status === 403) {
+        errorMessage = 'Доступ запрещён'
+      } else if ((error as any).status === 401) {
+        errorMessage = 'Сессия истекла. Необходимо войти заново.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+    }
+    
+    toast.show(errorMessage, 'error')
   } finally {
     loading.value = false
   }

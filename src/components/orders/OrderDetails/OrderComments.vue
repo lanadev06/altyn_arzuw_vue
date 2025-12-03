@@ -25,7 +25,7 @@
           <div class="bg-white rounded-xl p-3 flex-1 shadow-sm border border-blue-100 relative">
             <button
               v-if="isAdmin()"
-              @click="$emit('delete-comment', comment.id)"
+              @click="showDeleteConfirm(comment.id)"
               :title="t('order.details.delete')"
               class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400"
             >
@@ -45,7 +45,7 @@
               </svg>
             </button>
             <div class="flex items-center gap-2 mb-0.5">
-              <span class="font-bold text-sm text-gray-900">{{ comment.user.name }}</span>
+              <span class="font-bold text-sm text-gray-900">{{ comment.user?.name || 'Неизвестный пользователь' }}</span>
               <span v-if="comment.user?.roles && comment.user.roles.length">
                 <span
                   v-for="(role, index) in comment.user.roles"
@@ -112,6 +112,16 @@
       </div>
     </div>
   </div>
+
+  <!-- Модальное окно подтверждения удаления комментария -->
+  <ConfirmationModal
+    :visible="showDeleteConfirmModal"
+    :title="t('order.details.deleteComment')"
+    :message="t('order.details.deleteCommentConfirm')"
+    @confirm="confirmDeleteComment"
+    @cancel="cancelDeleteComment"
+    @close="cancelDeleteComment"
+  />
 </template>
 
 <script setup lang="ts">
@@ -119,6 +129,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isAdmin } from '../../../utils/permissions'
 import type { OrderComment, Role, User } from '../../../types/orderDetails'
+import ConfirmationModal from '../../ui/ConfirmationModal.vue'
 
 const { t } = useI18n()
 
@@ -138,6 +149,8 @@ const emit = defineEmits<{
 const newComment = ref('')
 const commentFocused = ref(false)
 const userImageUrls = ref<Record<string, string>>({})
+const showDeleteConfirmModal = ref(false)
+const commentIdToDelete = ref<number | null>(null)
 
 function onCommentBlur() {
   // Задержка нужна, чтобы не скрывать кнопки при клике на них
@@ -157,6 +170,23 @@ function addComment() {
   emit('add-comment', newComment.value)
   newComment.value = ''
   commentFocused.value = false
+}
+
+function showDeleteConfirm(id: number) {
+  commentIdToDelete.value = id
+  showDeleteConfirmModal.value = true
+}
+
+function confirmDeleteComment() {
+  if (commentIdToDelete.value !== null) {
+    emit('delete-comment', commentIdToDelete.value)
+    cancelDeleteComment()
+  }
+}
+
+function cancelDeleteComment() {
+  showDeleteConfirmModal.value = false
+  commentIdToDelete.value = null
 }
 
 function formatDate(date: string) {
@@ -216,7 +246,11 @@ function loadUserImageUrl(user: User) {
 watch(
   () => props.comments,
   (newComments) => {
-    newComments.forEach((c) => loadUserImageUrl(c.user))
+    newComments.forEach((c) => {
+      if (c.user) {
+        loadUserImageUrl(c.user)
+      }
+    })
   },
   { immediate: true, deep: true },
 )

@@ -84,7 +84,7 @@
               <!-- Кнопка удаления заказа -->
               <div v-if="canDelete() && canViewAllOrders()" class="mt-4 flex justify-end">
                 <button
-                  @click="deleteOrderHandler"
+                  @click="showDeleteConfirm = true"
                   class="w-8 h-8 bg-gray-200 hover:bg-red-500 text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
                   :title="t('order.form.delete')"
                 >
@@ -99,10 +99,20 @@
       </transition>
     </div>
   </transition>
+
+  <!-- Модальное окно подтверждения удаления -->
+  <ConfirmationModal
+    :visible="showDeleteConfirm"
+    :title="t('order.deleteConfirm')"
+    :message="t('order.deleteConfirmMessage')"
+    @confirm="confirmDeleteOrder"
+    @cancel="showDeleteConfirm = false"
+    @close="showDeleteConfirm = false"
+  />
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { canDelete, canViewAllOrders } from '../../../utils/permissions'
 import { useOrderDetails } from '../../../composables/useOrderDetails'
@@ -114,6 +124,7 @@ import OrderProject from '../OrderDetails/OrderProject.vue'
 import OrderComments from '../OrderDetails/OrderComments.vue'
 import OrderAssignments from '../OrderDetails/OrderAssignments.vue'
 import OrderTimeline from '../OrderDetails/OrderTimeline.vue'
+import ConfirmationModal from '../../ui/ConfirmationModal.vue'
 
 interface Props {
   orderId?: number | null
@@ -201,7 +212,10 @@ async function confirmCancel(reason: string, reasonStatus: string) {
   }
 }
 
-async function deleteOrderHandler() {
+const showDeleteConfirm = ref(false)
+
+async function confirmDeleteOrder() {
+  showDeleteConfirm.value = false
   try {
     await deleteOrderHandlerBase()
     emit('close')
