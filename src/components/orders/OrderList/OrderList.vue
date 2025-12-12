@@ -354,10 +354,18 @@ const initializeColumns = (savedCols: any) => {
   if (!savedCols) return defaultColumns.value
   
   const saved = JSON.parse(savedCols)
-  const result = saved.map((col: any) => {
-    const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
-    return defaultCol ? { ...col, label: defaultCol.label } : col
-  })
+  // Фильтруем только те колонки, которые есть в defaultColumns (защита от устаревших колонок)
+  let result = saved
+    .filter((col: any) => defaultColumns.value.some((dc: any) => dc.key === col.key))
+    .map((col: any) => {
+      const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+      return defaultCol ? { ...col, label: defaultCol.label } : col
+    })
+  
+  // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+  if (!canViewPrices()) {
+    result = result.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+  }
   
   // Проверяем, есть ли payment_amount в сохраненных колонках
   const hasPaymentAmount = result.some((col: any) => col.key === 'payment_amount')
@@ -379,6 +387,14 @@ const initializeColumns = (savedCols: any) => {
 
 const columns = ref(initializeColumns(savedColumns))
 
+// Функция для фильтрации колонок перед сохранением (удаляет price и payment_amount для сотрудников)
+const filterColumnsForSave = (cols: any[]) => {
+  if (canViewPrices()) {
+    return cols
+  }
+  return cols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+}
+
 // Обновляем колонки при изменении языка
 watch(locale, () => {
   const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
@@ -386,11 +402,21 @@ watch(locale, () => {
     columns.value = defaultColumns.value
   } else {
     // Обновляем только метки сохраненных колонок
-    const savedCols = JSON.parse(currentSavedColumns)
+    let savedCols = JSON.parse(currentSavedColumns)
+    
+    // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+    if (!canViewPrices()) {
+      savedCols = savedCols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+    }
+    
     columns.value = savedCols.map((col: any) => {
       const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
       return defaultCol ? { ...col, label: defaultCol.label } : col
     })
+    
+    // Сохраняем отфильтрованные колонки обратно в localStorage
+    const filteredColumns = filterColumnsForSave(columns.value)
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
   }
 })
 
@@ -512,7 +538,8 @@ function setSort(key: string) {
 
 function resetSettings() {
   columns.value = [...defaultColumns.value]
-  localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+  const filteredColumns = filterColumnsForSave(columns.value)
+  localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
   sortBy.value = 'id'
   sortOrder.value = 'asc'
   localStorage.setItem(SORT_KEY, sortBy.value)
@@ -736,24 +763,38 @@ onMounted(async () => {
   
   // Проверяем и обновляем колонки при монтировании
   // Если в сохраненных колонках нет payment_amount, но она должна быть - добавляем
+  // Если пользователь сотрудник - удаляем price и payment_amount
   const currentSavedColumns = localStorage.getItem(COLUMNS_KEY)
   if (currentSavedColumns) {
-    const saved = JSON.parse(currentSavedColumns)
-    const hasPaymentAmount = saved.some((col: any) => col.key === 'payment_amount')
-    const shouldHavePaymentAmount = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_amount')
+    let saved = JSON.parse(currentSavedColumns)
     
-    if (shouldHavePaymentAmount && !hasPaymentAmount) {
-      // Добавляем колонку payment_amount после price
-      const priceIndex = saved.findIndex((col: any) => col.key === 'price')
-      if (priceIndex !== -1) {
-        const paymentCol = defaultColumns.value.find((col: any) => col.key === 'payment_amount')
-        if (paymentCol) {
-          saved.splice(priceIndex + 1, 0, paymentCol)
-          columns.value = saved.map((col: any) => {
-            const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
-            return defaultCol ? { ...col, label: defaultCol.label } : col
-          })
-          localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+    // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+    if (!canViewPrices()) {
+      saved = saved.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+      columns.value = saved.map((col: any) => {
+        const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+        return defaultCol ? { ...col, label: defaultCol.label } : col
+      })
+      const filteredColumns = filterColumnsForSave(columns.value)
+      localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
+    } else {
+      const hasPaymentAmount = saved.some((col: any) => col.key === 'payment_amount')
+      const shouldHavePaymentAmount = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_amount')
+      
+      if (shouldHavePaymentAmount && !hasPaymentAmount) {
+        // Добавляем колонку payment_amount после price
+        const priceIndex = saved.findIndex((col: any) => col.key === 'price')
+        if (priceIndex !== -1) {
+          const paymentCol = defaultColumns.value.find((col: any) => col.key === 'payment_amount')
+          if (paymentCol) {
+            saved.splice(priceIndex + 1, 0, paymentCol)
+            columns.value = saved.map((col: any) => {
+              const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+              return defaultCol ? { ...col, label: defaultCol.label } : col
+            })
+            const filteredColumns = filterColumnsForSave(columns.value)
+            localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
+          }
         }
       }
     }
@@ -780,7 +821,8 @@ onMounted(async () => {
         const moved = newColumns.splice(adjustedOldIndex, 1)[0]
         newColumns.splice(adjustedNewIndex, 0, moved)
         columns.value = newColumns
-        localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns.value))
+        const filteredColumns = filterColumnsForSave(columns.value)
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
       },
     })
   }
