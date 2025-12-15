@@ -179,6 +179,12 @@
                   </span>
                   <span v-else class="text-gray-400">—</span>
                 </template>
+                <template v-else-if="col.key === 'payment_type'">
+                  <span v-if="canViewPrices()" class="text-gray-700">
+                    {{ item.payment_type === 'cash' ? t('order.form.cash') : item.payment_type === 'card' ? t('order.form.card') : '-' }}
+                  </span>
+                  <span v-else class="text-gray-400">—</span>
+                </template>
                 <template v-else-if="col.key === 'created_at'">
                   <span class="text-gray-600">{{ formatDate(item.created_at) }}</span>
                 </template>
@@ -344,7 +350,8 @@ const defaultColumns = computed(() => [
   { key: 'deadline', label: t('table.deadline'), sortable: true },
   ...(canViewPrices() ? [
     { key: 'price', label: t('table.price'), sortable: true },
-    { key: 'payment_amount', label: t('table.paymentAmount'), sortable: true }
+    { key: 'payment_amount', label: t('table.paymentAmount'), sortable: true },
+    { key: 'payment_type', label: t('order.form.paymentType'), sortable: true }
   ] : []),
   { key: 'created_at', label: t('table.created'), sortable: true },
 ])
@@ -362,9 +369,9 @@ const initializeColumns = (savedCols: any) => {
       return defaultCol ? { ...col, label: defaultCol.label } : col
     })
   
-  // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+  // Удаляем колонки price, payment_amount и payment_type для сотрудников (если нет прав на просмотр цен)
   if (!canViewPrices()) {
-    result = result.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+    result = result.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount' && col.key !== 'payment_type')
   }
   
   // Проверяем, есть ли payment_amount в сохраненных колонках
@@ -382,17 +389,41 @@ const initializeColumns = (savedCols: any) => {
     }
   }
   
+  // Проверяем, есть ли payment_type в сохраненных колонках
+  const hasPaymentType = result.some((col: any) => col.key === 'payment_type')
+  const shouldHavePaymentType = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_type')
+  
+  // Если колонка должна быть, но её нет - добавляем её после payment_amount
+  if (shouldHavePaymentType && !hasPaymentType) {
+    const paymentAmountIndex = result.findIndex((col: any) => col.key === 'payment_amount')
+    if (paymentAmountIndex !== -1) {
+      const paymentTypeCol = defaultColumns.value.find((col: any) => col.key === 'payment_type')
+      if (paymentTypeCol) {
+        result.splice(paymentAmountIndex + 1, 0, paymentTypeCol)
+      }
+    } else {
+      // Если payment_amount нет, добавляем после price
+      const priceIndex = result.findIndex((col: any) => col.key === 'price')
+      if (priceIndex !== -1) {
+        const paymentTypeCol = defaultColumns.value.find((col: any) => col.key === 'payment_type')
+        if (paymentTypeCol) {
+          result.splice(priceIndex + 1, 0, paymentTypeCol)
+        }
+      }
+    }
+  }
+  
   return result
 }
 
 const columns = ref(initializeColumns(savedColumns))
 
-// Функция для фильтрации колонок перед сохранением (удаляет price и payment_amount для сотрудников)
+// Функция для фильтрации колонок перед сохранением (удаляет price, payment_amount и payment_type для сотрудников)
 const filterColumnsForSave = (cols: any[]) => {
   if (canViewPrices()) {
     return cols
   }
-  return cols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+  return cols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount' && col.key !== 'payment_type')
 }
 
 // Обновляем колонки при изменении языка
@@ -404,9 +435,9 @@ watch(locale, () => {
     // Обновляем только метки сохраненных колонок
     let savedCols = JSON.parse(currentSavedColumns)
     
-    // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+    // Удаляем колонки price, payment_amount и payment_type для сотрудников (если нет прав на просмотр цен)
     if (!canViewPrices()) {
-      savedCols = savedCols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+      savedCols = savedCols.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount' && col.key !== 'payment_type')
     }
     
     columns.value = savedCols.map((col: any) => {
@@ -521,7 +552,7 @@ function setSort(key: string) {
     'quantity',
     'stage',
     'deadline',
-    ...(canViewPrices() ? ['price', 'payment_amount'] : []),
+    ...(canViewPrices() ? ['price', 'payment_amount', 'payment_type'] : []),
     'created_at',
   ]
   if (!allowedSortFields.includes(key)) return
@@ -768,9 +799,9 @@ onMounted(async () => {
   if (currentSavedColumns) {
     let saved = JSON.parse(currentSavedColumns)
     
-    // Удаляем колонки price и payment_amount для сотрудников (если нет прав на просмотр цен)
+    // Удаляем колонки price, payment_amount и payment_type для сотрудников (если нет прав на просмотр цен)
     if (!canViewPrices()) {
-      saved = saved.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount')
+      saved = saved.filter((col: any) => col.key !== 'price' && col.key !== 'payment_amount' && col.key !== 'payment_type')
       columns.value = saved.map((col: any) => {
         const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
         return defaultCol ? { ...col, label: defaultCol.label } : col
@@ -788,14 +819,41 @@ onMounted(async () => {
           const paymentCol = defaultColumns.value.find((col: any) => col.key === 'payment_amount')
           if (paymentCol) {
             saved.splice(priceIndex + 1, 0, paymentCol)
-            columns.value = saved.map((col: any) => {
-              const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
-              return defaultCol ? { ...col, label: defaultCol.label } : col
-            })
-            const filteredColumns = filterColumnsForSave(columns.value)
-            localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
           }
         }
+      }
+      
+      // Проверяем и добавляем payment_type если нужно
+      const hasPaymentType = saved.some((col: any) => col.key === 'payment_type')
+      const shouldHavePaymentType = canViewPrices() && defaultColumns.value.some((col: any) => col.key === 'payment_type')
+      
+      if (shouldHavePaymentType && !hasPaymentType) {
+        // Добавляем колонку payment_type после payment_amount
+        const paymentAmountIndex = saved.findIndex((col: any) => col.key === 'payment_amount')
+        if (paymentAmountIndex !== -1) {
+          const paymentTypeCol = defaultColumns.value.find((col: any) => col.key === 'payment_type')
+          if (paymentTypeCol) {
+            saved.splice(paymentAmountIndex + 1, 0, paymentTypeCol)
+          }
+        } else {
+          // Если payment_amount нет, добавляем после price
+          const priceIndex = saved.findIndex((col: any) => col.key === 'price')
+          if (priceIndex !== -1) {
+            const paymentTypeCol = defaultColumns.value.find((col: any) => col.key === 'payment_type')
+            if (paymentTypeCol) {
+              saved.splice(priceIndex + 1, 0, paymentTypeCol)
+            }
+          }
+        }
+      }
+      
+      if (shouldHavePaymentAmount && !hasPaymentAmount || shouldHavePaymentType && !hasPaymentType) {
+        columns.value = saved.map((col: any) => {
+          const defaultCol = defaultColumns.value.find((dc: any) => dc.key === col.key)
+          return defaultCol ? { ...col, label: defaultCol.label } : col
+        })
+        const filteredColumns = filterColumnsForSave(columns.value)
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(filteredColumns))
       }
     }
   }

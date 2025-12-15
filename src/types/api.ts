@@ -61,6 +61,7 @@ export interface Order {
   deadline?: string
   price?: number
   payment_amount?: number
+  payment_type?: 'cash' | 'card' | null
   stage?: string | { id: number; name: string; display_name?: string }
   work_type?: string
   stages?: number[]
@@ -304,6 +305,7 @@ export interface OrderForm {
   deadline?: string
   price?: number
   payment_amount?: number
+  payment_type?: 'cash' | 'card' | null
   stage?: string
   work_type?: string
   stages?: number[]

@@ -88,6 +88,7 @@ export interface OrderInfo {
   quantity: number
   price?: number
   payment_amount?: number
+  payment_type?: 'cash' | 'card' | null
   deadline?: string
   stage: string | { name: string }
   product?: { name: string }
