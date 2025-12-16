@@ -457,24 +457,66 @@ export function useOrderDetails(orderId: number | null | undefined) {
       // Логируем ошибку для диагностики
       console.error('Error adding comment:', error)
       
-      // Определяем сообщение об ошибке
-      let errorMessage = 'Ошибка добавления комментария'
+      // Определяем точное сообщение об ошибке для toast уведомления
+      let errorMessage: string
+      
       if (error instanceof Error) {
-        // Если есть детали ошибки от сервера, используем их
+        const errorLower = error.message.toLowerCase()
+        const status = (error as any).status
         const errorData = (error as any).data
-        if (errorData?.error) {
-          errorMessage = errorData.error
+        
+        // Проверяем на ошибки соединения (ERR_CONNECTION, ERR_INTERNET_DISCONNECTED и другие)
+        // TypeError: Failed to fetch - это стандартная ошибка при ERR_INTERNET_DISCONNECTED
+        const isNetworkError = (error as any).isNetworkError || 
+          (error.name === 'TypeError' && (
+            errorLower.includes('failed to fetch') ||
+            errorLower.includes('fetch')
+          )) ||
+          errorLower.includes('failed to fetch') ||
+          errorLower.includes('networkerror') ||
+          errorLower.includes('network error') ||
+          errorLower.includes('err_connection') ||
+          errorLower.includes('err_internet_disconnected') ||
+          errorLower.includes('ошибка сети') ||
+          errorLower.includes('проверьте подключение')
+        
+        // Проверяем на таймаут
+        const isTimeout = errorLower.includes('превышено время ожидания') ||
+          errorLower.includes('timeout') ||
+          errorLower.includes('abort')
+        
+        if (isNetworkError) {
+          errorMessage = 'Ошибка соединения. Проверьте подключение к интернету и попробуйте снова.'
+        } else if (isTimeout) {
+          errorMessage = 'Превышено время ожидания. Проверьте подключение и попробуйте снова.'
         } else if (errorData?.message) {
+          // Если есть конкретное сообщение от сервера, используем его
           errorMessage = errorData.message
-        } else if ((error as any).status === 422) {
-          errorMessage = 'Ошибка валидации данных'
-        } else if ((error as any).status === 403) {
-          errorMessage = 'Доступ запрещён'
-        } else if ((error as any).status === 401) {
+        } else if (errorData?.error) {
+          errorMessage = errorData.error
+        } else if (status === 422) {
+          errorMessage = 'Ошибка валидации данных. Проверьте правильность введённых данных.'
+        } else if (status === 403) {
+          errorMessage = 'Доступ запрещён. У вас нет прав на добавление комментариев.'
+        } else if (status === 401) {
           errorMessage = 'Сессия истекла. Необходимо войти заново.'
+        } else if (status === 404) {
+          errorMessage = 'Заказ не найден. Обновите страницу и попробуйте снова.'
+        } else if (status === 500) {
+          errorMessage = 'Ошибка сервера. Попробуйте позже.'
+        } else if (error.message && error.message.trim()) {
+          // Используем сообщение ошибки, если оно есть
+          errorMessage = error.message
+        } else {
+          // Только в крайне редком случае, если ошибка не содержит никакой информации
+          errorMessage = 'Не удалось добавить комментарий. Попробуйте снова.'
         }
+      } else {
+        // Если ошибка не является Error объектом (крайне редкий случай)
+        errorMessage = 'Не удалось добавить комментарий. Попробуйте снова.'
       }
       
+      // Показываем точное toast уведомление об ошибке
       toast.show(errorMessage, 'error')
     }
   }

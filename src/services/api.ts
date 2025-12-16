@@ -309,6 +309,33 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw error
       }
       
+      // Определяем сетевые ошибки соединения
+      // ERR_INTERNET_DISCONNECTED, ERR_CONNECTION_REFUSED и другие сетевые ошибки
+      // в JavaScript приходят как TypeError: Failed to fetch
+      const errorMessage = error.message.toLowerCase()
+      const isNetworkError = 
+        error.name === 'TypeError' && (
+          errorMessage.includes('failed to fetch') ||
+          errorMessage.includes('fetch')
+        ) ||
+        errorMessage.includes('failed to fetch') ||
+        errorMessage.includes('networkerror') ||
+        errorMessage.includes('network error') ||
+        errorMessage.includes('err_connection_refused') ||
+        errorMessage.includes('err_connection_reset') ||
+        errorMessage.includes('err_internet_disconnected') ||
+        errorMessage.includes('err_connection_timed_out') ||
+        errorMessage.includes('err_connection_closed') ||
+        errorMessage.includes('err_name_not_resolved') ||
+        errorMessage.includes('load failed')
+      
+      if (isNetworkError) {
+        const networkError = new Error(ERROR_MESSAGES.NETWORK_ERROR) as Error & { isNetworkError?: boolean; originalError?: Error }
+        networkError.isNetworkError = true
+        networkError.originalError = error
+        throw networkError
+      }
+      
       throw error
     }
     throw new Error(ERROR_MESSAGES.NETWORK_ERROR)
