@@ -293,6 +293,17 @@
                     :placeholder="t('order.form.enterPaymentAmount')"
                   />
                 </div>
+                <div v-if="canViewPrices()">
+                  <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.paymentType') }}</label>
+                  <select
+                    v-model="order.payment_type"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-gray-900 bg-white text-sm"
+                  >
+                    <option :value="null">{{ t('order.form.selectPaymentType') }}</option>
+                    <option value="cash">{{ t('order.form.cash') }}</option>
+                    <option value="card">{{ t('order.form.card') }}</option>
+                  </select>
+                </div>
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">{{ t('order.form.deadline') }}</label>
                   <UIInput v-model="order.deadline" type="datetime-local" :placeholder="t('order.form.deadline')" />
@@ -573,6 +584,17 @@
               min="0"
               :placeholder="t('order.form.enterPaymentAmount')"
             />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('order.form.paymentType') }}</label>
+            <select
+              v-model="form.payment_type"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-gray-900 bg-white"
+            >
+              <option :value="null">{{ t('order.form.selectPaymentType') }}</option>
+              <option value="cash">{{ t('order.form.cash') }}</option>
+              <option value="card">{{ t('order.form.card') }}</option>
+            </select>
           </div>
         </div>
 
@@ -857,6 +879,7 @@ const bulkOrders = ref<
     quantity: number
     price: number | null
     payment_amount: number | null
+    payment_type: 'cash' | 'card' | null
     deadline: string | null
     selected_stages: number[]
     assignments: Record<number, Record<string, ProductAssignment[]>>
@@ -870,6 +893,7 @@ const form = reactive<OrderForm>({
   quantity: 1,
   price: undefined,
   payment_amount: undefined,
+  payment_type: null,
   deadline: getTodayDateTime(),
 })
 
@@ -1610,6 +1634,7 @@ onMounted(async () => {
         quantity: props.order.quantity || 1,
         price: props.order.price || null,
         payment_amount: props.order.payment_amount || null,
+        payment_type: props.order.payment_type || null,
         deadline: props.order.deadline
           ? formatDateForInput(props.order.deadline)
           : getTodayDateTime(),
@@ -1780,6 +1805,7 @@ async function handleSubmit() {
       deadline: form.deadline || null,
       price: form.price || null,
       payment_amount: form.payment_amount || null,
+      payment_type: form.payment_type || null,
     }
 
     // Для массового заказа создаем несколько заказов
@@ -1843,6 +1869,7 @@ async function handleSubmit() {
             quantity: order.quantity,
             price: order.price || null,
             payment_amount: order.payment_amount || null,
+            payment_type: order.payment_type || null,
             deadline: order.deadline || null,
             is_bulk: true, // Флаг для массового заказа
             stages: order.selected_stages,
@@ -2026,6 +2053,7 @@ function addBulkOrder() {
     quantity: 1,
     price: null,
     payment_amount: null,
+    payment_type: null,
     deadline: getTodayDateTime(),
     selected_stages: [],
     assignments: {},

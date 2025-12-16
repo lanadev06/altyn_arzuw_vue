@@ -43,6 +43,93 @@
         <span v-else-if="order" class="text-gray-900">{{ order.payment_amount ?? 0 }}</span>
         <span class="ml-1">TMT</span>
       </div>
+      <div v-if="canViewPrices()" class="flex items-center gap-2 text-base text-gray-800 group">
+        <span class="font-semibold w-28">{{ t('order.details.paymentType') }}</span>
+        <div class="flex-1">
+          <div v-if="!showPaymentTypeInput" class="flex items-center">
+            <span>
+              {{
+                order?.payment_type === 'cash'
+                  ? t('order.form.cash')
+                  : order?.payment_type === 'card'
+                    ? t('order.form.card')
+                    : '-'
+              }}
+            </span>
+            <button
+              v-if="canViewAllOrders()"
+              @click="startPaymentTypeEdit"
+              class="ml-2 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+              :title="t('order.details.editPaymentType')"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.263-1.263l1-4a4 4 0 01.828-1.414z"
+                />
+              </svg>
+            </button>
+          </div>
+          <div v-if="showPaymentTypeInput" class="flex items-center gap-2 mt-1">
+            <select
+              v-model="tempPaymentType"
+              class="w-48 text-gray-900 text-base p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white"
+            >
+              <option :value="null">{{ t('order.form.selectPaymentType') }}</option>
+              <option value="cash">{{ t('order.form.cash') }}</option>
+              <option value="card">{{ t('order.form.card') }}</option>
+            </select>
+            <button
+              @click="confirmPaymentType"
+              class="p-1 rounded hover:bg-green-100 text-green-500"
+              :title="t('order.details.confirm')"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </button>
+            <button
+              @click="cancelPaymentType"
+              class="p-1 rounded hover:bg-red-100 text-red-500"
+              :title="t('order.details.cancel')"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
       <div class="flex items-center gap-2 text-base text-gray-800 group">
         <span class="font-semibold w-28">{{ t('order.details.deadline') }}</span>
         <div class="flex-1">
@@ -175,6 +262,8 @@ const emit = defineEmits<{
 
 const showDeadlineInput = ref(false)
 const tempDeadline = ref('')
+const showPaymentTypeInput = ref(false)
+const tempPaymentType = ref<'cash' | 'card' | null>(null)
 
 function startDeadlineEdit() {
   if (!props.order) return
@@ -237,6 +326,29 @@ async function clearDeadline() {
 function cancelDeadline() {
   showDeadlineInput.value = false
   tempDeadline.value = ''
+}
+
+function startPaymentTypeEdit() {
+  if (!props.order) return
+  tempPaymentType.value = (props.order.payment_type as 'cash' | 'card' | null) || null
+  showPaymentTypeInput.value = true
+}
+
+async function confirmPaymentType() {
+  if (!props.order) return
+
+  try {
+    emit('update-field', 'payment_type', tempPaymentType.value)
+    showPaymentTypeInput.value = false
+    toast.show(t('order.details.paymentTypeUpdated'), 'success')
+  } catch (error) {
+    toast.show(t('order.details.paymentTypeUpdateError'), 'error')
+  }
+}
+
+function cancelPaymentType() {
+  showPaymentTypeInput.value = false
+  tempPaymentType.value = null
 }
 
 function formatDateTime(dateStr?: string) {

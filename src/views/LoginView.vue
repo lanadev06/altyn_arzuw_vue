@@ -29,13 +29,15 @@ const handleLogin = async (formData) => {
   loading.value = true
 
   try {
+    // Отправляем только username и password на сервер
+    const { rememberMe, ...loginData } = formData
     const response = await fetch(`${API_CONFIG.BASE_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(formData),
+      body: JSON.stringify(loginData),
     })
 
     if (!response.ok) {
@@ -46,8 +48,17 @@ const handleLogin = async (formData) => {
     const data = await response.json()
 
     if (data.token) {
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      // Используем localStorage для "Запомнить меня", sessionStorage для временной сессии
+      const storage = formData.rememberMe ? localStorage : sessionStorage
+      storage.setItem('auth_token', data.token)
+      storage.setItem('user', JSON.stringify(data.user))
+      
+      // Если "Запомнить меня" не выбрано, удаляем из localStorage (если там были старые данные)
+      if (!formData.rememberMe) {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user')
+      }
+      
       router.push('/orders')
     } else {
       throw new Error('Токен не получен')
